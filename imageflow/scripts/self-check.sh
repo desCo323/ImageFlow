@@ -21,5 +21,7 @@ php -r 'new SimpleXMLElement(file_get_contents("appinfo/info.xml"));'
 php -r '$routes = require "appinfo/routes.php"; if (!isset($routes["routes"]) || count($routes["routes"]) < 1) { exit(1); }'
 
 node --check js/imageflow-main.js
+bash -n scripts/self-check.sh
+bash -n scripts/production-update.sh
 
 echo "OK"

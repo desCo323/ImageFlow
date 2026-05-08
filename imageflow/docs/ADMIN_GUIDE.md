@@ -4,6 +4,8 @@
 
 ImageFlow is in bootstrap development. Do not deploy it to a productive Nextcloud instance without a controlled backup and rollback window.
 
+Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controlled preflight, backup, deploy and file-level rollback.
+
 ## Live Test Rules
 
 - Use only the dedicated test user `albentest`.
