@@ -1,0 +1,5 @@
+Stelle <APP_NAME> aus '<BACKUP_DIR>/app-before-test' nach '/var/www/nextcloud/apps/<APP_ID>' wieder her.
+Setze danach den Eigentümer auf 'www-data:www-data'.
+Pruefe mit 'sudo -u www-data php /var/www/nextcloud/occ status', dass 'maintenance: false' und 'needsDbUpgrade: false' sind.
+Falls DB-Testdaten zurueckgesetzt werden muessen, importiere '<BACKUP_DIR>/db-before-test.sql.gz' in die Nextcloud-Datenbank.
+Pruefe danach die installierte App-Version, App-Logs und '/var/www/nextcloud/data/nextcloud.log'.

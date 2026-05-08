@@ -1,0 +1,21 @@
+# Live Test Checklist
+
+- [ ] Testbenutzer festgelegt.
+- [ ] Backup-Verzeichnis erstellt.
+- [ ] App-Verzeichnis gesichert.
+- [ ] Datenbanktabellen gesichert.
+- [ ] Restore-Prompt erstellt.
+- [ ] Pruefsummen erstellt und geprueft.
+- [ ] Deploy ausgefuehrt.
+- [ ] `occ status` nach Deploy gesund.
+- [ ] App-Version korrekt.
+- [ ] Debug-Logging fuer Test aktiv.
+- [ ] Auth-Browser-Test bestanden.
+- [ ] Live-Smoke bestanden.
+- [ ] Security-Smoke bestanden.
+- [ ] Regression bestanden.
+- [ ] Testdaten entfernt.
+- [ ] Testbenutzer sauber.
+- [ ] App-Logs geprueft.
+- [ ] Nextcloud-Log geprueft.
+- [ ] Session-State aktualisiert.

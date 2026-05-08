@@ -1,0 +1,48 @@
+# Secrets and local credentials
+.env
+.env.*
+*.secret
+*.token
+*token*
+*password*
+*credentials*
+
+# Runtime logs and local diagnostics
+*.log
+logs/
+debug/
+tmp/
+temp/
+
+# Dependency folders
+node_modules/
+vendor/
+
+# Build and coverage outputs
+dist/
+build/
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Tool caches
+.phpunit.result.cache
+.eslintcache
+.stylelintcache
+.vite/
+.cache/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Backups and production snapshots
+*-backup/
+*-backups/
+backup/
+backups/
+*.bak
+*.orig
