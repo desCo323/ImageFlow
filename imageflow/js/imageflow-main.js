@@ -771,7 +771,7 @@
           </header>
           <div class="imageflow-folder-actions">
             <button class="imageflow-button" data-action="folder-picker-parent" type="button" ${data.parent ? "" : "disabled"}>Hoeher</button>
-            <button class="imageflow-button primary" data-action="choose-folder" data-folder-path="${escapeAttr(currentPath)}" type="button">Diesen Ordner waehlen</button>
+            <button class="imageflow-button primary" data-action="choose-folder" data-folder-path="${escapeAttr(currentPath)}" type="button" ${picker.loading ? "disabled" : ""}>Diesen Ordner waehlen</button>
           </div>
           ${picker.error ? `<div class="imageflow-empty">${escapeHtml(picker.error)}</div>` : ""}
           <div class="imageflow-folder-list">
