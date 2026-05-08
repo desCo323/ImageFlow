@@ -63,6 +63,11 @@ class JobController extends Controller {
 
 	#[NoAdminRequired]
 	public function delete(int $jobId): JSONResponse {
+		return $this->discard($jobId);
+	}
+
+	#[NoAdminRequired]
+	public function discard(int $jobId): JSONResponse {
 		try {
 			return new JSONResponse([
 				'deleted' => true,

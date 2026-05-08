@@ -81,8 +81,8 @@
       state.jobs = [job, ...state.jobs];
       return { job };
     }
-    if (/\/api\/v1\/jobs\/\d+$/.test(path) && options.method === "DELETE") {
-      const jobId = Number.parseInt(path.split("/").pop(), 10);
+    if (/\/api\/v1\/jobs\/\d+\/discard$/.test(path) && options.method === "POST") {
+      const jobId = Number.parseInt(path.split("/").at(-2), 10);
       state.jobs = state.jobs.filter((job) => job.id !== jobId);
       return { deleted: true, jobId };
     }
@@ -533,7 +533,7 @@
     }
 
     try {
-      await request(`/api/v1/jobs/${jobId}`, { method: "DELETE", body: {} });
+      await request(`/api/v1/jobs/${jobId}/discard`, { method: "POST", body: {} });
       state.jobs = state.jobs.filter((item) => item.id !== jobId);
       state.toast = { type: "info", message: "Sortierjob wurde verworfen." };
       render();

@@ -26,6 +26,7 @@ test('creates and discards a job as the dedicated test user', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Sortierjob anlegen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Job anlegen' })).toBeVisible();
+  await discardSmokeJobs(page);
 
   const jobName = `ImageFlow Smoke ${Date.now()}`;
   await page.getByLabel('Name').fill(jobName);
@@ -40,3 +41,20 @@ test('creates and discards a job as the dedicated test user', async ({ page }) =
   await row.getByRole('button', { name: 'Verwerfen' }).click();
   await expect(page.getByText(jobName)).toHaveCount(0);
 });
+
+async function discardSmokeJobs(page) {
+  for (let index = 0; index < 10; index += 1) {
+    const row = page.locator('tr', { hasText: 'ImageFlow Smoke' }).first();
+    if ((await row.count()) === 0) {
+      return;
+    }
+
+    page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+    await row.getByRole('button', { name: 'Verwerfen' }).click();
+    await expect(row).toHaveCount(0);
+  }
+
+  throw new Error('Could not clean up existing ImageFlow Smoke jobs.');
+}
