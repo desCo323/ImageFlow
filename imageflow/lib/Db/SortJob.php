@@ -54,8 +54,8 @@ use OCP\DB\Types;
 class SortJob extends Entity {
 	protected string $userId = '';
 	protected string $name = '';
-	protected string $sourcePath = '/';
-	protected string $targetMode = 'album';
+	protected string $sourcePath = '';
+	protected string $targetMode = '';
 	protected ?string $targetPath = null;
 	protected ?string $albumName = null;
 	protected string $status = 'draft';

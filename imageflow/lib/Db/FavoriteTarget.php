@@ -29,7 +29,7 @@ use OCP\DB\Types;
  */
 class FavoriteTarget extends Entity {
 	protected string $userId = '';
-	protected string $targetMode = 'album';
+	protected string $targetMode = '';
 	protected ?string $targetId = null;
 	protected string $targetLabel = '';
 	protected ?string $targetPath = null;
