@@ -40,6 +40,23 @@ class TargetController extends Controller {
 		}
 	}
 
+	#[NoAdminRequired]
+	public function create(): JSONResponse {
+		try {
+			return new JSONResponse($this->targetService->createTarget($this->userId, $this->request->getParams()), Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return new JSONResponse([
+				'error' => 'invalid_target_request',
+				'message' => $e->getMessage(),
+			], Http::STATUS_BAD_REQUEST);
+		} catch (\Throwable) {
+			return new JSONResponse([
+				'error' => 'target_create_failed',
+				'message' => 'Das Ziel konnte nicht angelegt werden.',
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
 	private function stringParam(string $key, string $default): string {
 		$value = $this->request->getParam($key, $default);
 		return is_scalar($value) ? (string)$value : $default;

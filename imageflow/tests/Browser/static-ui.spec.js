@@ -88,6 +88,24 @@ test('saves and opens a letter-hotkey round from the dashboard', async ({ page }
   await expect(page.locator('.imageflow-key').first()).toHaveText('a');
 });
 
+test('uses freely configured hotkeys while sorting', async ({ page }) => {
+  await mount(page);
+
+  await page.getByLabel('Name').fill('Custom Hotkeys');
+  await page.getByLabel('Tastenbelegung').selectOption('custom');
+  await page.getByLabel('Taste für Schnellziel 1').fill('q');
+  await page.getByLabel('Taste für Schnellziel 2').fill('w');
+  await page.getByLabel('Taste für Schnellziel 3').fill('e');
+  await page.getByRole('button', { name: 'Speichern & sortieren' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Schnellziele' })).toBeVisible();
+  await expect(page.locator('.imageflow-hotkey', { hasText: 'q w e' })).toBeVisible();
+  await expect(page.locator('.imageflow-key').first()).toHaveText('q');
+
+  await page.keyboard.press('q');
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
+});
+
 test('selects source and target folders with the folder picker', async ({ page }) => {
   await mount(page);
 
@@ -120,6 +138,20 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await dialog.getByLabel('Automatisch ablegen, wenn der Server ruhig ist').check();
   await dialog.getByRole('button', { name: 'Für später merken' }).click();
   await expect(page.getByText('Ablage wurde für später gemerkt')).toBeVisible();
+});
+
+test('removes a planned item from the worklist preview', async ({ page }) => {
+  await mount(page);
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(3);
+
+  await dialog.getByRole('button', { name: /Ablage entfernen: .*IMG_4021/ }).click();
+  await expect(page.getByText('Ablagepunkt wurde entfernt.')).toBeVisible();
+  await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(2);
 });
 
 test('renders the sorting workspace with hotkey targets and filmstrip', async ({ page }) => {
@@ -201,6 +233,21 @@ test('shows flow feedback after a sorting decision', async ({ page }) => {
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
 });
 
+test('creates a target from the sorting rail and can undo the last decision', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1"');
+
+  await page.getByPlaceholder('Neues Album').fill('Tierpark');
+  await page.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(page.getByText('Album wurde angelegt.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Tierpark' })).toBeVisible();
+
+  await page.locator('.imageflow-favorite', { hasText: 'Familie' }).click();
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
+  await page.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(page.getByText('Letzte Entscheidung wurde zurückgenommen.')).toBeVisible();
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4021.jpg');
+});
+
 test('adds and removes favorites from the target rail', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1"');
 
@@ -215,7 +262,7 @@ test('adds and removes favorites from the target rail', async ({ page }) => {
 test('browses folder targets in copy mode', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="2"');
 
-  await expect(page.getByText('/Photos/Sortiert')).toBeVisible();
+  await expect(page.getByText('/Photos/Sortiert', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Eine Ebene hoch' }).click();
   await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Inbox' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Sortiert' })).toBeVisible();

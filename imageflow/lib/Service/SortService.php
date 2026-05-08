@@ -13,6 +13,8 @@ use OCA\ImageFlow\Db\SortJobMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 
 class SortService {
+	private const REMOVABLE_QUEUE_STATUSES = ['planned', 'queued'];
+
 	public function __construct(
 		private readonly SortJobMapper $jobMapper,
 		private readonly SortAssignmentMapper $assignmentMapper,
@@ -62,7 +64,7 @@ class SortService {
 
 		return [
 			'job' => $this->jobService->serializeJob($job),
-			'favorites' => $this->favorites($userId, $job->getTargetMode(), (string)($options['hotkeys'] ?? 'number-row')),
+			'favorites' => $this->favorites($userId, $job->getTargetMode(), (string)($options['hotkeys'] ?? 'number-row'), is_array($options['customHotkeys'] ?? null) ? $options['customHotkeys'] : []),
 			'recentAssignments' => array_map([$this, 'serializeAssignment'], $this->assignmentMapper->findForJob($userId, $jobId, 20)),
 			'queue' => array_map([$this, 'serializeQueueItem'], $this->queueMapper->findForJob($userId, $jobId, 20)),
 			'nextImages' => $imagePage['images'],
@@ -240,15 +242,64 @@ class SortService {
 	}
 
 	/**
+	 * @return array<string, mixed>
+	 * @throws DoesNotExistException
+	 */
+	public function undoLast(string $userId, int $jobId): array {
+		$this->jobMapper->findForUserById($userId, $jobId);
+		$assignment = $this->assignmentMapper->findLastForJob($userId, $jobId);
+		return $this->removeAssignment($userId, $jobId, $assignment, 'Letzte Entscheidung wurde zurückgenommen.');
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 * @throws DoesNotExistException
+	 */
+	public function removeQueueItem(string $userId, int $jobId, int $queueItemId): array {
+		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		$item = $this->queueMapper->findForUserById($userId, $queueItemId);
+		if ($item->getJobId() !== $jobId) {
+			throw new DoesNotExistException('Queue item not found');
+		}
+		if (!in_array($item->getStatus(), self::REMOVABLE_QUEUE_STATUSES, true)) {
+			throw new \InvalidArgumentException('Diese Ablage kann nicht mehr entfernt werden, weil sie schon verarbeitet wird oder verarbeitet wurde.');
+		}
+
+		$assignment = $item->getAssignmentId() !== null
+			? $this->assignmentMapper->findForUserById($userId, $item->getAssignmentId())
+			: null;
+		$this->queueMapper->delete($item);
+		if ($assignment !== null) {
+			$this->assignmentMapper->delete($assignment);
+		}
+		$job = $this->refreshJobAfterRemoval($job, $assignment?->getTargetType() ?? $item->getOperationType());
+		$this->logService->info('queue_item_removed', $userId, [
+			'jobId' => $jobId,
+			'queueItemId' => $queueItemId,
+			'assignmentId' => $assignment?->getId(),
+			'sourcePath' => $item->getSourcePath(),
+		], $jobId, 'Ablagepunkt wurde entfernt.');
+
+		return [
+			'removed' => [
+				'queueItemId' => $queueItemId,
+				'assignmentId' => $assignment?->getId(),
+				'sourcePath' => $item->getSourcePath(),
+			],
+			'job' => $this->jobService->serializeJob($job),
+		];
+	}
+
+	/**
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function favorites(string $userId, string $mode, string $hotkeyMode = 'number-row'): array {
+	private function favorites(string $userId, string $mode, string $hotkeyMode = 'number-row', array $customHotkeys = []): array {
 		$favorites = array_map(fn ($favorite): array => [
 			'id' => $favorite->getId(),
 			'label' => $favorite->getTargetLabel(),
 			'path' => $favorite->getTargetPath(),
 			'targetId' => $favorite->getTargetId(),
-			'hotkey' => $this->displayHotkey($favorite->getSortPosition(), $hotkeyMode),
+			'hotkey' => $this->displayHotkey($favorite->getSortPosition(), $hotkeyMode, $customHotkeys),
 			'position' => $favorite->getSortPosition(),
 			'targetMode' => $favorite->getTargetMode(),
 			'locked' => false,
@@ -268,7 +319,70 @@ class SortService {
 		return $favorites;
 	}
 
-	private function displayHotkey(int $position, string $hotkeyMode): string {
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function removeAssignment(string $userId, int $jobId, SortAssignment $assignment, string $message): array {
+		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		if ($assignment->getJobId() !== $jobId) {
+			throw new DoesNotExistException('Assignment not found');
+		}
+		$queueItem = $this->queueMapper->findForAssignment($userId, $jobId, $assignment->getId());
+		if ($queueItem !== null && !in_array($queueItem->getStatus(), self::REMOVABLE_QUEUE_STATUSES, true)) {
+			throw new \InvalidArgumentException('Diese Entscheidung kann nicht mehr zurückgenommen werden, weil die Ablage schon verarbeitet wird oder verarbeitet wurde.');
+		}
+
+		if ($queueItem !== null) {
+			$this->queueMapper->delete($queueItem);
+		}
+		$this->assignmentMapper->delete($assignment);
+		$job = $this->refreshJobAfterRemoval($job, $assignment->getTargetType());
+
+		$this->logService->info('assignment_undone', $userId, [
+			'jobId' => $jobId,
+			'assignmentId' => $assignment->getId(),
+			'queueItemId' => $queueItem?->getId(),
+			'sourcePath' => $assignment->getSourcePath(),
+			'targetLabel' => $assignment->getTargetLabel(),
+		], $jobId, $message);
+
+		return [
+			'assignment' => $this->serializeAssignment($assignment),
+			'queueItem' => $queueItem !== null ? $this->serializeQueueItem($queueItem) : null,
+			'job' => $this->jobService->serializeJob($job),
+			'message' => $message,
+		];
+	}
+
+	private function refreshJobAfterRemoval(\OCA\ImageFlow\Db\SortJob $job, string $targetType): \OCA\ImageFlow\Db\SortJob {
+		if ($targetType === 'skip') {
+			$job->setSkippedFiles(max(0, $job->getSkippedFiles() - 1));
+		} else {
+			$job->setSortedFiles(max(0, $job->getSortedFiles() - 1));
+		}
+		$queuedOperations = $this->queueMapper->countForJobByStatuses($job->getId(), self::REMOVABLE_QUEUE_STATUSES);
+		$job->setQueuedOperations($queuedOperations);
+		if (in_array($job->getStatus(), ['draft', 'sorting', 'paused', 'ready', 'queued'], true)) {
+			$hasDecisions = $job->getSortedFiles() > 0 || $job->getSkippedFiles() > 0 || $job->getQueuedOperations() > 0;
+			if ($job->getStatus() === 'queued' && $queuedOperations > 0) {
+				$job->setStatus('queued');
+			} elseif ($job->getStatus() === 'paused' && $hasDecisions) {
+				$job->setStatus('paused');
+			} else {
+				$job->setStatus($hasDecisions ? 'sorting' : 'draft');
+			}
+		}
+		$job->setUpdatedAt(time());
+		return $this->jobMapper->update($job);
+	}
+
+	private function displayHotkey(int $position, string $hotkeyMode, array $customHotkeys = []): string {
+		if ($hotkeyMode === 'custom') {
+			$key = $customHotkeys[$position - 1] ?? '';
+			if (is_scalar($key) && trim((string)$key) !== '') {
+				return mb_substr(mb_strtolower(trim((string)$key)), 0, 1);
+			}
+		}
 		if ($hotkeyMode === 'letters') {
 			return chr(ord('a') + max(0, min(8, $position - 1)));
 		}

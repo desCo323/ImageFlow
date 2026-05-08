@@ -65,3 +65,12 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 20. Sorting workspace with letter hotkeys
    ![Sorting workspace with letter hotkeys](screenshots/20-letter-hotkeys-sorting.png)
+
+21. Round setup with freely configured quick-target hotkeys
+   ![Round setup with custom hotkeys](screenshots/21-custom-hotkeys-setup.png)
+
+22. Sorting workspace with direct target creation and undo control
+   ![Sorting workspace with target creation and undo](screenshots/22-target-create-and-undo.png)
+
+23. Worklist preview after removing one planned item
+   ![Worklist preview after removing a planned item](screenshots/23-worklist-remove-item.png)

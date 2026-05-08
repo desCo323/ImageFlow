@@ -37,6 +37,7 @@
     sessionStartedAt: Date.now(),
     loading: false,
     startMode: null,
+    acceptDecreasedCounters: false,
     logs: {
       loading: false,
       items: [],
@@ -45,7 +46,10 @@
       error: null,
     },
     mockFavorites: null,
+    mockTargets: null,
+    mockFolders: null,
     dragFavoriteId: null,
+    targetCreateName: "",
     jobDraft: {
       editingJobId: null,
       name: "",
@@ -57,6 +61,7 @@
       preloadMode: "balanced",
       targetOrdering: "relevance",
       hotkeys: "number-row",
+      customHotkeys: ["", "", "", "", "", "", "", "", ""],
     },
     folderPicker: {
       open: false,
@@ -81,6 +86,55 @@
   function numberOrNull(value) {
     const parsed = Number.parseInt(value || "", 10);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function normalizeCustomHotkeys(value) {
+    const items = Array.isArray(value) ? value : [];
+    const seen = new Set();
+    return Array.from({ length: 9 }, (_, index) => {
+      const raw = items[index] === undefined || items[index] === null ? "" : String(items[index]).trim().toLowerCase();
+      const key = Array.from(raw)[0] || "";
+      if (!key || key === "0" || key === " " || seen.has(key)) {
+        return "";
+      }
+      seen.add(key);
+      return key;
+    });
+  }
+
+  function hotkeyForPosition(position, options = {}) {
+    const normalizedPosition = Math.max(1, Math.min(9, Number(position) || 1));
+    const index = normalizedPosition - 1;
+    if (options.hotkeys === "custom") {
+      return normalizeCustomHotkeys(options.customHotkeys || [])[index] || "";
+    }
+    if (options.hotkeys === "letters") {
+      return String.fromCharCode("a".charCodeAt(0) + index);
+    }
+    return String(normalizedPosition);
+  }
+
+  function hotkeySummaryLabel(options = {}) {
+    if (options.hotkeys === "custom") {
+      const keys = normalizeCustomHotkeys(options.customHotkeys || []).filter(Boolean);
+      return keys.length ? keys.join(" ") : "Eigene";
+    }
+    return options.hotkeys === "letters" ? "A-I" : "1-9";
+  }
+
+  function applyConfiguredHotkeys(favorites, options = state.sortState?.job?.options || {}) {
+    return favorites.map((favorite, index) => {
+      const isSkip = favorite.locked || favorite.targetType === "skip" || favorite.id === "skip";
+      if (isSkip) {
+        return { ...favorite, hotkey: "0" };
+      }
+      const position = Number(favorite.position || index + 1);
+      return {
+        ...favorite,
+        position,
+        hotkey: hotkeyForPosition(position, options),
+      };
+    });
   }
 
   function normalizeDisplayPath(path) {
@@ -157,6 +211,7 @@
           preloadMode: options.body.preloadMode || "balanced",
           targetOrdering: options.body.targetOrdering || "relevance",
           hotkeys: options.body.hotkeys || "number-row",
+          customHotkeys: normalizeCustomHotkeys(options.body.customHotkeys || []),
         },
         updatedAt: Math.floor(Date.now() / 1000),
       };
@@ -179,6 +234,7 @@
           preloadMode: options.body.preloadMode || current.options?.preloadMode || "balanced",
           targetOrdering: options.body.targetOrdering || current.options?.targetOrdering || "relevance",
           hotkeys: options.body.hotkeys || current.options?.hotkeys || "number-row",
+          customHotkeys: normalizeCustomHotkeys(options.body.customHotkeys || current.options?.customHotkeys || []),
         },
         updatedAt: Math.floor(Date.now() / 1000),
       };
@@ -271,6 +327,17 @@
     if (path.includes("/skip")) {
       return { assignment: { id: Date.now(), sourcePath: options.body.sourcePath, targetLabel: "Übersprungen" } };
     }
+    if (/\/api\/v1\/jobs\/\d+\/undo$/.test(path) && options.method === "POST") {
+      const jobId = Number.parseInt(path.split("/").at(-2), 10);
+      const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
+      return { message: "Letzte Entscheidung wurde zurückgenommen.", job };
+    }
+    if (/\/api\/v1\/jobs\/\d+\/queue\/\d+$/.test(path) && options.method === "DELETE") {
+      const jobId = Number.parseInt(path.split("/").at(-3), 10);
+      const queueItemId = Number.parseInt(path.split("/").at(-1), 10);
+      const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
+      return { removed: { queueItemId }, job };
+    }
     if (path === "/api/v1/favorites" && options.method === "POST") {
       const favorites = mockRealFavorites();
       const duplicate = favorites.find((favorite) => favorite.targetId === options.body.targetId || (favorite.path && favorite.path === options.body.targetPath));
@@ -323,6 +390,22 @@
       const query = new URLSearchParams(path.split("?")[1] || "");
       return mockFolderPage(query.get("path") || "/");
     }
+    if (path === "/api/v1/targets" && options.method === "POST") {
+      const mode = options.body.mode || "album";
+      const name = String(options.body.name || "Neues Ziel").trim() || "Neues Ziel";
+      if (mode === "album") {
+        const target = { id: `album-${Date.now()}`, label: name, location: "ImageFlow" };
+        state.mockTargets = [target, ...mockTargets()];
+        return { mode, target, targets: state.mockTargets, duplicate: false };
+      }
+      const parent = normalizeDisplayPath(options.body.path || "/");
+      const folder = { name, path: normalizeDisplayPath(`${parent}/${name}`), hasChildren: false };
+      const folders = state.mockFolders || {};
+      folders[parent] = [...(folders[parent] || mockFolderPage(parent).folders || []), folder];
+      folders[folder.path] = [];
+      state.mockFolders = folders;
+      return { mode, target: { id: folder.path, label: folder.name, path: folder.path, hasChildren: false }, folders: mockFolderPage(parent), duplicate: false };
+    }
     if (path.includes("/targets")) {
       const query = new URLSearchParams(path.split("?")[1] || "");
       const mode = query.get("mode") || "album";
@@ -359,6 +442,7 @@
           preloadMode: "turbo",
           targetOrdering: "relevance",
           hotkeys: "number-row",
+          customHotkeys: [],
         },
         updatedAt: Math.floor(Date.now() / 1000) - 240,
       },
@@ -382,6 +466,7 @@
           preloadMode: "balanced",
           targetOrdering: "alphabetical",
           hotkeys: "number-row",
+          customHotkeys: [],
         },
         updatedAt: Math.floor(Date.now() / 1000) - 900,
       },
@@ -533,15 +618,18 @@
   }
 
   function mockFavoritesForJob(job) {
-    const hotkeys = job.options?.hotkeys === "letters" ? ["a", "b", "c", "d", "e", "f", "g", "h", "i"] : null;
     const favorites = mockRealFavorites().map((favorite, index) => ({
       ...favorite,
-      hotkey: hotkeys ? hotkeys[index] || favorite.hotkey : favorite.hotkey,
+      position: index + 1,
+      hotkey: hotkeyForPosition(index + 1, job.options || {}),
     }));
     return mockFavoritesWithSkip(favorites);
   }
 
   function mockTargets() {
+    if (state.mockTargets) {
+      return state.mockTargets;
+    }
     return [
       { id: "family", label: "Familie", location: "Privat" },
       { id: "travel", label: "Reisen", location: "Jahresalben" },
@@ -566,7 +654,7 @@
         { name: "Sortiert", path: "/Photos/Sortiert", hasChildren: false },
       ],
     };
-    const folders = tree[normalized] || [];
+    const folders = state.mockFolders?.[normalized] || tree[normalized] || [];
     return {
       current: {
         name: normalized === "/" ? "Dateien" : normalized.split("/").filter(Boolean).at(-1),
@@ -887,8 +975,10 @@
             <select id="ifl-hotkeys" name="hotkeys">
               <option value="number-row" ${draft.hotkeys === "number-row" ? "selected" : ""}>Zahlen 1-9 und 0</option>
               <option value="letters" ${draft.hotkeys === "letters" ? "selected" : ""}>Buchstaben A-I und 0</option>
+              <option value="custom" ${draft.hotkeys === "custom" ? "selected" : ""}>Eigene Tasten</option>
             </select>
           </div>
+          ${renderCustomHotkeyFields(draft)}
           <div class="imageflow-actions">
             <button class="imageflow-button primary" type="submit" data-save-intent="save">${isEditing ? "Änderungen speichern" : "Runde speichern"}</button>
             <button class="imageflow-button" type="submit" data-save-intent="open">Speichern & sortieren</button>
@@ -912,6 +1002,24 @@
           ${renderJobTable()}
         </section>
       </section>
+    `;
+  }
+
+  function renderCustomHotkeyFields(draft) {
+    const keys = normalizeCustomHotkeys(draft.customHotkeys || []);
+    return `
+      <div class="imageflow-field imageflow-custom-hotkeys" ${draft.hotkeys === "custom" ? "" : "hidden"}>
+        <label>Eigene Schnellziel-Tasten</label>
+        <div class="imageflow-hotkey-grid">
+          ${Array.from({ length: 9 }, (_, index) => `
+            <label>
+              <span>${index + 1}</span>
+              <input class="imageflow-hotkey-input" name="customHotkey${index}" data-hotkey-index="${index}" type="text" maxlength="1" value="${escapeAttr(keys[index] || "")}" aria-label="Taste für Schnellziel ${index + 1}">
+            </label>
+          `).join("")}
+        </div>
+        <small>Jede Taste darf nur einmal vorkommen. 0 und Leertaste bleiben für Überspringen reserviert.</small>
+      </div>
     `;
   }
 
@@ -1019,6 +1127,7 @@
     const progress = progressStats(job, page, images);
     const tempo = sessionTempo();
     const milestone = flowMilestone(progress.percent, state.decisionStreak);
+    const hasDecisions = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) > 0 || (sortState.recentAssignments || []).length > 0;
 
     return `
       <section class="imageflow-sort" aria-label="Sortieransicht">
@@ -1031,6 +1140,7 @@
             <span class="imageflow-badge safe">${job.safeMode ? "Extra sicher" : "Standard"}</span>
             <span class="imageflow-badge">${Number(job.sortedFiles || 0)} entschieden</span>
             <span class="imageflow-badge">${Number(job.queuedOperations || 0)} warten</span>
+            <button class="imageflow-button" data-action="undo-last-decision" type="button" ${hasDecisions ? "" : "disabled"}>Rückgängig</button>
             <button class="imageflow-button" data-action="start-sort" data-start-mode="resume" type="button">Weitermachen</button>
             <button class="imageflow-button" data-action="start-sort" data-start-mode="begin" type="button">Neu anfangen</button>
             <button class="imageflow-button" data-action="start-sort" data-start-mode="unsorted" type="button">Offene Bilder</button>
@@ -1084,9 +1194,10 @@
               </div>
             </div>
             <div class="imageflow-hotkeys">
-              <span class="imageflow-hotkey"><b>${job.options?.hotkeys === "letters" ? "A-I" : "1-9"}</b> Schnellziel</span>
+              <span class="imageflow-hotkey"><b>${escapeHtml(hotkeySummaryLabel(job.options || {}))}</b> Schnellziel</span>
               <span class="imageflow-hotkey"><b>0</b> Überspringen</span>
               <span class="imageflow-hotkey"><b>Leertaste</b> Überspringen</span>
+              <span class="imageflow-hotkey"><b>Strg+Z</b> Rückgängig</span>
               <span class="imageflow-hotkey"><b>←/→</b> Filmstreifen</span>
             </div>
           </section>
@@ -1098,6 +1209,7 @@
               </div>
               ${isFolderMode ? `<button class="imageflow-button" data-action="browse-target-parent" type="button" ${targetFolder?.parent ? "" : "disabled"}>Eine Ebene hoch</button>` : ""}
             </div>
+            ${renderTargetCreate(job, isFolderMode, targetFolder)}
             <div class="imageflow-target-list">
               ${(state.targets.length ? state.targets : (isFolderMode ? [] : mockTargets())).map((target, index) => renderTarget(target, current, index, isFolderMode)).join("") || '<div class="imageflow-empty">Keine Ziele in diesem Ordner.</div>'}
             </div>
@@ -1159,6 +1271,25 @@
         </button>
         ${browse}
         <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Zu Schnellzielen: ${escapeAttr(label)}" title="Zu Schnellzielen" type="button">+</button>
+      </div>
+    `;
+  }
+
+  function renderTargetCreate(job, isFolderMode, targetFolder) {
+    const parentPathValue = targetFolder?.current?.path || state.targetBrowsePath || job.targetPath || "/";
+    const title = job.targetMode === "album" ? "Album anlegen" : "Ordner anlegen";
+    const placeholder = job.targetMode === "album" ? "Neues Album" : "Neuer Ordner";
+    const note = job.targetMode === "album"
+      ? "Erscheint sofort in den Zielen und kann als Schnellziel gemerkt werden."
+      : `Wird in ${parentPathValue} angelegt.`;
+    return `
+      <div class="imageflow-target-create">
+        <label for="ifl-target-create">${escapeHtml(title)}</label>
+        <div>
+          <input id="ifl-target-create" data-target-create-name type="text" maxlength="255" value="${escapeAttr(state.targetCreateName || "")}" placeholder="${escapeAttr(placeholder)}">
+          <button class="imageflow-button primary" data-action="create-target" type="button">Anlegen</button>
+        </div>
+        <small>${escapeHtml(note)}</small>
       </div>
     `;
   }
@@ -1300,6 +1431,8 @@
 
   function renderWorklistItem(item) {
     const badgeClass = item.readiness === "error" ? "danger" : item.readiness === "warning" ? "ready" : "safe";
+    const canRemove = ["planned", "queued"].includes(item.status || "");
+    const jobId = state.worklist.jobId || state.worklist.preview?.job?.id || "";
     return `
       <div class="imageflow-worklist-row">
         <div>
@@ -1308,7 +1441,10 @@
           <small>${escapeHtml(item.targetPath || item.targetAlbumId || "")}</small>
           <small>${escapeHtml(queueStatusLabel(item.status))}${item.safeMode ? " | Prüfsummen" : ""}</small>
         </div>
-        <span class="imageflow-badge ${badgeClass}">${readinessLabel(item.readiness)}</span>
+        <div class="imageflow-worklist-item-actions">
+          <span class="imageflow-badge ${badgeClass}">${readinessLabel(item.readiness)}</span>
+          ${canRemove ? `<button class="imageflow-mini-button danger" data-action="remove-worklist-item" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" aria-label="Ablage entfernen: ${escapeAttr(item.sourcePath || "")}" title="Ablage entfernen" type="button">x</button>` : ""}
+        </div>
         <p>${(item.messages || []).map(escapeHtml).join(" ")}</p>
       </div>
     `;
@@ -1383,6 +1519,18 @@
       const eventName = ["SELECT", "INPUT"].includes(button.tagName) ? "change" : "click";
       button.addEventListener(eventName, handleAction);
     });
+    const targetCreateInput = root.querySelector("[data-target-create-name]");
+    if (targetCreateInput) {
+      targetCreateInput.addEventListener("input", (event) => {
+        state.targetCreateName = event.currentTarget.value || "";
+      });
+      targetCreateInput.addEventListener("keydown", async (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          await createTargetFromInput();
+        }
+      });
+    }
     bindFavoriteDragAndDrop();
 
     document.removeEventListener("keydown", handleHotkey);
@@ -1428,6 +1576,7 @@
       preloadMode: state.jobDraft.preloadMode,
       targetOrdering: state.jobDraft.targetOrdering,
       hotkeys: state.jobDraft.hotkeys,
+      customHotkeys: normalizeCustomHotkeys(state.jobDraft.customHotkeys),
     };
   }
 
@@ -1443,6 +1592,7 @@
       preloadMode: "balanced",
       targetOrdering: "relevance",
       hotkeys: "number-row",
+      customHotkeys: ["", "", "", "", "", "", "", "", ""],
     };
   }
 
@@ -1459,6 +1609,9 @@
     readJobDraft(form);
     if (event.target?.name === "targetMode") {
       toggleTargetPath();
+    }
+    if (event.target?.name === "hotkeys") {
+      render();
     }
   }
 
@@ -1477,6 +1630,7 @@
       preloadMode: form.preloadMode?.value || "balanced",
       targetOrdering: form.targetOrdering?.value || "relevance",
       hotkeys: form.hotkeys?.value || "number-row",
+      customHotkeys: Array.from(form.querySelectorAll(".imageflow-hotkey-input")).map((input) => input.value || ""),
     };
   }
 
@@ -1534,6 +1688,10 @@
       await browseTargetFolder(event.currentTarget.dataset.targetPath || "/");
     } else if (action === "browse-target-parent") {
       await browseTargetFolder(state.targetFolderPage?.parent || "/");
+    } else if (action === "create-target") {
+      await createTargetFromInput();
+    } else if (action === "undo-last-decision") {
+      await undoLastDecision();
     } else if (action === "close-worklist-preview") {
       closeWorklistPreview();
     } else if (action === "refresh-worklist-preview") {
@@ -1545,6 +1703,8 @@
       await confirmQueueJob(jobId);
     } else if (action === "process-job-now" && jobId) {
       await processJobNow(jobId);
+    } else if (action === "remove-worklist-item" && jobId) {
+      await removeWorklistItem(jobId, numberOrNull(event.currentTarget.dataset.queueItemId));
     } else if (action === "select-image") {
       setImageIndex(numberOrNull(event.currentTarget.dataset.index) ?? state.imageIndex);
     } else if (action === "page-next") {
@@ -1634,6 +1794,7 @@
       preloadMode: job.options?.preloadMode || "balanced",
       targetOrdering: job.options?.targetOrdering || "relevance",
       hotkeys: job.options?.hotkeys || "number-row",
+      customHotkeys: normalizeCustomHotkeys(job.options?.customHotkeys || []),
     };
     state.toast = { type: "info", message: "Runde ist zum Bearbeiten geöffnet." };
     render();
@@ -1719,6 +1880,50 @@
     state.targetBrowsePath = normalizeDisplayPath(path || "/");
     await loadTargets(state.sortState.job.targetMode);
     render();
+  }
+
+  async function createTargetFromInput() {
+    const job = state.sortState?.job;
+    if (!job) {
+      return;
+    }
+
+    const input = root.querySelector("[data-target-create-name]");
+    const name = String(input?.value || state.targetCreateName || "").trim();
+    if (!name) {
+      state.toast = { type: "error", message: "Bitte gib dem neuen Ziel einen Namen." };
+      render();
+      return;
+    }
+
+    const isFolderMode = job.targetMode === "move" || job.targetMode === "copy";
+    const parentPathValue = state.targetFolderPage?.current?.path || state.targetBrowsePath || job.targetPath || "/";
+    try {
+      const payload = await request("/api/v1/targets", {
+        method: "POST",
+        body: {
+          mode: job.targetMode,
+          name,
+          path: isFolderMode ? normalizeDisplayPath(parentPathValue) : undefined,
+        },
+      });
+      if (payload.folders) {
+        state.targetFolderPage = payload.folders;
+        state.targetBrowsePath = payload.folders.current?.path || normalizeDisplayPath(parentPathValue);
+        state.targets = payload.folders.folders || [];
+      } else {
+        state.targets = payload.targets || (payload.target ? [payload.target, ...state.targets] : state.targets);
+      }
+      state.targetCreateName = "";
+      state.toast = {
+        type: "info",
+        message: payload.duplicate ? "Dieses Ziel war schon vorhanden." : `${isFolderMode ? "Ordner" : "Album"} wurde angelegt.`,
+      };
+      render();
+    } catch (error) {
+      state.toast = { type: "error", message: error.message || "Ziel konnte nicht angelegt werden." };
+      render();
+    }
   }
 
   async function openWorklistPreview(jobId) {
@@ -1859,6 +2064,53 @@
     }
   }
 
+  async function removeWorklistItem(jobId, queueItemId) {
+    if (!jobId || !queueItemId) {
+      return;
+    }
+
+    try {
+      const payload = await request(`/api/v1/jobs/${jobId}/queue/${queueItemId}`, { method: "DELETE", body: {} });
+      if (payload.job) {
+        state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
+        if (state.sortState?.job?.id === jobId) {
+          state.sortState.job = payload.job;
+        }
+      }
+      removePreviewItemLocally(queueItemId);
+      state.toast = { type: "info", message: "Ablagepunkt wurde entfernt." };
+      render();
+    } catch (error) {
+      state.worklist.error = error.message || "Ablagepunkt konnte nicht entfernt werden.";
+      render();
+    }
+  }
+
+  function removePreviewItemLocally(queueItemId) {
+    const preview = state.worklist.preview;
+    if (!preview || !Array.isArray(preview.items)) {
+      return;
+    }
+    const removed = preview.items.find((item) => Number(item.id) === Number(queueItemId));
+    preview.items = preview.items.filter((item) => Number(item.id) !== Number(queueItemId));
+    if (!removed || !preview.summary) {
+      return;
+    }
+    const summary = preview.summary;
+    summary.total = Math.max(0, Number(summary.total || 0) - 1);
+    if (summary[removed.status] !== undefined) {
+      summary[removed.status] = Math.max(0, Number(summary[removed.status] || 0) - 1);
+    }
+    if (removed.readiness === "ready") {
+      summary.ready = Math.max(0, Number(summary.ready || 0) - 1);
+    } else if (removed.readiness === "warning") {
+      summary.warnings = Math.max(0, Number(summary.warnings || 0) - 1);
+    } else {
+      summary.errors = Math.max(0, Number(summary.errors || 0) - 1);
+    }
+    preview.canQueue = Number(summary.planned || 0) > 0 && Number(summary.errors || 0) === 0;
+  }
+
   async function openSort(jobId, startMode) {
     state.page = "sort";
     state.jobId = jobId;
@@ -1869,6 +2121,7 @@
     state.startMode = startMode;
     state.targetBrowsePath = null;
     state.targetFolderPage = null;
+    state.targetCreateName = "";
     clearImagePageCache();
     resetSessionFlow();
     await load();
@@ -1948,6 +2201,34 @@
     }
   }
 
+  async function undoLastDecision() {
+    if (!state.jobId) {
+      return;
+    }
+
+    try {
+      const payload = await request(`/api/v1/jobs/${state.jobId}/undo`, { method: "POST", body: {} });
+      if (payload.job && state.sortState) {
+        state.sortState.job = payload.job;
+        state.jobs = state.jobs.map((job) => (job.id === payload.job.id ? payload.job : job));
+      } else if (state.sortState?.job) {
+        state.sortState.job.sortedFiles = Math.max(0, Number(state.sortState.job.sortedFiles || 0) - 1);
+        state.sortState.job.queuedOperations = Math.max(0, Number(state.sortState.job.queuedOperations || 0) - 1);
+      }
+      state.decisionStreak = Math.max(0, Number(state.decisionStreak || 0) - 1);
+      state.decisionsThisSession = Math.max(0, Number(state.decisionsThisSession || 0) - 1);
+      state.feedback = null;
+      state.toast = { type: "info", message: payload.message || "Letzte Entscheidung wurde zurückgenommen." };
+      clearImagePageCache();
+      state.acceptDecreasedCounters = true;
+      await loadImagePage(state.pageCursor, state.imageIndex, false, null);
+      render();
+    } catch (error) {
+      state.toast = { type: "error", message: error.message || "Letzte Entscheidung konnte nicht zurückgenommen werden." };
+      render();
+    }
+  }
+
   async function addFavoriteFromButton(button) {
     if (!state.sortState?.job) {
       return;
@@ -2023,6 +2304,11 @@
       return;
     }
     const sortState = state.sortState || mockSortState(state.jobId || 1);
+    if ((event.ctrlKey || event.metaKey) && String(event.key || "").toLowerCase() === "z") {
+      event.preventDefault();
+      await undoLastDecision();
+      return;
+    }
     if (event.key === "ArrowRight") {
       event.preventDefault();
       await moveImage(1);
@@ -2103,7 +2389,7 @@
     if (!state.sortState || !Array.isArray(favorites)) {
       return;
     }
-    state.sortState.favorites = favorites;
+    state.sortState.favorites = applyConfiguredHotkeys(favorites, state.sortState.job?.options || {});
   }
 
   function reorderedFavorites(favoriteIds) {
@@ -2125,7 +2411,7 @@
     const normalized = ordered.map((favorite, index) => ({
       ...favorite,
       position: index + 1,
-      hotkey: String(index + 1),
+      hotkey: hotkeyForPosition(index + 1, state.sortState?.job?.options || {}),
     }));
     return [...normalized, ...current.filter((favorite) => favorite.locked || favorite.id === "skip")];
   }
@@ -2484,6 +2770,10 @@
 
   function mergeSortPayload(payload) {
     const previousJob = state.sortState?.job;
+    if (state.acceptDecreasedCounters) {
+      state.acceptDecreasedCounters = false;
+      return payload;
+    }
     if (!previousJob || !payload?.job || String(previousJob.id) !== String(payload.job.id)) {
       return payload;
     }

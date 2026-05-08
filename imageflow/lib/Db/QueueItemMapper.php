@@ -62,6 +62,36 @@ class QueueItemMapper extends QBMapper {
 		return $this->findEntities($qb);
 	}
 
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function findForUserById(string $userId, int $id): QueueItem {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->setMaxResults(1);
+
+		return $this->findEntity($qb);
+	}
+
+	public function findForAssignment(string $userId, int $jobId, int $assignmentId): ?QueueItem {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('assignment_id', $qb->createNamedParameter($assignmentId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->setMaxResults(1);
+
+		try {
+			return $this->findEntity($qb);
+		} catch (DoesNotExistException) {
+			return null;
+		}
+	}
+
 	public function countForJobByStatus(int $jobId, string $status): int {
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias($qb->func()->count('*'), 'queue_count')

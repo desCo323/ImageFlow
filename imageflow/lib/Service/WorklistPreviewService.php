@@ -164,6 +164,7 @@ class WorklistPreviewService {
 
 		return [
 			'id' => $item->getId(),
+			'assignmentId' => $item->getAssignmentId(),
 			'operationKey' => $key,
 			'operationType' => $item->getOperationType(),
 			'sourcePath' => $item->getSourcePath(),

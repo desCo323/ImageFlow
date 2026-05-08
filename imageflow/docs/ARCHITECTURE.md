@@ -4,11 +4,11 @@
 
 ImageFlow is a Nextcloud app for fast photo triage. The first version separates sorting decisions from destructive file writes:
 
-- Users create sort jobs.
-- Users can discard jobs until execution has started or operations were already executed.
+- Users create sorting rounds.
+- Users can discard rounds until execution has started or operations were already executed.
 - The sorting view records assignments and skip decisions.
 - Assignments create queue rows.
-- Queue execution is only started from the main job dashboard.
+- Queue execution is only started from the main overview.
 - The worker defaults to non-destructive guard mode. Real writes require the explicit app config flag `real_execution_enabled=1`.
 
 ## App Structure
@@ -28,10 +28,12 @@ ImageFlow is a Nextcloud app for fast photo triage. The first version separates 
 - `imageflow_jobs`: One user-owned sorting job.
 - `imageflow_assignments`: Individual sort or skip decisions.
 - `imageflow_queue`: Planned background operations.
-- `imageflow_favorites`: User target favorites and hotkey order; positions `1-9` map to number hotkeys while skip remains fixed on `0`.
+- `imageflow_favorites`: User target favorites and hotkey order; positions `1-9` map to number, letter or custom hotkeys while skip remains fixed on `0`.
 - `imageflow_logs`: Detailed debug and audit events without secrets.
 
 Folder selection uses the same normalized user-relative path model as sorting. The browser API lists only folders reachable through the current user's Nextcloud filesystem view; it does not create, copy, move or delete files.
+
+Target creation is explicit user action from the sorting rail. Album creation writes a Photos album row for the current user; folder creation uses the current user's filesystem view and returns the refreshed folder listing.
 
 ## Safety Boundary
 
@@ -55,6 +57,7 @@ The sorting workspace now uses the high-speed filmstrip and worklist execution m
 - The frontend keeps a bounded image buffer around the current position. `light`, `balanced` and `turbo` preload modes control the neighbor radius while the global image buffer still has a memory cap and releases stale image loaders when they leave the buffer.
 - Large folders are read through filecache-backed offset cursor pages. The browser only receives the current page plus preview URLs, not the entire folder.
 - A job can resume at its last saved cursor/index, restart from the beginning, or jump to the first image without a recorded sort/skip decision.
+- A planned decision can be undone or removed from the worklist until the linked queue item starts executing.
 - Animations should use `transform` and `opacity` only, respect `prefers-reduced-motion`, and avoid layout shifts during rapid key navigation.
 - Queue creation must be idempotent. Album and copy operations need a stable operation key and a pre-execution duplicate check so repeated processing runs do not create duplicate album memberships or duplicate copied files.
 - The dashboard remains the execution gate: users can process the current worklist now, leave it queued for later, or allow a cron-controlled low-load execution window.

@@ -13,7 +13,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 class JobService {
 	private const MODES = ['album', 'move', 'copy'];
 	private const TARGET_ORDERINGS = ['relevance', 'alphabetical'];
-	private const HOTKEY_MODES = ['number-row', 'letters'];
+	private const HOTKEY_MODES = ['number-row', 'letters', 'custom'];
 	private const STATUSES = [
 		'draft',
 		'sorting',
@@ -131,6 +131,7 @@ class JobService {
 			'preloadMode' => $options['preloadMode'] ?? 'balanced',
 			'targetOrdering' => $options['targetOrdering'] ?? 'relevance',
 			'hotkeys' => $options['hotkeys'] ?? 'number-row',
+			'customHotkeys' => $options['customHotkeys'] ?? [],
 		]);
 
 		$this->logService->info('job_duplicated', $userId, [
@@ -306,6 +307,7 @@ class JobService {
 		$options = $currentOptions;
 		$options['targetOrdering'] = $this->targetOrdering((string)($input['targetOrdering'] ?? $options['targetOrdering'] ?? 'relevance'));
 		$options['hotkeys'] = $this->hotkeyMode((string)($input['hotkeys'] ?? $options['hotkeys'] ?? 'number-row'));
+		$options['customHotkeys'] = $this->customHotkeys($input['customHotkeys'] ?? $options['customHotkeys'] ?? []);
 		$options['preloadMode'] = $this->preloadMode((string)($input['preloadMode'] ?? $options['preloadMode'] ?? 'balanced'));
 		$options['autoProcess'] = $this->boolValue($input['autoProcess'] ?? $options['autoProcess'] ?? false);
 
@@ -353,6 +355,28 @@ class JobService {
 
 	private function hotkeyMode(string $mode): string {
 		return in_array($mode, self::HOTKEY_MODES, true) ? $mode : 'number-row';
+	}
+
+	/**
+	 * @return string[]
+	 */
+	private function customHotkeys(mixed $value): array {
+		$items = is_array($value) ? $value : [];
+		$keys = [];
+		$seen = [];
+		for ($index = 0; $index < 9; $index++) {
+			$key = is_scalar($items[$index] ?? null) ? mb_strtolower(trim((string)$items[$index])) : '';
+			$key = mb_substr($key, 0, 1);
+			if ($key === '' || in_array($key, ['0', ' '], true) || isset($seen[$key])) {
+				$key = '';
+			}
+			$keys[] = $key;
+			if ($key !== '') {
+				$seen[$key] = true;
+			}
+		}
+
+		return $keys;
 	}
 
 	private function preloadMode(string $mode): string {

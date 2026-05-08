@@ -35,11 +35,12 @@ Expected output for both commands is `0`.
 3. Open the round with `Weitermachen`, `Neu anfangen` and `Offene Bilder`.
 4. Use ArrowLeft and ArrowRight in the filmstrip.
 5. In a larger folder, hold ArrowRight near the end of the visible strip and confirm that the next page appears without a visible pause.
-6. Use hotkeys `1`, `2`, `3`, `0` and Space, or `A-I` when the round uses letter hotkeys.
-7. Add and remove one quick target.
-8. Open `Ablage prüfen`.
-9. Confirm that file operations are locked and `Jetzt ablegen` is disabled or blocked.
-10. Open `Protokoll` and confirm that recent sorting and queue events appear.
-11. Discard the test round from the overview.
+6. Use hotkeys `1`, `2`, `3`, `0` and Space, or `A-I` / custom keys when the round uses those hotkey modes.
+7. Use `Rückgängig` before queue execution and confirm the image can be handled again.
+8. Add and remove one quick target.
+9. Open `Ablage prüfen`, remove one planned item, and confirm the count drops.
+10. Confirm that file operations are locked and `Jetzt ablegen` is disabled or blocked.
+11. Open `Protokoll` and confirm that recent sorting and queue events appear.
+12. Discard the test round from the overview.
 
-No source files, target files or albums should be changed while both server flags are `0`.
+No source files or target files should be changed while both server flags are `0`. Creating a new album or folder from the right rail is an immediate user-triggered change; test that only with a disposable name and clean it up afterwards.

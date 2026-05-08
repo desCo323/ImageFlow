@@ -70,6 +70,43 @@ class FolderBrowserService {
 	}
 
 	/**
+	 * @return array<string, mixed>
+	 */
+	public function createFolder(string $userId, string $parentPath, string $name, int $limit = 150): array {
+		$folderName = $this->folderName($name);
+		$currentPath = PathHelper::normalizeUserPath($parentPath);
+		$userFolder = $this->rootFolder->getUserFolder($userId);
+		$current = $currentPath === '' ? $userFolder : $userFolder->get($currentPath);
+		if (!$current instanceof Folder) {
+			throw new \InvalidArgumentException('Path is not a folder.');
+		}
+
+		try {
+			$duplicate = $current->nodeExists($folderName);
+			if (!$duplicate) {
+				$current->newFolder($folderName);
+			}
+			$created = $current->get($folderName);
+			if (!$created instanceof Folder) {
+				throw new \InvalidArgumentException('A file with this name already exists.');
+			}
+		} catch (StorageNotAvailableException) {
+			throw new \RuntimeException('Storage is currently unavailable.');
+		}
+
+		$displayPath = PathHelper::displayPath(trim($currentPath . '/' . $folderName, '/'));
+		return [
+			'folder' => [
+				'name' => $created->getName(),
+				'path' => $displayPath,
+				'hasChildren' => $this->hasChildFolders($created),
+			],
+			'folders' => $this->listFolders($userId, PathHelper::displayPath($currentPath), $limit),
+			'duplicate' => $duplicate,
+		];
+	}
+
+	/**
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function listSampleImages(string $userId, string $path, int $limit = 12): array {
@@ -227,5 +264,14 @@ class FolderBrowserService {
 		}
 
 		return false;
+	}
+
+	private function folderName(string $name): string {
+		$name = trim($name);
+		if ($name === '' || str_contains($name, '/') || str_contains($name, '\\') || $name === '.' || $name === '..') {
+			throw new \InvalidArgumentException('Bitte gib einen gültigen Ordnernamen ein.');
+		}
+
+		return mb_substr($name, 0, 255);
 	}
 }

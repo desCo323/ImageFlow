@@ -15,6 +15,7 @@
 - Add Flow terminology, automatic processing opt-in, manual batch processing endpoint, preload mode controls, user-visible debug protocol, and final preview screenshots.
 - Add large-folder filmstrip stabilization coverage and explicit stale image preload release.
 - Add dashboard safety status and a deployed self-test checklist.
+- Add direct target creation, custom quick-target hotkeys, undo for recent decisions, and removable planned worklist items.
 
 ## 0.1.0 - 2026-05-08
 

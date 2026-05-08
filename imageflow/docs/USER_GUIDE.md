@@ -11,6 +11,7 @@ Open ImageFlow from the Nextcloud navigation and start a sorting round:
 - keep safe mode enabled,
 - choose whether the round may be processed automatically during quiet server phases,
 - choose the image buffer mode for large folders,
+- choose `Zahlen`, `Buchstaben` or `Eigene Tasten` for quick-target hotkeys,
 - save the round with `Runde speichern`, or use `Speichern & sortieren` to open it immediately.
 - edit a saved draft from the overview with `Bearbeiten`, or create a fresh copy with `Kopie`.
 
@@ -39,16 +40,20 @@ The sorting page is structured for fast repeated decisions:
 - right: all available albums or folders,
 - bottom: next images.
 
-Targets from the right rail can be added to quick targets with `+`. Quick targets can be dragged into the desired order; positions `1-9` define the number hotkeys. The `Überspringen` entry stays fixed on `0`.
+Targets from the right rail can be added to quick targets with `+`. Quick targets can be dragged into the desired order; positions `1-9` define the number hotkeys, `A-I` define the letter hotkeys, or your own configured keys are used. The `Überspringen` entry stays fixed on `0`.
 
 In copy and move rounds, the target rail can browse folders. The main folder row assigns the current image to that folder, while the arrow button opens a child folder.
+
+Use `Album anlegen` or `Ordner anlegen` in the right rail when the needed target does not exist yet. Newly created targets appear immediately in the target list and can be added to quick targets with `+`.
 
 Hotkeys:
 
 - `1-9`: quick targets,
+- `A-I` or configured custom keys: quick targets when selected for the round,
 - `0`: skip the current image,
 - `Space`: skip the current image,
 - `ArrowLeft` / `ArrowRight`: move through the image band.
+- `Ctrl+Z` / `Cmd+Z`: undo the last decision while it has not been executed.
 
 The round bar shows overall progress, the current decision streak, this session's collected decisions and the current pace. Each saved decision gives immediate visual feedback without changing files yet.
 
@@ -57,6 +62,8 @@ For large folders, ImageFlow keeps the visible filmstrip small, preloads nearby 
 ## Execution
 
 Use `Ablage prüfen` on the overview to open the safe preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
+
+Planned or queued items can be removed from the preview before execution. This also removes the linked decision from the round, so the image can be handled again later.
 
 The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt ablegen` runs a small manual batch. If both real writes and server-side background processing are enabled, and the round is marked for automatic processing, the cron worker can process queued work later.
 

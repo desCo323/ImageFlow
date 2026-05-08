@@ -35,7 +35,7 @@ class SortController extends Controller {
 				$this->stringParam('start', 32),
 			));
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		}
 	}
 
@@ -44,7 +44,7 @@ class SortController extends Controller {
 		try {
 			return new JSONResponse($this->sortService->assign($this->userId, $jobId, $this->request->getParams()));
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_assignment', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {
@@ -58,12 +58,40 @@ class SortController extends Controller {
 		try {
 			return new JSONResponse($this->sortService->skip($this->userId, $jobId, $this->request->getParams()));
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_skip', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {
 			$this->logService->exception('skip_failed', $e, $this->userId, $jobId);
-				return $this->error('skip_failed', 'Das Überspringen konnte nicht gespeichert werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+			return $this->error('skip_failed', 'Das Überspringen konnte nicht gespeichert werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	#[NoAdminRequired]
+	public function undo(int $jobId): JSONResponse {
+		try {
+			return new JSONResponse($this->sortService->undoLast($this->userId, $jobId));
+		} catch (DoesNotExistException) {
+			return $this->error('nothing_to_undo', 'Es gibt noch keine Entscheidung zum Zurücknehmen.', Http::STATUS_NOT_FOUND);
+		} catch (\InvalidArgumentException $e) {
+			return $this->error('undo_blocked', $e->getMessage(), Http::STATUS_CONFLICT);
+		} catch (\Throwable $e) {
+			$this->logService->exception('undo_failed', $e, $this->userId, $jobId);
+			return $this->error('undo_failed', 'Die letzte Entscheidung konnte nicht zurückgenommen werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	#[NoAdminRequired]
+	public function removeQueueItem(int $jobId, int $queueItemId): JSONResponse {
+		try {
+			return new JSONResponse($this->sortService->removeQueueItem($this->userId, $jobId, $queueItemId));
+		} catch (DoesNotExistException) {
+			return $this->error('queue_item_not_found', 'Der Ablagepunkt wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (\InvalidArgumentException $e) {
+			return $this->error('queue_item_remove_blocked', $e->getMessage(), Http::STATUS_CONFLICT);
+		} catch (\Throwable $e) {
+			$this->logService->exception('queue_item_remove_failed', $e, $this->userId, $jobId);
+			return $this->error('queue_item_remove_failed', 'Der Ablagepunkt konnte nicht entfernt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -72,7 +100,7 @@ class SortController extends Controller {
 		try {
 			return new JSONResponse($this->sortService->position($this->userId, $jobId, $this->request->getParams()));
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_position', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {

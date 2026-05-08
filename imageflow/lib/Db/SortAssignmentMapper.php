@@ -56,6 +56,22 @@ class SortAssignmentMapper extends QBMapper {
 	}
 
 	/**
+	 * @throws DoesNotExistException
+	 */
+	public function findLastForJob(string $userId, int $jobId): SortAssignment {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->orderBy('created_at', 'DESC')
+			->addOrderBy('id', 'DESC')
+			->setMaxResults(1);
+
+		return $this->findEntity($qb);
+	}
+
+	/**
 	 * @param string[] $sourcePaths
 	 * @return string[]
 	 */
