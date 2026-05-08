@@ -38,7 +38,8 @@ Datum: 2026-05-08
 - GitHub-Repo `desCo323/ImageFlow` ist privat und ueber den GitHub-Connector mit Schreibrechten sichtbar. Lokales `gh` ist auf dem Server nicht installiert; der Push wurde temporaer per `GIT_ASKPASS` durchgefuehrt, ohne Token in Git-Remote oder Projektdateien zu speichern.
 - App-Skeleton `imageflow/` ist installierbar angelegt: Navigation, Routen, Controller, Migration, Services, UI, Self-Check und Browser-Smokes.
 - Remote-Stand nach Bootstrap-Push: `origin/main` bei Commit `6838eba` (`merge GitHub initial state`).
-- Naechster Block begonnen: Deploy-/Rollback-Skript `imageflow/scripts/production-update.sh` und Runbook `imageflow/docs/DEPLOYMENT_RUNBOOK.md`. Deploy bleibt durch `IMAGEFLOW_PRODUCTION_UPDATE=1` gesperrt.
+- Deploy-/Rollback-Skript `imageflow/scripts/production-update.sh` und Runbook `imageflow/docs/DEPLOYMENT_RUNBOOK.md` sind angelegt, lokal geprueft und gepusht. Deploy bleibt durch `IMAGEFLOW_PRODUCTION_UPDATE=1` gesperrt.
+- Remote-Stand nach Deploy-Tooling-Block: `origin/main` bei Commit `c0b07ba` (`add controlled ImageFlow deploy tooling`).
 
 ## Wiederherstellungsprompt
 
