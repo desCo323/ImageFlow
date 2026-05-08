@@ -14,6 +14,7 @@ Current status: first functional preview. The app is installable as a Nextcloud 
 - Folder and album target APIs with explicit user-triggered target creation.
 - Undo for recent decisions and removable planned worklist items before execution.
 - Guarded manual and background queue processing with checksum-safe copy/move support behind server-side flags.
+- Quiet-server background gate based on server load and optional processing windows.
 - User-visible debug protocol for sorting, queue and safety events.
 - Local self-check and static browser smoke tests.
 

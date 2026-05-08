@@ -45,6 +45,21 @@ Disable it again:
 sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_processing_enabled --value=0
 ```
 
+Background processing also has a quiet-server gate. By default, cron work only runs while the one-minute server load is at or below `2.0`:
+
+```bash
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_low_load_only --value=1
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_max_load_1m --value=2.0
+```
+
+Optional quiet hours can further restrict cron work to a server-local time window:
+
+```bash
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_quiet_hours_enabled --value=1
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_quiet_hours_start --value=22:00
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_quiet_hours_end --value=06:00
+```
+
 Only enable real execution after a fresh backup and only with isolated test folders/albums. Current execution safeguards:
 
 - exact dry-run plans before queueing,
@@ -53,4 +68,4 @@ Only enable real execution after a fresh backup and only with isolated test fold
 - idempotent duplicate skip for matching copy targets and existing album memberships,
 - move operations never delete the source when a different target file already exists,
 - per-item queue status, attempts, checksums, error text and debug logs.
-- automatic cron processing requires both `real_execution_enabled=1` and `background_processing_enabled=1`, and only picks queued rounds whose `autoProcess` option is enabled.
+- automatic cron processing requires `real_execution_enabled=1`, `background_processing_enabled=1`, a passing quiet-server gate, and only picks queued rounds whose `autoProcess` option is enabled.

@@ -74,3 +74,6 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 23. Worklist preview after removing one planned item
    ![Worklist preview after removing a planned item](screenshots/23-worklist-remove-item.png)
+
+24. Background processing waits for a quiet server window
+   ![Background processing waits for a quiet server window](screenshots/24-quiet-server-background-gate.png)

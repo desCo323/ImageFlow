@@ -23,6 +23,7 @@ class WorklistPreviewService {
 		private readonly IConfig $config,
 		private readonly IDBConnection $db,
 		private readonly LogService $logService,
+		private readonly BackgroundGateService $backgroundGateService,
 	) {
 	}
 
@@ -77,6 +78,8 @@ class WorklistPreviewService {
 
 		$realExecutionEnabled = $this->realExecutionEnabled();
 		$backgroundProcessingEnabled = $this->backgroundProcessingEnabled();
+		$backgroundGate = $this->backgroundGateService->status();
+		$backgroundMode = $this->backgroundMode($realExecutionEnabled, $backgroundProcessingEnabled, $backgroundGate);
 
 		return [
 			'job' => [
@@ -91,11 +94,13 @@ class WorklistPreviewService {
 			'items' => $rows,
 			'canQueue' => $canQueue,
 			'executionMode' => $realExecutionEnabled ? 'real-writes-enabled' : 'dry-run-only',
-			'backgroundMode' => ($backgroundProcessingEnabled && $realExecutionEnabled) ? 'cron-enabled' : 'manual-only',
+			'backgroundMode' => $backgroundMode,
+			'backgroundGate' => $backgroundGate,
 			'autoProcess' => (bool)($options['autoProcess'] ?? false),
 			'safety' => [
 				'realExecutionEnabled' => $realExecutionEnabled,
 				'backgroundProcessingEnabled' => $backgroundProcessingEnabled,
+				'backgroundGate' => $backgroundGate,
 				'writesBlocked' => !$realExecutionEnabled,
 				'duplicateCheck' => true,
 				'targetConflictCheck' => true,
@@ -240,6 +245,17 @@ class WorklistPreviewService {
 
 	private function backgroundProcessingEnabled(): bool {
 		return $this->config->getAppValue('imageflow', 'background_processing_enabled', '0') === '1';
+	}
+
+	/**
+	 * @param array<string, mixed> $backgroundGate
+	 */
+	private function backgroundMode(bool $realExecutionEnabled, bool $backgroundProcessingEnabled, array $backgroundGate): string {
+		if (!$realExecutionEnabled || !$backgroundProcessingEnabled) {
+			return 'manual-only';
+		}
+
+		return ($backgroundGate['canRun'] ?? false) ? 'cron-ready' : 'cron-waiting';
 	}
 
 	/**

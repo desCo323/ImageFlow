@@ -474,15 +474,38 @@
   }
 
   function mockHealth() {
+    const realExecutionEnabled = root.dataset.mockRealExecution === "1";
+    const backgroundMode = root.dataset.mockBackgroundMode || "manual-only";
+    const backgroundProcessingEnabled = backgroundMode !== "manual-only";
     return {
       app: "imageflow",
       version: "0.1.0",
-      status: "safe-testing",
-      processingMode: "locked",
-      destructiveWritesEnabled: false,
-      realExecutionEnabled: false,
-      backgroundProcessingEnabled: false,
+      status: realExecutionEnabled ? "execution-enabled" : "safe-testing",
+      processingMode: realExecutionEnabled
+        ? (backgroundProcessingEnabled ? "manual-and-background" : "manual-only")
+        : "locked",
+      destructiveWritesEnabled: realExecutionEnabled,
+      realExecutionEnabled,
+      backgroundProcessingEnabled,
+      backgroundGate: mockBackgroundGate(backgroundMode === "cron-ready" || backgroundMode === "cron-enabled"),
       safeModeDefault: true,
+    };
+  }
+
+  function mockBackgroundGate(canRun = false) {
+    return {
+      canRun,
+      reason: canRun ? "ready" : "server_load_too_high",
+      message: canRun ? "Automatik darf laufen, sobald wartende Ablagen vorhanden sind." : "Automatik wartet: Serverlast 3.40 liegt über 2.00.",
+      lowLoadOnly: true,
+      currentLoad1m: 0.42,
+      maxLoad1m: 2,
+      loadOk: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "22:00",
+      quietHoursEnd: "06:00",
+      quietHoursOk: true,
+      currentTime: "12:00",
     };
   }
 
@@ -673,6 +696,9 @@
     const mode = job.targetMode || "album";
     const queued = job.status === "queued";
     const itemStatus = queued ? "queued" : "planned";
+    const realExecutionEnabled = root.dataset.mockRealExecution === "1";
+    const configuredBackgroundMode = root.dataset.mockBackgroundMode || "manual-only";
+    const backgroundMode = realExecutionEnabled ? configuredBackgroundMode : "manual-only";
     return {
       job: {
         id: job.id,
@@ -695,10 +721,13 @@
         errors: 0,
       },
       canQueue: !queued,
-      executionMode: "dry-run-only",
-      backgroundMode: "manual-only",
+      executionMode: realExecutionEnabled ? "real-writes-enabled" : "dry-run-only",
+      backgroundMode,
+      backgroundGate: mockBackgroundGate(backgroundMode === "cron-ready" || backgroundMode === "cron-enabled"),
       autoProcess: Boolean(job.options?.autoProcess),
-      message: "Dateiänderungen sind gesperrt. Du kannst die Ablage prüfen und für später merken, ohne Dateien zu verändern.",
+      message: realExecutionEnabled
+        ? "Echte Dateiänderungen sind serverseitig freigeschaltet. Jede Ablage wird trotzdem noch einmal auf Doppelungen, Zielkonflikte und Prüfsummen geprüft."
+        : "Dateiänderungen sind gesperrt. Du kannst die Ablage prüfen und für später merken, ohne Dateien zu verändern.",
       items: [
         {
           id: 1,
@@ -1027,10 +1056,14 @@
     const health = state.health || mockHealth();
     const realWrites = Boolean(health.realExecutionEnabled || health.destructiveWritesEnabled);
     const background = Boolean(health.backgroundProcessingEnabled);
+    const gate = health.backgroundGate || {};
     const title = realWrites ? "Dateiänderungen aktiv" : "Geschützter Testbetrieb";
     const message = realWrites
       ? "Reale Dateiänderungen sind freigeschaltet. Ablagen können Dateien verändern."
       : "Reale Dateiänderungen sind gesperrt. Du kannst Ablagen prüfen und für später merken, ohne Dateien zu verändern.";
+    const automationLabel = background
+      ? ((gate.canRun || gate.reason === "ready") ? "Server ruhig" : "Automatik wartet")
+      : "Automatik aus";
     return `
       <section class="imageflow-safety-strip ${realWrites ? "is-live" : ""}" aria-label="Schutzstatus">
         <div>
@@ -1039,7 +1072,7 @@
         </div>
         <div class="imageflow-safety-badges">
           <span class="imageflow-badge ${realWrites ? "warning" : "safe"}">${realWrites ? "Dateien können geändert werden" : "Dateiänderungen gesperrt"}</span>
-          <span class="imageflow-badge ${background ? "warning" : ""}">${background ? "Automatik aktiv" : "Automatik aus"}</span>
+          <span class="imageflow-badge ${background ? ((gate.canRun || gate.reason === "ready") ? "ready" : "warning") : ""}">${escapeHtml(automationLabel)}</span>
           <span class="imageflow-badge safe">Prüfsummen an</span>
         </div>
       </section>
@@ -1395,12 +1428,13 @@
               <p>${escapeHtml(preview?.job?.name || "Runde")} | ${modeLabel(preview?.job?.targetMode || "")}</p>
             </div>
             ${preview ? `<span class="imageflow-badge ${executionModeClass(preview.executionMode)}">${executionModeLabel(preview.executionMode)}</span>` : ""}
-            ${preview ? `<span class="imageflow-badge ${preview.backgroundMode === "cron-enabled" ? "ready" : "safe"}">${backgroundModeLabel(preview.backgroundMode)}</span>` : ""}
+            ${preview ? `<span class="imageflow-badge ${backgroundModeClass(preview.backgroundMode)}">${backgroundModeLabel(preview.backgroundMode)}</span>` : ""}
             <button class="imageflow-icon-button" data-action="close-worklist-preview" type="button">Schließen</button>
           </header>
           ${state.worklist.loading ? '<div class="imageflow-empty">Ablage wird geprüft.</div>' : ""}
           ${state.worklist.error ? `<div class="imageflow-empty">${escapeHtml(state.worklist.error)}</div>` : ""}
           ${preview ? `
+            <div class="imageflow-worklist-body">
             <div class="imageflow-status-grid">
               <div class="imageflow-stat"><strong>${Number(summary.total || 0)}</strong><span>Entscheidungen</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.ready || 0)}</strong><span>Bereit</span></div>
@@ -1410,7 +1444,10 @@
               <div class="imageflow-stat"><strong>${Number(summary.executed || 0)}</strong><span>Erledigt</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.blocked || 0) + Number(summary.failed || 0)}</strong><span>Blockiert</span></div>
             </div>
-            <div class="imageflow-worklist-note">${escapeHtml(preview.message || "")}</div>
+            <div class="imageflow-worklist-note">
+              <span>${escapeHtml(preview.message || "")}</span>
+              ${renderBackgroundGateNote(preview)}
+            </div>
             <label class="imageflow-toggle imageflow-worklist-toggle">
               <input id="ifl-worklist-auto" data-action="toggle-worklist-auto" type="checkbox" ${state.worklist.autoProcess ? "checked" : ""}>
               Automatisch ablegen, wenn der Server ruhig ist
@@ -1423,10 +1460,18 @@
               <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${queueButtonEnabled ? "" : "disabled"}>${queueButtonLabel}</button>
               <button class="imageflow-button" data-action="process-job-now" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.executionMode === "real-writes-enabled" && queuedCount > 0 ? "" : "disabled"}>Jetzt ablegen</button>
             </div>
+            </div>
           ` : ""}
         </section>
       </div>
     `;
+  }
+
+  function renderBackgroundGateNote(preview) {
+    if (!preview || preview.backgroundMode === "manual-only" || !preview.backgroundGate) {
+      return "";
+    }
+    return `<span>${escapeHtml(preview.backgroundGate.message || "Automatik wartet auf ein ruhiges Serverfenster.")}</span>`;
   }
 
   function renderWorklistItem(item) {
@@ -2898,11 +2943,26 @@
   }
 
   function backgroundModeLabel(mode) {
-    return mode === "cron-enabled" ? "Automatik aktiv" : "Manuell";
+    return {
+      "cron-enabled": "Automatik aktiv",
+      "cron-ready": "Automatik bereit",
+      "cron-waiting": "Wartet auf Ruhe",
+      "manual-only": "Manuell",
+    }[mode] || "Manuell";
   }
 
   function executionModeClass(mode) {
     return mode === "real-writes-enabled" ? "danger" : "safe";
+  }
+
+  function backgroundModeClass(mode) {
+    if (mode === "cron-ready" || mode === "cron-enabled") {
+      return "ready";
+    }
+    if (mode === "cron-waiting") {
+      return "warning";
+    }
+    return "safe";
   }
 
   function queueStatusLabel(status) {

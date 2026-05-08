@@ -140,6 +140,18 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await expect(page.getByText('Ablage wurde für später gemerkt')).toBeVisible();
 });
 
+test('shows the quiet-server gate when background processing is waiting', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-real-execution="1" data-mock-background-mode="cron-waiting"');
+
+  await expect(page.getByLabel('Schutzstatus')).toContainText('Automatik wartet');
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Wartet auf Ruhe')).toBeVisible();
+  await expect(dialog.getByText('Automatik wartet: Serverlast 3.40 liegt über 2.00.')).toBeVisible();
+});
+
 test('removes a planned item from the worklist preview', async ({ page }) => {
   await mount(page);
 

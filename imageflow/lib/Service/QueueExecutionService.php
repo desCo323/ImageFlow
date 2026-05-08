@@ -29,6 +29,7 @@ class QueueExecutionService {
 		private readonly IConfig $config,
 		private readonly IDBConnection $db,
 		private readonly LogService $logService,
+		private readonly BackgroundGateService $backgroundGateService,
 	) {
 	}
 
@@ -44,6 +45,11 @@ class QueueExecutionService {
 				'backgroundProcessingEnabled' => true,
 				'realExecutionEnabled' => false,
 			], null, 'ImageFlow Hintergrund-Ablage wartet, weil echte Dateiänderungen deaktiviert sind.');
+			return 0;
+		}
+		$gate = $this->backgroundGateService->status();
+		if (!($gate['canRun'] ?? false)) {
+			$this->logService->debug('queue_background_gate_waiting', null, $gate, null, (string)($gate['message'] ?? 'ImageFlow Hintergrund-Ablage wartet.'));
 			return 0;
 		}
 
