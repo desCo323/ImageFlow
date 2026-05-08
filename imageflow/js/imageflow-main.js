@@ -32,6 +32,8 @@
     toast: null,
     loading: false,
     startMode: null,
+    mockFavorites: null,
+    dragFavoriteId: null,
   };
 
   function numberOrNull(value) {
@@ -123,6 +125,54 @@
     if (path.includes("/skip")) {
       return { assignment: { id: Date.now(), sourcePath: options.body.sourcePath, targetLabel: "Uebersprungen" } };
     }
+    if (path === "/api/v1/favorites" && options.method === "POST") {
+      const favorites = mockRealFavorites();
+      const duplicate = favorites.find((favorite) => favorite.targetId === options.body.targetId || (favorite.path && favorite.path === options.body.targetPath));
+      if (duplicate) {
+        return { favorite: duplicate, favorites: mockFavoritesWithSkip(favorites), duplicate: true };
+      }
+      const favorite = {
+        id: Date.now(),
+        label: options.body.targetLabel || options.body.label || "Favorit",
+        path: options.body.targetPath || options.body.path || null,
+        targetId: options.body.targetId || options.body.id || null,
+        hotkey: String(Math.min(9, favorites.length + 1)),
+        position: favorites.length + 1,
+        locked: false,
+      };
+      state.mockFavorites = [...favorites, favorite].slice(0, 9).map((item, index) => ({
+        ...item,
+        position: index + 1,
+        hotkey: String(index + 1),
+      }));
+      return { favorite, favorites: mockFavoritesWithSkip(state.mockFavorites), duplicate: false };
+    }
+    if (path === "/api/v1/favorites/reorder" && options.method === "POST") {
+      const ids = Array.isArray(options.body.favoriteIds) ? options.body.favoriteIds.map(String) : [];
+      const favorites = mockRealFavorites();
+      const byId = new Map(favorites.map((favorite) => [String(favorite.id), favorite]));
+      const ordered = [];
+      ids.forEach((id) => {
+        if (byId.has(id)) {
+          ordered.push(byId.get(id));
+          byId.delete(id);
+        }
+      });
+      favorites.forEach((favorite) => {
+        if (byId.has(String(favorite.id))) {
+          ordered.push(favorite);
+        }
+      });
+      state.mockFavorites = ordered.map((item, index) => ({ ...item, position: index + 1, hotkey: String(index + 1) }));
+      return { favorites: mockFavoritesWithSkip(state.mockFavorites) };
+    }
+    if (/\/api\/v1\/favorites\/\d+$/.test(path) && options.method === "DELETE") {
+      const favoriteId = path.split("/").at(-1);
+      state.mockFavorites = mockRealFavorites()
+        .filter((favorite) => String(favorite.id) !== String(favoriteId))
+        .map((item, index) => ({ ...item, position: index + 1, hotkey: String(index + 1) }));
+      return { deleted: true, favoriteId, favorites: mockFavoritesWithSkip(state.mockFavorites) };
+    }
     if (path.includes("/targets")) {
       return { targets: mockTargets() };
     }
@@ -172,12 +222,7 @@
     const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
     return {
       job,
-      favorites: [
-        { id: "family", label: "Familie", hotkey: "1", position: 1 },
-        { id: "travel", label: "Reisen", hotkey: "2", position: 2 },
-        { id: "archive", label: "Archiv", hotkey: "3", position: 3 },
-        { id: "skip", label: "Ueberspringen", hotkey: "0", position: 10 },
-      ],
+      favorites: mockFavoritesWithSkip(mockRealFavorites()),
       nextImages: [
         {
           fileId: 11,
@@ -230,6 +275,24 @@
       recentAssignments: [],
       queue: [],
     };
+  }
+
+  function mockRealFavorites() {
+    if (state.mockFavorites) {
+      return state.mockFavorites;
+    }
+    return [
+      { id: "family", label: "Familie", targetId: "family", hotkey: "1", position: 1, locked: false },
+      { id: "travel", label: "Reisen", targetId: "travel", hotkey: "2", position: 2, locked: false },
+      { id: "archive", label: "Archiv", targetId: "archive", hotkey: "3", position: 3, locked: false },
+    ];
+  }
+
+  function mockFavoritesWithSkip(favorites) {
+    return [
+      ...favorites,
+      { id: "skip", label: "Ueberspringen", hotkey: "0", position: 10, locked: true, targetType: "skip" },
+    ];
   }
 
   function mockTargets() {
@@ -533,20 +596,39 @@
   }
 
   function renderFavorite(favorite, current) {
+    const isSkip = favorite.locked || favorite.targetType === "skip" || favorite.id === "skip";
+    const favoriteId = String(favorite.id || "");
+    const rowAttrs = isSkip
+      ? ""
+      : `draggable="true" data-favorite-id="${escapeAttr(favoriteId)}"`;
+    const action = isSkip ? "skip-current" : "assign";
+    const remove = isSkip
+      ? '<span class="imageflow-mini-spacer" aria-hidden="true"></span>'
+      : `<button class="imageflow-mini-button danger" data-action="remove-favorite" data-favorite-id="${escapeAttr(favoriteId)}" aria-label="Favorit entfernen: ${escapeAttr(favorite.label)}" title="Favorit entfernen" type="button">x</button>`;
     return `
-      <button class="imageflow-favorite" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(favorite.targetId || favorite.id || "")}" data-target-label="${escapeAttr(favorite.label)}" data-hotkey="${escapeAttr(favorite.hotkey || "")}" type="button">
-        <span class="imageflow-key">${escapeHtml(favorite.hotkey || String(favorite.position || ""))}</span>
-        <span><strong>${escapeHtml(favorite.label)}</strong><small>Position ${escapeHtml(String(favorite.position || ""))}</small></span>
-      </button>
+      <div class="imageflow-favorite-row ${isSkip ? "is-fixed" : ""}" ${rowAttrs}>
+        <span class="imageflow-drag-handle" aria-hidden="true">::</span>
+        <button class="imageflow-favorite" data-action="${action}" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(favorite.targetId || favorite.id || "")}" data-target-label="${escapeAttr(favorite.label)}" data-target-path="${escapeAttr(favorite.path || "")}" data-hotkey="${escapeAttr(favorite.hotkey || "")}" type="button">
+          <span class="imageflow-key">${escapeHtml(favorite.hotkey || String(favorite.position || ""))}</span>
+          <span><strong>${escapeHtml(favorite.label)}</strong><small>Position ${escapeHtml(String(favorite.position || ""))}</small></span>
+        </button>
+        ${remove}
+      </div>
     `;
   }
 
   function renderTarget(target, current, index) {
+    const label = target.label || target.name || "Ziel";
+    const targetId = target.id || target.path || "";
+    const targetPath = target.path || "";
     return `
-      <button class="imageflow-target" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(target.id || target.path || "")}" data-target-label="${escapeAttr(target.label || target.name || "Ziel")}" data-target-path="${escapeAttr(target.path || "")}" type="button">
-        <span class="imageflow-key">${index + 1}</span>
-        <span><strong>${escapeHtml(target.label || target.name || "Ziel")}</strong><small>${escapeHtml(target.location || target.path || "")}</small></span>
-      </button>
+      <div class="imageflow-target-row">
+        <button class="imageflow-target" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" type="button">
+          <span class="imageflow-key">${index + 1}</span>
+          <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(target.location || target.path || "")}</small></span>
+        </button>
+        <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Zu Favoriten: ${escapeAttr(label)}" title="Zu Favoriten" type="button">+</button>
+      </div>
     `;
   }
 
@@ -582,6 +664,7 @@
     root.querySelectorAll("[data-action]").forEach((button) => {
       button.addEventListener("click", handleAction);
     });
+    bindFavoriteDragAndDrop();
 
     document.removeEventListener("keydown", handleHotkey);
     if (state.page === "sort") {
@@ -644,6 +727,12 @@
       await discardJob(jobId);
     } else if (action === "assign") {
       await assignFromButton(event.currentTarget);
+    } else if (action === "skip-current") {
+      await skipCurrent(currentImage());
+    } else if (action === "add-favorite") {
+      await addFavoriteFromButton(event.currentTarget);
+    } else if (action === "remove-favorite") {
+      await removeFavorite(numberOrNull(event.currentTarget.dataset.favoriteId));
     } else if (action === "select-image") {
       setImageIndex(numberOrNull(event.currentTarget.dataset.index) ?? state.imageIndex);
     } else if (action === "page-next") {
@@ -654,6 +743,56 @@
       state.toast = { type: "info", message: "Das Protokoll wird als eigene Ansicht ausgebaut; API und Datenmodell sind vorbereitet." };
       render();
     }
+  }
+
+  function bindFavoriteDragAndDrop() {
+    root.querySelectorAll(".imageflow-favorite-row[draggable='true']").forEach((row) => {
+      row.addEventListener("dragstart", handleFavoriteDragStart);
+      row.addEventListener("dragover", handleFavoriteDragOver);
+      row.addEventListener("drop", handleFavoriteDrop);
+      row.addEventListener("dragend", handleFavoriteDragEnd);
+    });
+  }
+
+  function handleFavoriteDragStart(event) {
+    const id = event.currentTarget.dataset.favoriteId;
+    state.dragFavoriteId = id;
+    event.currentTarget.classList.add("is-dragging");
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", id || "");
+    }
+  }
+
+  function handleFavoriteDragOver(event) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+  }
+
+  async function handleFavoriteDrop(event) {
+    event.preventDefault();
+    const targetId = event.currentTarget.dataset.favoriteId;
+    const sourceId = event.dataTransfer?.getData("text/plain") || state.dragFavoriteId;
+    if (!sourceId || !targetId || sourceId === targetId) {
+      return;
+    }
+
+    const ids = realFavorites().map((favorite) => String(favorite.id));
+    const sourceIndex = ids.indexOf(String(sourceId));
+    const targetIndex = ids.indexOf(String(targetId));
+    if (sourceIndex === -1 || targetIndex === -1) {
+      return;
+    }
+    ids.splice(sourceIndex, 1);
+    ids.splice(targetIndex, 0, String(sourceId));
+    await reorderFavorites(ids);
+  }
+
+  function handleFavoriteDragEnd(event) {
+    state.dragFavoriteId = null;
+    event.currentTarget.classList.remove("is-dragging");
   }
 
   async function openSort(jobId, startMode) {
@@ -733,6 +872,76 @@
     }
   }
 
+  async function addFavoriteFromButton(button) {
+    if (!state.sortState?.job) {
+      return;
+    }
+
+    try {
+      const payload = await request("/api/v1/favorites", {
+        method: "POST",
+        body: {
+          mode: state.sortState.job.targetMode,
+          targetId: button.dataset.targetId || "",
+          targetLabel: button.dataset.targetLabel || "Ziel",
+          targetPath: button.dataset.targetPath || "",
+        },
+      });
+      applyFavorites(payload.favorites);
+      state.toast = {
+        type: "info",
+        message: payload.duplicate ? "Favorit ist bereits vorhanden." : "Favorit wurde hinzugefuegt.",
+      };
+      render();
+    } catch (error) {
+      state.toast = { type: "error", message: error.message || "Favorit konnte nicht gespeichert werden." };
+      render();
+    }
+  }
+
+  async function removeFavorite(favoriteId) {
+    if (!favoriteId) {
+      return;
+    }
+
+    try {
+      const payload = await request(`/api/v1/favorites/${favoriteId}`, { method: "DELETE", body: {} });
+      applyFavorites(payload.favorites);
+      state.toast = { type: "info", message: "Favorit wurde entfernt." };
+      render();
+    } catch (error) {
+      state.toast = { type: "error", message: error.message || "Favorit konnte nicht entfernt werden." };
+      render();
+    }
+  }
+
+  async function reorderFavorites(favoriteIds) {
+    if (!state.sortState?.job) {
+      return;
+    }
+
+    const previous = state.sortState.favorites || [];
+    applyFavorites(reorderedFavorites(favoriteIds));
+    render();
+
+    try {
+      const payload = await request("/api/v1/favorites/reorder", {
+        method: "POST",
+        body: {
+          mode: state.sortState.job.targetMode,
+          favoriteIds,
+        },
+      });
+      applyFavorites(payload.favorites);
+      state.toast = { type: "info", message: "Favoriten-Reihenfolge gespeichert." };
+      render();
+    } catch (error) {
+      state.sortState.favorites = previous;
+      state.toast = { type: "error", message: error.message || "Favoriten-Reihenfolge konnte nicht gespeichert werden." };
+      render();
+    }
+  }
+
   async function handleHotkey(event) {
     if (event.target && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) {
       return;
@@ -807,6 +1016,41 @@
 
   function sortImages(sortState = state.sortState) {
     return Array.isArray(sortState?.nextImages) ? sortState.nextImages : [];
+  }
+
+  function realFavorites(sortState = state.sortState) {
+    return (sortState?.favorites || []).filter((favorite) => !favorite.locked && favorite.id !== "skip");
+  }
+
+  function applyFavorites(favorites) {
+    if (!state.sortState || !Array.isArray(favorites)) {
+      return;
+    }
+    state.sortState.favorites = favorites;
+  }
+
+  function reorderedFavorites(favoriteIds) {
+    const current = state.sortState?.favorites || [];
+    const real = realFavorites();
+    const byId = new Map(real.map((favorite) => [String(favorite.id), favorite]));
+    const ordered = [];
+    favoriteIds.forEach((id) => {
+      if (byId.has(String(id))) {
+        ordered.push(byId.get(String(id)));
+        byId.delete(String(id));
+      }
+    });
+    real.forEach((favorite) => {
+      if (byId.has(String(favorite.id))) {
+        ordered.push(favorite);
+      }
+    });
+    const normalized = ordered.map((favorite, index) => ({
+      ...favorite,
+      position: index + 1,
+      hotkey: String(index + 1),
+    }));
+    return [...normalized, ...current.filter((favorite) => favorite.locked || favorite.id === "skip")];
   }
 
   function clampIndex(index, images) {

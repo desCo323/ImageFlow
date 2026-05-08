@@ -34,6 +34,8 @@ The sorting page is structured for fast repeated decisions:
 - right: all available albums or folders,
 - bottom: next images.
 
+Targets from the right rail can be added to favorites with `+`. Favorites can be dragged into the desired order; positions `1-9` define the number hotkeys. The skip entry stays fixed on `0`.
+
 Hotkeys:
 
 - `1-9`: favorite targets,

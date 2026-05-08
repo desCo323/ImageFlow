@@ -78,3 +78,14 @@ test('moves through the filmstrip with arrow keys and thumbnail selection', asyn
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
 });
+
+test('adds and removes favorites from the target rail', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1"');
+
+  await page.getByRole('button', { name: 'Zu Favoriten: Projekte' }).click();
+  await expect(page.locator('.imageflow-favorite-list')).toContainText('Projekte');
+  await expect(page.getByText('Favorit wurde hinzugefuegt.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Favorit entfernen: Projekte' }).click();
+  await expect(page.locator('.imageflow-favorite-list .imageflow-favorite', { hasText: 'Projekte' })).toHaveCount(0);
+});

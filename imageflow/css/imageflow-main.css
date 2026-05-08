@@ -102,6 +102,7 @@
 .imageflow-tab:focus-visible,
 .imageflow-favorite:focus-visible,
 .imageflow-target:focus-visible,
+.imageflow-mini-button:focus-visible,
 .imageflow-thumb:focus-visible,
 .imageflow-field input:focus-visible,
 .imageflow-field select:focus-visible {
@@ -334,6 +335,65 @@
 .imageflow-strip {
   display: grid;
   gap: 8px;
+}
+
+.imageflow-favorite-row,
+.imageflow-target-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.imageflow-target-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.imageflow-favorite-row.is-dragging {
+  opacity: 0.58;
+}
+
+.imageflow-drag-handle,
+.imageflow-mini-button,
+.imageflow-mini-spacer {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  min-height: 44px;
+  border-radius: 6px;
+}
+
+.imageflow-drag-handle {
+  color: var(--color-text-maxcontrast);
+  background: color-mix(in srgb, var(--color-main-background) 88%, var(--color-background-darker));
+  font-weight: 900;
+  cursor: grab;
+}
+
+.imageflow-favorite-row.is-fixed .imageflow-drag-handle {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.imageflow-mini-button {
+  border: 1px solid var(--color-border);
+  color: var(--color-main-text);
+  background: var(--color-main-background);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.imageflow-mini-button:hover {
+  border-color: #2f7d72;
+  background: color-mix(in srgb, var(--color-main-background) 78%, #b7eadf);
+}
+
+.imageflow-mini-button.danger:hover {
+  border-color: #8f1d15;
+  color: #ffffff;
+  background: #b42318;
 }
 
 .imageflow-favorite,

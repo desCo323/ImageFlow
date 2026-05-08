@@ -28,7 +28,7 @@ ImageFlow is a Nextcloud app for fast photo triage. The first version separates 
 - `imageflow_jobs`: One user-owned sorting job.
 - `imageflow_assignments`: Individual sort or skip decisions.
 - `imageflow_queue`: Planned background operations.
-- `imageflow_favorites`: User target favorites and hotkey order.
+- `imageflow_favorites`: User target favorites and hotkey order; positions `1-9` map to number hotkeys while skip remains fixed on `0`.
 - `imageflow_logs`: Detailed debug and audit events without secrets.
 
 ## Safety Boundary

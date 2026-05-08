@@ -250,17 +250,22 @@ class SortService {
 			'targetId' => $favorite->getTargetId(),
 			'hotkey' => $favorite->getHotkey(),
 			'position' => $favorite->getSortPosition(),
-		], $this->favoriteMapper->findForUserAndMode($userId, $mode, 10));
+			'targetMode' => $favorite->getTargetMode(),
+			'locked' => false,
+		], $this->favoriteMapper->findForUserAndMode($userId, $mode, 9));
 
-		if ($favorites !== []) {
-			return $favorites;
-		}
-
-		return [
-			['id' => 'placeholder-1', 'label' => 'Favorit 1', 'path' => null, 'targetId' => null, 'hotkey' => '1', 'position' => 1],
-			['id' => 'placeholder-2', 'label' => 'Favorit 2', 'path' => null, 'targetId' => null, 'hotkey' => '2', 'position' => 2],
-			['id' => 'skip', 'label' => 'Ueberspringen', 'path' => null, 'targetId' => null, 'hotkey' => '0', 'position' => 10],
+		$favorites[] = [
+			'id' => 'skip',
+			'label' => 'Ueberspringen',
+			'path' => null,
+			'targetId' => null,
+			'hotkey' => '0',
+			'position' => 10,
+			'locked' => true,
+			'targetType' => 'skip',
 		];
+
+		return $favorites;
 	}
 
 	/**
