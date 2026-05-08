@@ -403,16 +403,25 @@
   display: grid;
   place-items: center;
   gap: 14px;
+  position: relative;
   width: min(100%, 760px);
   aspect-ratio: 4 / 3;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
+  overflow: hidden;
   background:
     linear-gradient(135deg, rgba(47, 125, 114, 0.38), transparent 42%),
     linear-gradient(315deg, rgba(217, 79, 112, 0.35), transparent 46%),
     #1d1d1d;
   animation: imageflow-photo-in 160ms ease-out;
   will-change: transform, opacity;
+}
+
+.imageflow-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #111111;
 }
 
 .imageflow-photo-icon {
@@ -446,6 +455,10 @@
 }
 
 .imageflow-photo-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   padding: 10px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.16);
@@ -513,10 +526,11 @@
 .imageflow-thumb {
   position: relative;
   display: grid;
+  grid-template-rows: 72px auto auto;
   align-content: start;
   gap: 4px;
   width: 100%;
-  min-height: 72px;
+  min-height: 128px;
   padding: 8px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -525,6 +539,14 @@
   overflow-wrap: anywhere;
   text-align: left;
   transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.imageflow-thumb-img {
+  width: 100%;
+  height: 72px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #111111;
 }
 
 .imageflow-thumb:hover {

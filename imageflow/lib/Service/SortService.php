@@ -37,7 +37,7 @@ class SortService {
 			'favorites' => $this->favorites($userId, $job->getTargetMode()),
 			'recentAssignments' => array_map([$this, 'serializeAssignment'], $this->assignmentMapper->findForJob($userId, $jobId, 20)),
 			'queue' => array_map([$this, 'serializeQueueItem'], $this->queueMapper->findForJob($userId, $jobId, 20)),
-			'nextImages' => $this->safeSamples($userId, $job->getSourcePath()),
+			'nextImages' => $this->safeSamples($userId, $job->getSourcePath(), 48),
 		];
 	}
 
@@ -201,9 +201,9 @@ class SortService {
 	/**
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function safeSamples(string $userId, string $sourcePath): array {
+	private function safeSamples(string $userId, string $sourcePath, int $limit): array {
 		try {
-			return $this->folderBrowserService->listSampleImages($userId, $sourcePath, 12);
+			return $this->folderBrowserService->listSampleImages($userId, $sourcePath, $limit);
 		} catch (\Throwable) {
 			return [];
 		}

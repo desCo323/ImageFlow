@@ -9,10 +9,12 @@ use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\Files\StorageNotAvailableException;
+use OCP\IURLGenerator;
 
 class FolderBrowserService {
 	public function __construct(
 		private readonly IRootFolder $rootFolder,
+		private readonly IURLGenerator $urlGenerator,
 	) {
 	}
 
@@ -89,6 +91,12 @@ class FolderBrowserService {
 				'mimeType' => $node->getMimeType(),
 				'size' => $node->getSize(),
 				'mtime' => $node->getMTime(),
+				'previewUrl' => $this->previewUrl($node, 1600, 1200, 'fill'),
+				'thumbnailUrl' => $this->previewUrl($node, 320, 240, 'cover'),
+				'viewUrl' => $this->urlGenerator->linkToRoute('files.view.indexViewFileid', [
+					'view' => 'files',
+					'fileid' => $node->getId(),
+				]),
 			];
 			if (count($images) >= $limit) {
 				break;
@@ -96,6 +104,19 @@ class FolderBrowserService {
 		}
 
 		return $images;
+	}
+
+	private function previewUrl(File $file, int $width, int $height, string $mode): string {
+		return $this->urlGenerator->linkToRoute('core.Preview.getPreviewByFileId', [
+			'fileId' => $file->getId(),
+			'x' => $width,
+			'y' => $height,
+			'a' => true,
+			'forceIcon' => false,
+			'mimeFallback' => true,
+			'mode' => $mode,
+			'v' => $file->getMTime(),
+		]);
 	}
 
 	private function hasChildFolders(Folder $folder): bool {

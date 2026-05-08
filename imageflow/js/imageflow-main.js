@@ -164,9 +164,30 @@
         { id: "skip", label: "Ueberspringen", hotkey: "0", position: 10 },
       ],
       nextImages: [
-        { fileId: 11, name: "IMG_4021.jpg", path: `${job.sourcePath}/IMG_4021.jpg`, mimeType: "image/jpeg" },
-        { fileId: 12, name: "IMG_4022.jpg", path: `${job.sourcePath}/IMG_4022.jpg`, mimeType: "image/jpeg" },
-        { fileId: 13, name: "IMG_4023.jpg", path: `${job.sourcePath}/IMG_4023.jpg`, mimeType: "image/jpeg" },
+        {
+          fileId: 11,
+          name: "IMG_4021.jpg",
+          path: `${job.sourcePath}/IMG_4021.jpg`,
+          mimeType: "image/jpeg",
+          previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%231d1d1d'/%3E%3Cpath d='M80 650 380 310l190 230 150-160 400 270z' fill='%23b7eadf'/%3E%3Ccircle cx='880' cy='190' r='80' fill='%23f4a4b8'/%3E%3C/svg%3E",
+          thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%231d1d1d'/%3E%3Cpath d='M20 185 105 80l50 70 44-50 100 85z' fill='%23b7eadf'/%3E%3C/svg%3E",
+        },
+        {
+          fileId: 12,
+          name: "IMG_4022.jpg",
+          path: `${job.sourcePath}/IMG_4022.jpg`,
+          mimeType: "image/jpeg",
+          previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%232f3d46'/%3E%3Cpath d='M0 600 280 350l200 190 260-290 460 350v200H0z' fill='%23d94f70'/%3E%3Ccircle cx='980' cy='150' r='70' fill='%23ffe8a3'/%3E%3C/svg%3E",
+          thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%232f3d46'/%3E%3Cpath d='M0 180 80 95l60 55 70-82 110 112v40H0z' fill='%23d94f70'/%3E%3C/svg%3E",
+        },
+        {
+          fileId: 13,
+          name: "IMG_4023.jpg",
+          path: `${job.sourcePath}/IMG_4023.jpg`,
+          mimeType: "image/jpeg",
+          previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%2332254a'/%3E%3Cpath d='M120 620 360 260l180 250 140-130 380 240z' fill='%237357c8'/%3E%3Ccircle cx='930' cy='210' r='88' fill='%23b7eadf'/%3E%3C/svg%3E",
+          thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%2332254a'/%3E%3Cpath d='M30 180 102 65l52 80 42-40 104 75z' fill='%237357c8'/%3E%3C/svg%3E",
+        },
       ],
       recentAssignments: [],
       queue: [],
@@ -358,6 +379,7 @@
     };
     const bufferPlan = planImageBuffer(images, currentIndex);
     const filmstrip = filmstripWindow(images, currentIndex);
+    const preview = imageUrl(current);
 
     return `
       <section class="imageflow-sort" aria-label="Sortieransicht">
@@ -383,7 +405,7 @@
           <section class="imageflow-photo-stage">
             <div class="imageflow-photo">
               <div class="imageflow-photo-card">
-                <div class="imageflow-photo-icon" aria-hidden="true"></div>
+                ${preview ? `<img class="imageflow-photo-img" src="${escapeAttr(preview)}" alt="${escapeAttr(current.name || "Bild")}" decoding="async" fetchpriority="high" draggable="false">` : '<div class="imageflow-photo-icon" aria-hidden="true"></div>'}
                 <div class="imageflow-photo-meta">
                   <strong>${escapeHtml(current.name || "Bild")}</strong>
                   <span>${escapeHtml(current.path || "")}</span>
@@ -443,8 +465,10 @@
   function renderThumb(image, index, currentIndex, bufferPlan) {
     const active = index === currentIndex;
     const buffered = bufferPlan.includes(index);
+    const preview = image?.thumbnailUrl || imageUrl(image);
     return `
       <button class="imageflow-thumb ${active ? "is-active" : ""} ${buffered ? "is-buffered" : ""}" data-action="select-image" data-index="${index}" role="option" aria-selected="${active ? "true" : "false"}" type="button">
+        ${preview ? `<img class="imageflow-thumb-img" src="${escapeAttr(preview)}" alt="" loading="lazy" decoding="async" draggable="false">` : ""}
         <strong>${escapeHtml(image.name || "Bild")}</strong>
         <span>${escapeHtml(image.mimeType || "")}</span>
       </button>

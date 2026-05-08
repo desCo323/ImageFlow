@@ -54,6 +54,7 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
 
   await expect(page.getByRole('heading', { name: 'Favoriten' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Ziele' })).toBeVisible();
+  await expect(page.locator('.imageflow-photo-img')).toBeVisible();
   await expect(page.locator('.imageflow-photo-meta strong', { hasText: 'IMG_4021.jpg' })).toBeVisible();
   await expect(page.getByText('Leertaste')).toBeVisible();
 });
