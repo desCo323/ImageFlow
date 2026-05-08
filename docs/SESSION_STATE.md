@@ -5,7 +5,7 @@ Datum: 2026-05-08
 ## Neueste operative Notiz
 
 - Benutzerauftrag: Nextcloud-App fuer schnelles Sortieren grosser Bildordner entwickeln; Projektname ImageFlow; GitHub-Repository `desCo323/ImageFlow`.
-- Aktueller Stand: Blueprint-Arbeitsordner wurde nach `/home/cloud/ImageFlow-work` umbenannt. Es wurden keine produktiven Nextcloud-Dateien veraendert.
+- Aktueller Stand: Blueprint-Arbeitsordner wurde nach `/home/cloud/ImageFlow-work` umbenannt. Lokales Git-Repo auf Branch `main` wurde initialisiert und Remote `origin` zeigt auf `https://github.com/desCo323/ImageFlow.git`. Es wurden keine produktiven Nextcloud-Dateien veraendert.
 - Geaenderte Dateien: `README.md`, `.gitignore`, `docs/SESSION_STATE.md`, `docs/UI_REFERENCE.md`.
 - Noch nicht deployed: Alles. Es gab keinen Deploy nach `/var/www/nextcloud/apps/`.
 - Naechste Schritte: App-Skeleton im Unterordner `imageflow/` anlegen, Datenmodell fuer Jobs/Queue entwerfen, Sicherheits- und Rollback-Konzept konkretisieren.
@@ -36,6 +36,7 @@ Datum: 2026-05-08
 - GitHub-Push-Strategie ohne gespeicherte Tokens klaeren.
 - SakuraAlbum lokal inspizieren, bevor UI-Komponenten fuer ImageFlow festgelegt werden.
 - UI-Referenz aus SakuraAlbum in `docs/UI_REFERENCE.md` festgehalten.
+- GitHub-Repo `desCo323/ImageFlow` ist privat und ueber den GitHub-Connector mit Schreibrechten sichtbar. Lokales `gh` ist auf dem Server nicht installiert; ein CLI-Push wurde daher nicht mit Token erzwungen.
 
 ## Wiederherstellungsprompt
 
