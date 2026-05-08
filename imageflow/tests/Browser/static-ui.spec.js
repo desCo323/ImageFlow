@@ -52,6 +52,25 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByText('Browser Smoke')).toBeVisible();
 });
 
+test('selects source and target folders with the folder picker', async ({ page }) => {
+  await mount(page);
+
+  await page.getByLabel('Quellordner').fill('/');
+  await page.locator('[data-action="open-folder-picker"][data-picker-field="sourcePath"]').click();
+  await expect(page.getByRole('dialog', { name: 'Quellordner auswaehlen' })).toBeVisible();
+  await page.locator('.imageflow-folder-main[data-folder-path="/Photos"]').click();
+  await page.getByRole('button', { name: 'Diesen Ordner waehlen' }).click();
+  await expect(page.getByLabel('Quellordner')).toHaveValue('/Photos');
+
+  await page.getByLabel('Sortierart').selectOption('copy');
+  await page.getByLabel('Zielordner').fill('/');
+  await page.locator('[data-action="open-folder-picker"][data-picker-field="targetPath"]').click();
+  await expect(page.getByRole('dialog', { name: 'Zielordner auswaehlen' })).toBeVisible();
+  await page.locator('.imageflow-folder-main[data-folder-path="/Photos"]').click();
+  await page.locator('.imageflow-folder-row', { hasText: 'Sortiert' }).getByRole('button', { name: 'Waehlen' }).click();
+  await expect(page.getByLabel('Zielordner')).toHaveValue('/Photos/Sortiert');
+});
+
 test('renders the sorting workspace with hotkey targets and filmstrip', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1"');
 
@@ -88,4 +107,13 @@ test('adds and removes favorites from the target rail', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Favorit entfernen: Projekte' }).click();
   await expect(page.locator('.imageflow-favorite-list .imageflow-favorite', { hasText: 'Projekte' })).toHaveCount(0);
+});
+
+test('browses folder targets in copy mode', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="2"');
+
+  await expect(page.getByText('/Photos/Sortiert')).toBeVisible();
+  await page.getByRole('button', { name: 'Hoeher' }).click();
+  await expect(page.getByRole('button', { name: 'Zu Favoriten: Inbox' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zu Favoriten: Sortiert' })).toBeVisible();
 });

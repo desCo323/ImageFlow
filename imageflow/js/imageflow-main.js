@@ -34,11 +34,46 @@
     startMode: null,
     mockFavorites: null,
     dragFavoriteId: null,
+    jobDraft: {
+      name: "",
+      sourcePath: "/Photos",
+      targetMode: "album",
+      targetPath: "/Photos/Sortiert",
+      safeMode: true,
+    },
+    folderPicker: {
+      open: false,
+      field: null,
+      path: "/",
+      data: null,
+      loading: false,
+      error: null,
+    },
+    targetBrowsePath: null,
+    targetFolderPage: null,
   };
 
   function numberOrNull(value) {
     const parsed = Number.parseInt(value || "", 10);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function normalizeDisplayPath(path) {
+    const parts = String(path || "/")
+      .replace(/\\/g, "/")
+      .split("/")
+      .map((part) => part.trim())
+      .filter((part) => part && part !== ".");
+    return parts.length ? `/${parts.filter((part) => part !== "..").join("/")}` : "/";
+  }
+
+  function parentPath(path) {
+    const parts = normalizeDisplayPath(path).split("/").filter(Boolean);
+    if (parts.length === 0) {
+      return null;
+    }
+    parts.pop();
+    return parts.length ? `/${parts.join("/")}` : "/";
   }
 
   function apiUrl(path) {
@@ -173,7 +208,16 @@
         .map((item, index) => ({ ...item, position: index + 1, hotkey: String(index + 1) }));
       return { deleted: true, favoriteId, favorites: mockFavoritesWithSkip(state.mockFavorites) };
     }
+    if (path.includes("/folders")) {
+      const query = new URLSearchParams(path.split("?")[1] || "");
+      return mockFolderPage(query.get("path") || "/");
+    }
     if (path.includes("/targets")) {
+      const query = new URLSearchParams(path.split("?")[1] || "");
+      const mode = query.get("mode") || "album";
+      if (mode !== "album") {
+        return { mode, ordering: "alphabetical", folders: mockFolderPage(query.get("path") || "/") };
+      }
       return { targets: mockTargets() };
     }
     return {};
@@ -219,7 +263,7 @@
   }
 
   function mockSortState(jobId) {
-    const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
+    const job = state.jobs.find((item) => item.id === jobId) || mockJobs().find((item) => item.id === jobId) || mockJobs()[0];
     return {
       job,
       favorites: mockFavoritesWithSkip(mockRealFavorites()),
@@ -304,6 +348,37 @@
     ];
   }
 
+  function mockFolderPage(path) {
+    const normalized = normalizeDisplayPath(path || "/");
+    const tree = {
+      "/": [
+        { name: "Camera", path: "/Camera", hasChildren: true },
+        { name: "Photos", path: "/Photos", hasChildren: true },
+        { name: "Projects", path: "/Projects", hasChildren: false },
+      ],
+      "/Camera": [
+        { name: "Unsortiert", path: "/Camera/Unsortiert", hasChildren: false },
+      ],
+      "/Photos": [
+        { name: "Inbox", path: "/Photos/Inbox", hasChildren: false },
+        { name: "Sortiert", path: "/Photos/Sortiert", hasChildren: false },
+      ],
+    };
+    const folders = tree[normalized] || [];
+    return {
+      current: {
+        name: normalized === "/" ? "Dateien" : normalized.split("/").filter(Boolean).at(-1),
+        path: normalized,
+      },
+      parent: parentPath(normalized),
+      folders,
+      imageCount: normalized === "/Photos" ? 3 : 0,
+      total: folders.length,
+      limit: 150,
+      truncated: false,
+    };
+  }
+
   async function load() {
     state.loading = true;
     render();
@@ -362,7 +437,17 @@
   }
 
   async function loadTargets(mode) {
-    const payload = await request(`/api/v1/targets?mode=${encodeURIComponent(mode || "album")}&limit=100`);
+    const targetMode = mode || "album";
+    const params = new URLSearchParams({ mode: targetMode, limit: "100" });
+    if (targetMode !== "album") {
+      if (!state.targetBrowsePath) {
+        state.targetBrowsePath = state.sortState?.job?.targetPath || "/";
+      }
+      params.set("path", state.targetBrowsePath);
+    }
+
+    const payload = await request(`/api/v1/targets?${params.toString()}`);
+    state.targetFolderPage = payload.folders || null;
     state.targets = payload.targets || payload.folders?.folders || [];
   }
 
@@ -374,6 +459,7 @@
         <main class="imageflow-content">
           ${state.page === "sort" ? renderSortPage() : renderJobsPage()}
           ${renderToast()}
+          ${renderFolderPicker()}
         </main>
       </div>
     `;
@@ -400,6 +486,7 @@
 
   function renderJobsPage() {
     const totals = summarizeJobs(state.jobs);
+    const draft = state.jobDraft;
     return `
       <section class="imageflow-dashboard" aria-label="Sortierjobs">
         <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
@@ -411,27 +498,33 @@
           </div>
           <div class="imageflow-field">
             <label for="ifl-name">Name</label>
-            <input id="ifl-name" name="name" type="text" maxlength="160" placeholder="z. B. Urlaub Import">
+            <input id="ifl-name" name="name" type="text" maxlength="160" placeholder="z. B. Urlaub Import" value="${escapeAttr(draft.name)}">
           </div>
           <div class="imageflow-field">
             <label for="ifl-source">Quellordner</label>
-            <input id="ifl-source" name="sourcePath" type="text" value="/Photos" autocomplete="off">
-            <small>Ordnerauswahl per Nextcloud-Dialog folgt; Pfade werden serverseitig normalisiert.</small>
+            <div class="imageflow-path-picker">
+              <input id="ifl-source" name="sourcePath" type="text" value="${escapeAttr(draft.sourcePath)}" autocomplete="off">
+              <button class="imageflow-button" data-action="open-folder-picker" data-picker-field="sourcePath" type="button">Auswaehlen</button>
+            </div>
+            <small>Pfade werden serverseitig normalisiert und bleiben auf deinen Nextcloud-Dateibaum begrenzt.</small>
           </div>
           <div class="imageflow-field">
             <label for="ifl-mode">Sortierart</label>
             <select id="ifl-mode" name="targetMode">
-              <option value="album">Nextcloud-Album zuordnen</option>
-              <option value="move">In Ordner verschieben</option>
-              <option value="copy">In Ordner kopieren</option>
+              <option value="album" ${draft.targetMode === "album" ? "selected" : ""}>Nextcloud-Album zuordnen</option>
+              <option value="move" ${draft.targetMode === "move" ? "selected" : ""}>In Ordner verschieben</option>
+              <option value="copy" ${draft.targetMode === "copy" ? "selected" : ""}>In Ordner kopieren</option>
             </select>
           </div>
           <div class="imageflow-field" data-target-path-field hidden>
             <label for="ifl-target">Zielordner</label>
-            <input id="ifl-target" name="targetPath" type="text" value="/Photos/Sortiert" autocomplete="off">
+            <div class="imageflow-path-picker">
+              <input id="ifl-target" name="targetPath" type="text" value="${escapeAttr(draft.targetPath)}" autocomplete="off">
+              <button class="imageflow-button" data-action="open-folder-picker" data-picker-field="targetPath" type="button">Auswaehlen</button>
+            </div>
           </div>
           <label class="imageflow-toggle">
-            <input id="ifl-safe" name="safeMode" type="checkbox" checked>
+            <input id="ifl-safe" name="safeMode" type="checkbox" ${draft.safeMode ? "checked" : ""}>
             Sicherer Modus mit Pruefsummen
           </label>
           <div class="imageflow-actions">
@@ -522,6 +615,8 @@
     const page = sortState.imagePage || state.imagePage || defaultImagePage(images);
     const pageStart = page.total > 0 ? Number(page.cursor || 0) + 1 : 0;
     const pageEnd = Math.min(Number(page.total || images.length), Number(page.cursor || 0) + images.length);
+    const targetFolder = state.targetFolderPage;
+    const isFolderMode = job.targetMode === "move" || job.targetMode === "copy";
 
     return `
       <section class="imageflow-sort" aria-label="Sortieransicht">
@@ -568,11 +663,12 @@
             <div class="imageflow-panel-head">
               <div>
                 <h4>Ziele</h4>
-                <p>${job.targetMode === "album" ? "Alben alphabetisch" : "Ordner alphabetisch"}</p>
+                <p>${job.targetMode === "album" ? "Alben alphabetisch" : escapeHtml(targetFolder?.current?.path || state.targetBrowsePath || "/")}</p>
               </div>
+              ${isFolderMode ? `<button class="imageflow-button" data-action="browse-target-parent" type="button" ${targetFolder?.parent ? "" : "disabled"}>Hoeher</button>` : ""}
             </div>
             <div class="imageflow-target-list">
-              ${(state.targets.length ? state.targets : mockTargets()).map((target, index) => renderTarget(target, current, index)).join("")}
+              ${(state.targets.length ? state.targets : (isFolderMode ? [] : mockTargets())).map((target, index) => renderTarget(target, current, index, isFolderMode)).join("") || '<div class="imageflow-empty">Keine Ziele in diesem Ordner.</div>'}
             </div>
           </aside>
         </div>
@@ -617,16 +713,20 @@
     `;
   }
 
-  function renderTarget(target, current, index) {
+  function renderTarget(target, current, index, isFolderMode = false) {
     const label = target.label || target.name || "Ziel";
     const targetId = target.id || target.path || "";
     const targetPath = target.path || "";
+    const browse = isFolderMode && target.hasChildren
+      ? `<button class="imageflow-mini-button" data-action="browse-target-folder" data-target-path="${escapeAttr(targetPath)}" aria-label="Ordner oeffnen: ${escapeAttr(label)}" title="Ordner oeffnen" type="button">›</button>`
+      : "";
     return `
       <div class="imageflow-target-row">
         <button class="imageflow-target" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" type="button">
           <span class="imageflow-key">${index + 1}</span>
           <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(target.location || target.path || "")}</small></span>
         </button>
+        ${browse}
         <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Zu Favoriten: ${escapeAttr(label)}" title="Zu Favoriten" type="button">+</button>
       </div>
     `;
@@ -645,6 +745,55 @@
     `;
   }
 
+  function renderFolderPicker() {
+    if (!state.folderPicker.open) {
+      return "";
+    }
+    const picker = state.folderPicker;
+    const fallback = {
+      current: { name: "Dateien", path: picker.path || "/" },
+      parent: parentPath(picker.path || "/"),
+      folders: [],
+      imageCount: 0,
+    };
+    const data = picker.data || (hasNextcloud ? fallback : mockFolderPage(picker.path || "/"));
+    const currentPath = data.current?.path || picker.path || "/";
+    const title = picker.field === "targetPath" ? "Zielordner auswaehlen" : "Quellordner auswaehlen";
+    return `
+      <div class="imageflow-modal-backdrop" role="presentation">
+        <section class="imageflow-modal" role="dialog" aria-modal="true" aria-label="${escapeAttr(title)}">
+          <header class="imageflow-modal-head">
+            <div>
+              <h3>${escapeHtml(title)}</h3>
+              <p>${escapeHtml(currentPath)} · ${Number(data.imageCount || 0)} Bilder direkt in diesem Ordner</p>
+            </div>
+            <button class="imageflow-icon-button" data-action="close-folder-picker" type="button">Schliessen</button>
+          </header>
+          <div class="imageflow-folder-actions">
+            <button class="imageflow-button" data-action="folder-picker-parent" type="button" ${data.parent ? "" : "disabled"}>Hoeher</button>
+            <button class="imageflow-button primary" data-action="choose-folder" data-folder-path="${escapeAttr(currentPath)}" type="button">Diesen Ordner waehlen</button>
+          </div>
+          ${picker.error ? `<div class="imageflow-empty">${escapeHtml(picker.error)}</div>` : ""}
+          <div class="imageflow-folder-list">
+            ${picker.loading && hasNextcloud ? '<div class="imageflow-empty">Ordner werden geladen.</div>' : ((data.folders || []).map(renderFolderPickerRow).join("") || '<div class="imageflow-empty">Keine Unterordner vorhanden.</div>')}
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderFolderPickerRow(folder) {
+    return `
+      <div class="imageflow-folder-row">
+        <button class="imageflow-folder-main" data-action="folder-picker-open" data-folder-path="${escapeAttr(folder.path)}" type="button">
+          <strong>${escapeHtml(folder.name)}</strong>
+          <span>${escapeHtml(folder.path)}${folder.hasChildren ? " · Unterordner" : ""}</span>
+        </button>
+        <button class="imageflow-button" data-action="choose-folder" data-folder-path="${escapeAttr(folder.path)}" type="button">Waehlen</button>
+      </div>
+    `;
+  }
+
   function renderToast() {
     if (!state.toast) {
       return "";
@@ -656,6 +805,8 @@
     const form = document.getElementById("imageflow-job-form");
     if (form) {
       form.addEventListener("submit", createJob);
+      form.addEventListener("input", updateJobDraft);
+      form.addEventListener("change", updateJobDraft);
       const mode = document.getElementById("ifl-mode");
       mode?.addEventListener("change", toggleTargetPath);
       toggleTargetPath();
@@ -675,18 +826,20 @@
   async function createJob(event) {
     event.preventDefault();
     const form = event.currentTarget;
+    readJobDraft(form);
     const body = {
-      name: form.name.value.trim(),
-      sourcePath: form.sourcePath.value.trim() || "/",
-      targetMode: form.targetMode.value,
-      targetPath: form.targetPath ? form.targetPath.value.trim() : "",
-      safeMode: form.safeMode.checked,
+      name: state.jobDraft.name.trim(),
+      sourcePath: state.jobDraft.sourcePath.trim() || "/",
+      targetMode: state.jobDraft.targetMode,
+      targetPath: state.jobDraft.targetPath.trim(),
+      safeMode: state.jobDraft.safeMode,
     };
 
     try {
       const payload = await request("/api/v1/jobs", { method: "POST", body });
       state.jobs = [payload.job, ...state.jobs.filter((job) => job.id !== payload.job.id)];
       state.toast = { type: "info", message: "Sortierjob wurde angelegt." };
+      state.jobDraft.name = "";
       render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Job konnte nicht angelegt werden." };
@@ -700,6 +853,27 @@
     if (mode && targetField) {
       targetField.hidden = mode.value === "album";
     }
+  }
+
+  function updateJobDraft(event) {
+    const form = event.currentTarget.closest ? event.currentTarget.closest("form") : document.getElementById("imageflow-job-form");
+    readJobDraft(form);
+    if (event.target?.name === "targetMode") {
+      toggleTargetPath();
+    }
+  }
+
+  function readJobDraft(form = document.getElementById("imageflow-job-form")) {
+    if (!form) {
+      return;
+    }
+    state.jobDraft = {
+      name: form.name?.value || "",
+      sourcePath: form.sourcePath?.value || "/",
+      targetMode: form.targetMode?.value || "album",
+      targetPath: form.targetPath?.value || "/Photos/Sortiert",
+      safeMode: Boolean(form.safeMode?.checked),
+    };
   }
 
   async function handleAction(event) {
@@ -733,6 +907,20 @@
       await addFavoriteFromButton(event.currentTarget);
     } else if (action === "remove-favorite") {
       await removeFavorite(numberOrNull(event.currentTarget.dataset.favoriteId));
+    } else if (action === "open-folder-picker") {
+      await openFolderPicker(event.currentTarget.dataset.pickerField);
+    } else if (action === "close-folder-picker") {
+      closeFolderPicker();
+    } else if (action === "folder-picker-open") {
+      await loadFolderPicker(event.currentTarget.dataset.folderPath || "/");
+    } else if (action === "folder-picker-parent") {
+      await loadFolderPicker(state.folderPicker.data?.parent || "/");
+    } else if (action === "choose-folder") {
+      chooseFolder(event.currentTarget.dataset.folderPath || state.folderPicker.path || "/");
+    } else if (action === "browse-target-folder") {
+      await browseTargetFolder(event.currentTarget.dataset.targetPath || "/");
+    } else if (action === "browse-target-parent") {
+      await browseTargetFolder(state.targetFolderPage?.parent || "/");
     } else if (action === "select-image") {
       setImageIndex(numberOrNull(event.currentTarget.dataset.index) ?? state.imageIndex);
     } else if (action === "page-next") {
@@ -795,6 +983,76 @@
     event.currentTarget.classList.remove("is-dragging");
   }
 
+  async function openFolderPicker(field) {
+    readJobDraft();
+    const path = field === "targetPath" ? state.jobDraft.targetPath : state.jobDraft.sourcePath;
+    state.folderPicker = {
+      open: true,
+      field: field || "sourcePath",
+      path: normalizeDisplayPath(path || "/"),
+      data: null,
+      loading: true,
+      error: null,
+    };
+    render();
+    await loadFolderPicker(state.folderPicker.path);
+  }
+
+  async function loadFolderPicker(path) {
+    state.folderPicker.loading = true;
+    state.folderPicker.error = null;
+    render();
+    try {
+      const data = await request(`/api/v1/folders?path=${encodeURIComponent(normalizeDisplayPath(path || "/"))}&limit=150`);
+      state.folderPicker = {
+        ...state.folderPicker,
+        path: data.current?.path || normalizeDisplayPath(path || "/"),
+        data,
+        loading: false,
+        error: null,
+      };
+      render();
+    } catch (error) {
+      state.folderPicker = {
+        ...state.folderPicker,
+        loading: false,
+        error: error.message || "Ordner konnte nicht geladen werden.",
+      };
+      render();
+    }
+  }
+
+  function closeFolderPicker() {
+    state.folderPicker = {
+      open: false,
+      field: null,
+      path: "/",
+      data: null,
+      loading: false,
+      error: null,
+    };
+    render();
+  }
+
+  function chooseFolder(path) {
+    const selected = normalizeDisplayPath(path || "/");
+    if (state.folderPicker.field === "targetPath") {
+      state.jobDraft.targetPath = selected;
+    } else {
+      state.jobDraft.sourcePath = selected;
+    }
+    closeFolderPicker();
+  }
+
+  async function browseTargetFolder(path) {
+    if (!state.sortState?.job) {
+      return;
+    }
+    state.targetBrowsePath = normalizeDisplayPath(path || "/");
+    await loadTargets(state.sortState.job.targetMode);
+    render();
+  }
+
   async function openSort(jobId, startMode) {
     state.page = "sort";
     state.jobId = jobId;
@@ -803,6 +1061,8 @@
     state.imagePage = null;
     state.pageCursor = null;
     state.startMode = startMode;
+    state.targetBrowsePath = null;
+    state.targetFolderPage = null;
     await load();
   }
 

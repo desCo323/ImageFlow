@@ -31,6 +31,8 @@ ImageFlow is a Nextcloud app for fast photo triage. The first version separates 
 - `imageflow_favorites`: User target favorites and hotkey order; positions `1-9` map to number hotkeys while skip remains fixed on `0`.
 - `imageflow_logs`: Detailed debug and audit events without secrets.
 
+Folder selection uses the same normalized user-relative path model as sorting. The browser API lists only folders reachable through the current user's Nextcloud filesystem view; it does not create, copy, move or delete files.
+
 ## Safety Boundary
 
 The current `QueueExecutionJob` does not copy, move, delete or write album membership. This is intentional. Real execution must be implemented behind:

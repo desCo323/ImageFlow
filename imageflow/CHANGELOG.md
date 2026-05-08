@@ -9,6 +9,7 @@
 - Add filecache-backed image paging, page controls, and persisted sort position per job for large folders.
 - Add sort start choices for resume, from beginning, and first open image.
 - Add editable target favorites with add, remove, drag-and-drop reorder, and stable number hotkeys.
+- Add folder picker UI for source/target job setup and browsable folder targets in copy/move sorting mode.
 
 ## 0.1.0 - 2026-05-08
 

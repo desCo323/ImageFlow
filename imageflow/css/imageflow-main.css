@@ -181,6 +181,13 @@
   border-radius: 6px;
 }
 
+.imageflow-path-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .imageflow-field small {
   color: var(--color-text-maxcontrast);
   line-height: 1.35;
@@ -346,7 +353,7 @@
 }
 
 .imageflow-target-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .imageflow-favorite-row.is-dragging {
@@ -671,6 +678,88 @@
   background: color-mix(in srgb, var(--color-main-background) 94%, var(--color-error));
 }
 
+.imageflow-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.44);
+}
+
+.imageflow-modal {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  width: min(720px, 100%);
+  max-height: min(720px, calc(100vh - 36px));
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-main-background);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.25);
+}
+
+.imageflow-modal-head,
+.imageflow-folder-actions,
+.imageflow-folder-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.imageflow-modal-head h3,
+.imageflow-modal-head p {
+  margin: 0;
+}
+
+.imageflow-modal-head p {
+  margin-top: 4px;
+  color: var(--color-text-maxcontrast);
+}
+
+.imageflow-folder-actions {
+  flex-wrap: wrap;
+}
+
+.imageflow-folder-list {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.imageflow-folder-row {
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-main-background) 96%, var(--color-background-darker));
+}
+
+.imageflow-folder-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px;
+  border: 0;
+  color: var(--color-main-text);
+  background: transparent;
+  text-align: left;
+}
+
+.imageflow-folder-main strong,
+.imageflow-folder-main span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.imageflow-folder-main span {
+  color: var(--color-text-maxcontrast);
+  font-size: 13px;
+}
+
 @media (max-width: 980px) {
   .imageflow-topbar,
   .imageflow-job-head,
@@ -703,6 +792,14 @@
   .imageflow-button,
   .imageflow-tab {
     width: 100%;
+  }
+
+  .imageflow-path-picker,
+  .imageflow-folder-row,
+  .imageflow-modal-head {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .imageflow-title h2 {

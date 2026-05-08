@@ -4,8 +4,9 @@
 
 Open ImageFlow from the Nextcloud navigation and create a sort job:
 
-- choose a source folder,
+- choose a source folder with the folder picker,
 - choose the target mode,
+- choose a target folder with the folder picker when using copy or move,
 - keep safe mode enabled,
 - start sorting.
 
@@ -35,6 +36,8 @@ The sorting page is structured for fast repeated decisions:
 - bottom: next images.
 
 Targets from the right rail can be added to favorites with `+`. Favorites can be dragged into the desired order; positions `1-9` define the number hotkeys. The skip entry stays fixed on `0`.
+
+In copy and move jobs, the target rail can browse folders. The main folder row assigns the current image to that folder, while the arrow button opens a child folder.
 
 Hotkeys:
 
