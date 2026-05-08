@@ -12,12 +12,18 @@
     hasNextcloud && typeof window.OC.imagePath === "function"
       ? window.OC.imagePath("imageflow", "app.svg")
       : "./img/app.svg";
+  const PRELOAD_RADIUS = 4;
+  const THUMB_WINDOW = 16;
+  const MAX_BUFFERED_IMAGES = 32;
+  const imageBuffer = new Map();
 
   const state = {
     page: root.dataset.page || "jobs",
     jobId: numberOrNull(root.dataset.jobId),
     jobs: [],
     sortState: null,
+    imageIndex: 0,
+    bufferPlan: [],
     targets: [],
     toast: null,
     loading: false,
@@ -183,6 +189,7 @@
       if (state.page === "sort" && state.jobId) {
         const payload = await request(`/api/v1/jobs/${state.jobId}/sort-state`);
         state.sortState = payload;
+        state.imageIndex = clampIndex(state.imageIndex, sortImages(payload));
         await loadTargets(payload.job.targetMode);
       } else {
         const payload = await request("/api/v1/jobs");
@@ -213,6 +220,7 @@
       </div>
     `;
     bindActions();
+    syncImageBuffer();
   }
 
   function renderTopbar() {
@@ -341,22 +349,27 @@
   function renderSortPage() {
     const sortState = state.sortState || mockSortState(state.jobId || 1);
     const job = sortState.job;
-    const current = sortState.nextImages?.[0] || {
+    const images = sortImages(sortState);
+    const currentIndex = clampIndex(state.imageIndex, images);
+    const current = images[currentIndex] || {
       name: "Kein Bild geladen",
       path: job.sourcePath || "/",
       mimeType: "",
     };
+    const bufferPlan = planImageBuffer(images, currentIndex);
+    const filmstrip = filmstripWindow(images, currentIndex);
 
     return `
       <section class="imageflow-sort" aria-label="Sortieransicht">
         <header class="imageflow-job-head">
           <div>
             <h3>${escapeHtml(job.name || "Sortierjob")}</h3>
-            <p>${escapeHtml(job.sourcePath || "/")} · ${modeLabel(job.targetMode)} · ${statusLabel(job.status)}</p>
+            <p>${escapeHtml(job.sourcePath || "/")} · ${modeLabel(job.targetMode)} · ${statusLabel(job.status)} · ${images.length ? currentIndex + 1 : 0}/${images.length}</p>
           </div>
           <div class="imageflow-toolbar">
             <span class="imageflow-badge safe">${job.safeMode ? "Sicherer Modus" : "Standardmodus"}</span>
             <span class="imageflow-badge">${Number(job.sortedFiles || 0)} sortiert</span>
+            <span class="imageflow-badge">${Number(job.queuedOperations || 0)} geplant</span>
             <button class="imageflow-button" data-action="go-jobs" type="button">Zurueck</button>
           </div>
         </header>
@@ -381,6 +394,7 @@
               <span class="imageflow-hotkey"><b>1-9</b> Favorit</span>
               <span class="imageflow-hotkey"><b>0</b> Ueberspringen</span>
               <span class="imageflow-hotkey"><b>Leertaste</b> Ueberspringen</span>
+              <span class="imageflow-hotkey"><b>←/→</b> Filmstreifen</span>
             </div>
           </section>
           <aside class="imageflow-targets">
@@ -396,9 +410,12 @@
           </aside>
         </div>
         <footer class="imageflow-filmstrip">
-          <strong>Naechste Bilder</strong>
-          <div class="imageflow-strip">
-            ${(sortState.nextImages || []).slice(0, 12).map(renderThumb).join("") || '<div class="imageflow-empty">Keine Vorschaubilder geladen.</div>'}
+          <div class="imageflow-filmstrip-head">
+            <strong>Filmstreifen</strong>
+            <span>${bufferPlan.length} im Puffer</span>
+          </div>
+          <div class="imageflow-strip" role="listbox" aria-label="Filmstreifen">
+            ${filmstrip.items.map((image, offset) => renderThumb(image, filmstrip.start + offset, currentIndex, bufferPlan)).join("") || '<div class="imageflow-empty">Keine Vorschaubilder geladen.</div>'}
           </div>
         </footer>
       </section>
@@ -407,7 +424,7 @@
 
   function renderFavorite(favorite, current) {
     return `
-      <button class="imageflow-favorite" data-action="assign" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(favorite.targetId || favorite.id || "")}" data-target-label="${escapeAttr(favorite.label)}" data-hotkey="${escapeAttr(favorite.hotkey || "")}" type="button">
+      <button class="imageflow-favorite" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(favorite.targetId || favorite.id || "")}" data-target-label="${escapeAttr(favorite.label)}" data-hotkey="${escapeAttr(favorite.hotkey || "")}" type="button">
         <span class="imageflow-key">${escapeHtml(favorite.hotkey || String(favorite.position || ""))}</span>
         <span><strong>${escapeHtml(favorite.label)}</strong><small>Position ${escapeHtml(String(favorite.position || ""))}</small></span>
       </button>
@@ -416,15 +433,22 @@
 
   function renderTarget(target, current, index) {
     return `
-      <button class="imageflow-target" data-action="assign" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(target.id || target.path || "")}" data-target-label="${escapeAttr(target.label || target.name || "Ziel")}" data-target-path="${escapeAttr(target.path || "")}" type="button">
+      <button class="imageflow-target" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(target.id || target.path || "")}" data-target-label="${escapeAttr(target.label || target.name || "Ziel")}" data-target-path="${escapeAttr(target.path || "")}" type="button">
         <span class="imageflow-key">${index + 1}</span>
         <span><strong>${escapeHtml(target.label || target.name || "Ziel")}</strong><small>${escapeHtml(target.location || target.path || "")}</small></span>
       </button>
     `;
   }
 
-  function renderThumb(image) {
-    return `<div class="imageflow-thumb"><strong>${escapeHtml(image.name || "Bild")}</strong><br>${escapeHtml(image.mimeType || "")}</div>`;
+  function renderThumb(image, index, currentIndex, bufferPlan) {
+    const active = index === currentIndex;
+    const buffered = bufferPlan.includes(index);
+    return `
+      <button class="imageflow-thumb ${active ? "is-active" : ""} ${buffered ? "is-buffered" : ""}" data-action="select-image" data-index="${index}" role="option" aria-selected="${active ? "true" : "false"}" type="button">
+        <strong>${escapeHtml(image.name || "Bild")}</strong>
+        <span>${escapeHtml(image.mimeType || "")}</span>
+      </button>
+    `;
   }
 
   function renderToast() {
@@ -447,8 +471,8 @@
       button.addEventListener("click", handleAction);
     });
 
+    document.removeEventListener("keydown", handleHotkey);
     if (state.page === "sort") {
-      document.removeEventListener("keydown", handleHotkey);
       document.addEventListener("keydown", handleHotkey);
     }
   }
@@ -507,6 +531,8 @@
       await discardJob(jobId);
     } else if (action === "assign") {
       await assignFromButton(event.currentTarget);
+    } else if (action === "select-image") {
+      setImageIndex(numberOrNull(event.currentTarget.dataset.index) ?? state.imageIndex);
     } else if (action === "show-log") {
       state.toast = { type: "info", message: "Das Protokoll wird als eigene Ansicht ausgebaut; API und Datenmodell sind vorbereitet." };
       render();
@@ -557,10 +583,14 @@
           sourcePath,
           target,
           hotkey: button.dataset.hotkey || "",
+          fileId: button.dataset.fileId || null,
+          fileName: button.dataset.fileName || "",
+          mimeType: button.dataset.mimeType || "",
         },
       });
       state.toast = { type: "info", message: `Geplant: ${target.label}` };
-      await load();
+      completeCurrentDecision("assign");
+      render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Sortierentscheidung konnte nicht gespeichert werden." };
       render();
@@ -572,17 +602,40 @@
       return;
     }
     const sortState = state.sortState || mockSortState(state.jobId || 1);
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      setImageIndex(state.imageIndex + 1);
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      setImageIndex(state.imageIndex - 1);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      setImageIndex(0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      setImageIndex(sortImages(sortState).length - 1);
+      return;
+    }
     if (event.key === " " || event.key === "0") {
       event.preventDefault();
-      await skipCurrent(sortState.nextImages?.[0]);
+      await skipCurrent(currentImage(sortState));
       return;
     }
     const favorite = (sortState.favorites || []).find((item) => item.hotkey === event.key);
     if (favorite) {
       event.preventDefault();
-      const current = sortState.nextImages?.[0];
+      const current = currentImage(sortState);
       const button = {
         dataset: {
+          fileId: current?.fileId || "",
+          fileName: current?.name || "",
+          mimeType: current?.mimeType || "",
           sourcePath: current?.path || "",
           targetId: favorite.targetId || favorite.id || "",
           targetLabel: favorite.label,
@@ -601,14 +654,144 @@
         body: {
           sourcePath: current?.path || "",
           hotkey: "0",
+          fileId: current?.fileId || null,
+          fileName: current?.name || "",
+          mimeType: current?.mimeType || "",
         },
       });
       state.toast = { type: "info", message: "Bild wurde uebersprungen." };
-      await load();
+      completeCurrentDecision("skip");
+      render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Bild konnte nicht uebersprungen werden." };
       render();
     }
+  }
+
+  function sortImages(sortState = state.sortState) {
+    return Array.isArray(sortState?.nextImages) ? sortState.nextImages : [];
+  }
+
+  function clampIndex(index, images) {
+    if (images.length === 0) {
+      return 0;
+    }
+    return Math.max(0, Math.min(images.length - 1, Number.isFinite(index) ? index : 0));
+  }
+
+  function currentImage(sortState = state.sortState) {
+    const images = sortImages(sortState);
+    return images[clampIndex(state.imageIndex, images)] || null;
+  }
+
+  function setImageIndex(index) {
+    const images = sortImages(state.sortState || mockSortState(state.jobId || 1));
+    const nextIndex = clampIndex(index, images);
+    if (nextIndex === state.imageIndex) {
+      syncImageBuffer();
+      return;
+    }
+    state.imageIndex = nextIndex;
+    render();
+  }
+
+  function completeCurrentDecision(type) {
+    const sortState = state.sortState;
+    if (!sortState) {
+      return;
+    }
+
+    const images = sortImages(sortState);
+    if (images.length > 0) {
+      images.splice(clampIndex(state.imageIndex, images), 1);
+    }
+    state.imageIndex = clampIndex(state.imageIndex, images);
+    if (type === "skip") {
+      sortState.job.skippedFiles = Number(sortState.job.skippedFiles || 0) + 1;
+    } else {
+      sortState.job.sortedFiles = Number(sortState.job.sortedFiles || 0) + 1;
+      sortState.job.queuedOperations = Number(sortState.job.queuedOperations || 0) + 1;
+    }
+    if (sortState.job.status === "draft") {
+      sortState.job.status = "sorting";
+    }
+  }
+
+  function filmstripWindow(images, currentIndex) {
+    if (images.length <= THUMB_WINDOW) {
+      return { start: 0, items: images };
+    }
+
+    const half = Math.floor(THUMB_WINDOW / 2);
+    const start = Math.max(0, Math.min(images.length - THUMB_WINDOW, currentIndex - half));
+    return { start, items: images.slice(start, start + THUMB_WINDOW) };
+  }
+
+  function planImageBuffer(images, currentIndex) {
+    const first = Math.max(0, currentIndex - PRELOAD_RADIUS);
+    const last = Math.min(images.length - 1, currentIndex + PRELOAD_RADIUS);
+    state.bufferPlan = [];
+    for (let index = first; index <= last; index += 1) {
+      state.bufferPlan.push(index);
+    }
+    return state.bufferPlan;
+  }
+
+  function syncImageBuffer() {
+    if (state.page !== "sort") {
+      imageBuffer.clear();
+      return;
+    }
+
+    const images = sortImages(state.sortState || mockSortState(state.jobId || 1));
+    const indexes = planImageBuffer(images, clampIndex(state.imageIndex, images));
+    const keepKeys = new Set();
+    indexes.forEach((index) => {
+      const image = images[index];
+      const key = imageKey(image, index);
+      keepKeys.add(key);
+      preloadImage(image, key);
+    });
+
+    Array.from(imageBuffer.keys()).forEach((key) => {
+      if (!keepKeys.has(key) || imageBuffer.size > MAX_BUFFERED_IMAGES) {
+        imageBuffer.delete(key);
+      }
+    });
+  }
+
+  function preloadImage(image, key) {
+    const url = imageUrl(image);
+    if (!url || imageBuffer.has(key) || typeof window.Image !== "function") {
+      return;
+    }
+
+    const loader = new window.Image();
+    loader.decoding = "async";
+    const entry = { status: "loading", url, loader };
+    imageBuffer.set(key, entry);
+    loader.onload = () => {
+      entry.status = "ready";
+    };
+    loader.onerror = () => {
+      entry.status = "failed";
+    };
+    loader.src = url;
+    if (typeof loader.decode === "function") {
+      loader.decode().then(() => {
+        entry.status = "ready";
+      }).catch(() => {
+        entry.status = "failed";
+      });
+    }
+  }
+
+  function imageKey(image, index) {
+    return String(image?.fileId || image?.path || image?.name || index);
+  }
+
+  function imageUrl(image) {
+    return image?.previewUrl || image?.thumbnailUrl || image?.url || "";
   }
 
   function summarizeJobs(jobs) {

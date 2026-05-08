@@ -4,6 +4,7 @@
 
 - Add production deploy PHP-FPM reload to avoid stale Nextcloud route/controller cache after file sync.
 - Document the next high-speed filmstrip, preload buffer, idempotent worklist, and cron execution architecture block.
+- Add keyboard filmstrip navigation, bounded image preload planning, active thumbnail selection, and duplicate queue protection for planned sort operations.
 
 ## 0.1.0 - 2026-05-08
 

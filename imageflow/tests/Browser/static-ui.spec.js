@@ -57,3 +57,17 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.locator('.imageflow-photo-meta strong', { hasText: 'IMG_4021.jpg' })).toBeVisible();
   await expect(page.getByText('Leertaste')).toBeVisible();
 });
+
+test('moves through the filmstrip with arrow keys and thumbnail selection', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1"');
+
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
+  await expect(page.locator('.imageflow-thumb.is-active')).toContainText('IMG_4022.jpg');
+
+  await page.getByRole('option', { name: /IMG_4023/ }).click();
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4023.jpg');
+
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
+});

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\ImageFlow\Db;
 
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -54,6 +55,43 @@ class QueueItemMapper extends QBMapper {
 
 		$row = $qb->executeQuery()->fetch();
 		return (int)($row['queue_count'] ?? 0);
+	}
+
+	public function findDuplicateOperation(
+		string $userId,
+		int $jobId,
+		string $operationType,
+		string $sourcePath,
+		?string $targetPath,
+		?string $targetAlbumId,
+	): ?QueueItem {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('operation_type', $qb->createNamedParameter($operationType)))
+			->andWhere($qb->expr()->eq('source_path', $qb->createNamedParameter($sourcePath)))
+			->orderBy('created_at', 'DESC')
+			->setMaxResults(1);
+
+		if ($targetPath === null) {
+			$qb->andWhere($qb->expr()->isNull('target_path'));
+		} else {
+			$qb->andWhere($qb->expr()->eq('target_path', $qb->createNamedParameter($targetPath)));
+		}
+
+		if ($targetAlbumId === null) {
+			$qb->andWhere($qb->expr()->isNull('target_album_id'));
+		} else {
+			$qb->andWhere($qb->expr()->eq('target_album_id', $qb->createNamedParameter($targetAlbumId)));
+		}
+
+		try {
+			return $this->findEntity($qb);
+		} catch (DoesNotExistException) {
+			return null;
+		}
 	}
 
 	public function markPlannedQueuedForJob(string $userId, int $jobId): int {

@@ -54,6 +54,32 @@ class SortService {
 		$targetLabel = trim((string)($target['label'] ?? $target['name'] ?? 'Ziel'));
 		$targetId = $this->optionalString($target['id'] ?? null, 255);
 		$targetPath = $this->optionalPath($target['path'] ?? null);
+		$queueTargetPath = $job->getTargetMode() === 'album' ? null : ($targetPath ?? $job->getTargetPath());
+		$queueTargetAlbumId = $job->getTargetMode() === 'album' ? $targetId : null;
+
+		$duplicateQueueItem = $this->queueMapper->findDuplicateOperation(
+			$userId,
+			$jobId,
+			$job->getTargetMode(),
+			$sourcePath,
+			$queueTargetPath,
+			$queueTargetAlbumId,
+		);
+		if ($duplicateQueueItem !== null) {
+			$this->logService->debug('assignment_duplicate_ignored', $userId, [
+				'jobId' => $jobId,
+				'queueItemId' => $duplicateQueueItem->getId(),
+				'sourcePath' => $sourcePath,
+				'targetLabel' => $targetLabel,
+			], $jobId, 'Doppelte Sortierentscheidung wurde nicht erneut in die Queue geschrieben.');
+
+			return [
+				'assignment' => null,
+				'queueItem' => $this->serializeQueueItem($duplicateQueueItem),
+				'job' => $this->jobService->serializeJob($job),
+				'duplicate' => true,
+			];
+		}
 
 		$assignment = new SortAssignment();
 		$assignment->setJobId($jobId);
@@ -77,8 +103,8 @@ class SortService {
 		$queueItem->setUserId($userId);
 		$queueItem->setOperationType($job->getTargetMode());
 		$queueItem->setSourcePath($sourcePath);
-		$queueItem->setTargetPath($job->getTargetMode() === 'album' ? null : ($targetPath ?? $job->getTargetPath()));
-		$queueItem->setTargetAlbumId($job->getTargetMode() === 'album' ? $targetId : null);
+		$queueItem->setTargetPath($queueTargetPath);
+		$queueItem->setTargetAlbumId($queueTargetAlbumId);
 		$queueItem->setStatus('planned');
 		$queueItem->setSafeMode($job->getSafeMode());
 		$queueItem->setCreatedAt($now);
