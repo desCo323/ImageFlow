@@ -125,13 +125,13 @@ backup_database_tables() {
 
 	local defaults
 	defaults="$(mktemp)"
-	trap 'rm -f "$defaults"' RETURN
 	write_mysql_defaults "$defaults"
 
 	local tables
 	tables="$(mysql --defaults-extra-file="$defaults" --batch --skip-column-names -e "SHOW TABLES LIKE 'imageflow\\_%';" 2>/dev/null || true)"
 	if [[ -z "$tables" ]]; then
 		echo "No imageflow_* tables existed before this operation." >"$backup_dir/db-imageflow-tables-missing.txt"
+		rm -f "$defaults"
 		return
 	fi
 
@@ -140,6 +140,7 @@ backup_database_tables() {
 	local -a table_array
 	mapfile -t table_array <<<"$tables"
 	mysqldump --defaults-extra-file="$defaults" --single-transaction --skip-lock-tables "$db" "${table_array[@]}" >"$backup_dir/db-imageflow.sql"
+	rm -f "$defaults"
 }
 
 write_restore_prompt() {
