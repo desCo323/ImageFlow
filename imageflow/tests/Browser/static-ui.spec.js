@@ -40,73 +40,73 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await mount(page);
 
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
-  await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Sicherer Testbetrieb');
-  await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Dateioperationen gesperrt');
-  await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Cron-Ablage aus');
-  await expect(page.getByRole('heading', { name: 'Flow starten' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Flow starten' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Fortsetzen' }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Von vorne' }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Offen' }).first()).toBeVisible();
-  await expect(page.getByLabel('Zielordner')).toBeHidden();
-  await expect(page.getByLabel('Bildpuffer')).toBeVisible();
-  await expect(page.getByLabel('In ruhigen Serverphasen automatisch ablegen')).toBeVisible();
+  await expect(page.getByLabel('Schutzstatus')).toContainText('Geschützter Testbetrieb');
+  await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen gesperrt');
+  await expect(page.getByLabel('Schutzstatus')).toContainText('Automatik aus');
+  await expect(page.getByRole('heading', { name: 'Neue Runde' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Loslegen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Weitermachen' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Neu anfangen' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Offene Bilder' }).first()).toBeVisible();
+  await expect(page.getByLabel('Ablageordner')).toBeHidden();
+  await expect(page.getByLabel('Bilder vorladen')).toBeVisible();
+  await expect(page.getByLabel('Automatisch ablegen, wenn der Server ruhig ist')).toBeVisible();
 
   await page.getByLabel('Name').fill('Browser Smoke');
-  await page.getByLabel('Quellordner').fill('/Photos/Smoke');
-  await page.getByLabel('Bildpuffer').selectOption('turbo');
-  await page.getByLabel('In ruhigen Serverphasen automatisch ablegen').check();
-  await page.getByRole('button', { name: 'Flow starten' }).click();
+  await page.getByLabel('Bilderordner').fill('/Photos/Smoke');
+  await page.getByLabel('Bilder vorladen').selectOption('turbo');
+  await page.getByLabel('Automatisch ablegen, wenn der Server ruhig ist').check();
+  await page.getByRole('button', { name: 'Loslegen' }).click();
   await expect(page.getByText('Browser Smoke')).toBeVisible();
-  await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Auto-Ablage');
+  await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Automatik an');
 });
 
 test('selects source and target folders with the folder picker', async ({ page }) => {
   await mount(page);
 
-  await page.getByLabel('Quellordner').fill('/');
+  await page.getByLabel('Bilderordner').fill('/');
   await page.locator('[data-action="open-folder-picker"][data-picker-field="sourcePath"]').click();
-  await expect(page.getByRole('dialog', { name: 'Quellordner auswaehlen' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Bilderordner wählen' })).toBeVisible();
   await page.locator('.imageflow-folder-main[data-folder-path="/Photos"]').click();
-  await page.getByRole('button', { name: 'Diesen Ordner waehlen' }).click();
-  await expect(page.getByLabel('Quellordner')).toHaveValue('/Photos');
+  await page.getByRole('button', { name: 'Ordner übernehmen' }).click();
+  await expect(page.getByLabel('Bilderordner')).toHaveValue('/Photos');
 
-  await page.getByLabel('Sortierart').selectOption('copy');
-  await page.getByLabel('Zielordner').fill('/');
+  await page.getByLabel('Was soll mit passenden Bildern passieren?').selectOption('copy');
+  await page.getByLabel('Ablageordner').fill('/');
   await page.locator('[data-action="open-folder-picker"][data-picker-field="targetPath"]').click();
-  await expect(page.getByRole('dialog', { name: 'Zielordner auswaehlen' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Ablageordner wählen' })).toBeVisible();
   await page.locator('.imageflow-folder-main[data-folder-path="/Photos"]').click();
-  await page.locator('.imageflow-folder-row', { hasText: 'Sortiert' }).getByRole('button', { name: 'Waehlen' }).click();
-  await expect(page.getByLabel('Zielordner')).toHaveValue('/Photos/Sortiert');
+  await page.locator('.imageflow-folder-row', { hasText: 'Sortiert' }).getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(page.getByLabel('Ablageordner')).toHaveValue('/Photos/Sortiert');
 });
 
 test('opens the worklist preview before queueing execution', async ({ page }) => {
   await mount(page);
 
   const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
-  await row.getByRole('button', { name: 'Ablage pruefen' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Ablage pruefen' });
+  await row.getByRole('button', { name: 'Ablage ansehen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage ansehen' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('Ablagepunkte', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Dateioperationen gesperrt')).toBeVisible();
+  await expect(dialog.getByText('Entscheidungen', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
   await expect(dialog.getByText('Manuell')).toBeVisible();
-  await dialog.getByLabel('Diese Ablage in ruhigen Serverphasen automatisch verarbeiten').check();
-  await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
-  await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible();
+  await dialog.getByLabel('Automatisch ablegen, wenn der Server ruhig ist').check();
+  await dialog.getByRole('button', { name: 'Für später merken' }).click();
+  await expect(page.getByText('Ablage wurde für später gemerkt')).toBeVisible();
 });
 
 test('renders the sorting workspace with hotkey targets and filmstrip', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1"');
 
   await expect(page.getByRole('heading', { name: 'Schnellziele' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Ablageziele' })).toBeVisible();
-  await expect(page.getByLabel('Flow-Fortschritt')).toContainText('Serie');
+  await expect(page.getByRole('heading', { name: 'Alle Ziele' })).toBeVisible();
+  await expect(page.getByLabel('Rundenfortschritt')).toContainText('Serie');
   await expect(page.locator('.imageflow-photo-img')).toBeVisible();
   await expect(page.locator('.imageflow-photo-meta strong', { hasText: 'IMG_4021.jpg' })).toBeVisible();
   await expect(page.getByText('Leertaste')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Fortsetzen' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Von vorne' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Offen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Weitermachen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Neu anfangen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Offene Bilder' })).toBeVisible();
 });
 
 test('moves through the filmstrip with arrow keys and thumbnail selection', async ({ page }) => {
@@ -172,7 +172,7 @@ test('adds and removes favorites from the target rail', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Zu Schnellzielen: Projekte' }).click();
   await expect(page.locator('.imageflow-favorite-list')).toContainText('Projekte');
-  await expect(page.getByText('Schnellziel wurde hinzugefuegt.')).toBeVisible();
+  await expect(page.getByText('Schnellziel wurde hinzugefügt.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Schnellziel entfernen: Projekte' }).click();
   await expect(page.locator('.imageflow-favorite-list .imageflow-favorite', { hasText: 'Projekte' })).toHaveCount(0);
@@ -182,7 +182,7 @@ test('browses folder targets in copy mode', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="2"');
 
   await expect(page.getByText('/Photos/Sortiert')).toBeVisible();
-  await page.getByRole('button', { name: 'Hoeher' }).click();
+  await page.getByRole('button', { name: 'Eine Ebene hoch' }).click();
   await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Inbox' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Sortiert' })).toBeVisible();
 });

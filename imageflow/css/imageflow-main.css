@@ -1,5 +1,11 @@
+#imageflow-app {
+  min-height: 100%;
+}
+
 .imageflow-shell {
-  min-height: calc(100vh - 50px);
+  height: calc(100vh - var(--header-height, 50px));
+  min-height: 0;
+  overflow-y: auto;
   color: var(--color-main-text);
   background: var(--color-main-background);
 }
@@ -7,7 +13,7 @@
 .imageflow-app {
   display: grid;
   grid-template-rows: auto 1fr;
-  min-height: calc(100vh - 50px);
+  min-height: 100%;
 }
 
 .imageflow-topbar {

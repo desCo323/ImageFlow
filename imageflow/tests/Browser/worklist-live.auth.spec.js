@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.use({ trace: 'off', video: 'off', screenshot: 'off' });
 
-const smokePrefix = 'ImageFlow Worklist Smoke';
+const smokePrefix = 'ImageFlow Ablage Smoke';
 
 test('previews and queues a worklist without file writes as albentest', async ({ page }) => {
   test.skip(process.env.IMAGEFLOW_AUTH_TESTS !== '1', 'Authenticated live tests are opt-in.');
@@ -21,20 +21,20 @@ test('previews and queues a worklist without file writes as albentest', async ({
   let jobId = null;
   try {
     await login(page, baseUrl, username, password);
-	    await page.goto(`${baseUrl.replace(/\/$/, '')}/apps/imageflow/`, { waitUntil: 'domcontentloaded' });
-	    await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible({ timeout: 15000 });
-	    await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Dateioperationen gesperrt');
-	    const health = await api(page, '/api/v1/health');
-	    expect(health.realExecutionEnabled).toBe(false);
-	    expect(health.backgroundProcessingEnabled).toBe(false);
-	    await cleanupSmokeJobs(page);
+    await page.goto(`${baseUrl.replace(/\/$/, '')}/apps/imageflow/`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen gesperrt');
+    const health = await api(page, '/api/v1/health');
+    expect(health.realExecutionEnabled).toBe(false);
+    expect(health.backgroundProcessingEnabled).toBe(false);
+    await cleanupSmokeJobs(page);
 
     const jobName = `${smokePrefix} ${Date.now()}`;
     await page.getByLabel('Name').fill(jobName);
-    await page.getByLabel('Quellordner').fill('/Photos');
-    await page.getByLabel('Sortierart').selectOption('copy');
-    await page.getByLabel('Zielordner').fill('/Photos');
-    await page.getByRole('button', { name: 'Flow starten' }).click();
+    await page.getByLabel('Bilderordner').fill('/Photos');
+    await page.getByLabel('Was soll mit passenden Bildern passieren?').selectOption('copy');
+    await page.getByLabel('Ablageordner').fill('/Photos');
+    await page.getByRole('button', { name: 'Loslegen' }).click();
     await expect(page.getByText(jobName)).toBeVisible({ timeout: 10000 });
 
     const job = await findJob(page, jobName);
@@ -65,26 +65,26 @@ test('previews and queues a worklist without file writes as albentest', async ({
     expect(preview.summary.errors).toBe(0);
 
     const row = page.locator('tr', { hasText: jobName });
-    await row.getByRole('button', { name: 'Ablage pruefen' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Ablage pruefen' });
+    await row.getByRole('button', { name: 'Ablage ansehen' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Ablage ansehen' });
     await expect(dialog).toBeVisible({ timeout: 10000 });
-    await expect(dialog.getByText('Dateioperationen gesperrt')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
-    await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible({ timeout: 10000 });
+    await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Für später merken' }).click();
+    await expect(page.getByText('Ablage wurde für später gemerkt')).toBeVisible({ timeout: 10000 });
 
-	    const afterQueue = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=10`);
-	    expect(afterQueue.summary.queued).toBeGreaterThan(0);
-	    expect(afterQueue.executionMode).toBe('dry-run-only');
-	    expect(afterQueue.backgroundMode).toBe('manual-only');
-	    let processNowBlocked = false;
-	    try {
-	      await api(page, `/api/v1/jobs/${jobId}/process-now`, { method: 'POST', body: { limit: 1 } });
-	    } catch (error) {
-	      processNowBlocked = /deaktiviert|HTTP 409/.test(error.message);
-	    }
-	    expect(processNowBlocked).toBe(true);
+    const afterQueue = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=10`);
+    expect(afterQueue.summary.queued).toBeGreaterThan(0);
+    expect(afterQueue.executionMode).toBe('dry-run-only');
+    expect(afterQueue.backgroundMode).toBe('manual-only');
+    let processNowBlocked = false;
+    try {
+      await api(page, `/api/v1/jobs/${jobId}/process-now`, { method: 'POST', body: { limit: 1 } });
+    } catch (error) {
+      processNowBlocked = /deaktiviert|HTTP 409/.test(error.message);
+    }
+    expect(processNowBlocked).toBe(true);
 
-	    await api(page, `/api/v1/jobs/${jobId}/discard`, { method: 'POST', body: {} });
+    await api(page, `/api/v1/jobs/${jobId}/discard`, { method: 'POST', body: {} });
     jobId = null;
     await cleanupSmokeJobs(page);
   } finally {

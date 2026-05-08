@@ -24,7 +24,7 @@ test('creates and discards a job as the dedicated test user', async ({ page }) =
 
   await page.goto(`${baseUrl.replace(/\/$/, '')}/apps/imageflow/`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
-  await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Dateioperationen gesperrt');
+  await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen gesperrt');
   const health = await page.evaluate(async () => {
     const response = await fetch(window.OC.generateUrl('/apps/imageflow/api/v1/health'), {
       credentials: 'same-origin',
@@ -34,21 +34,21 @@ test('creates and discards a job as the dedicated test user', async ({ page }) =
   });
   expect(health.realExecutionEnabled).toBe(false);
   expect(health.backgroundProcessingEnabled).toBe(false);
-  await expect(page.getByRole('heading', { name: 'Flow starten' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Flow starten' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Neue Runde' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Loslegen' })).toBeVisible();
   await discardSmokeJobs(page);
 
   const jobName = `ImageFlow Smoke ${Date.now()}`;
   await page.getByLabel('Name').fill(jobName);
-  await page.getByLabel('Quellordner').fill('/Photos');
-  await page.getByRole('button', { name: 'Flow starten' }).click();
+  await page.getByLabel('Bilderordner').fill('/Photos');
+  await page.getByRole('button', { name: 'Loslegen' }).click();
   await expect(page.getByText(jobName)).toBeVisible();
 
   page.once('dialog', async (dialog) => {
     await dialog.accept();
   });
   const row = page.locator('tr', { hasText: jobName });
-  await row.getByRole('button', { name: 'Verwerfen' }).click();
+  await row.getByRole('button', { name: 'Runde verwerfen' }).click();
   await expect(page.getByText(jobName)).toHaveCount(0);
 });
 
@@ -62,7 +62,7 @@ async function discardSmokeJobs(page) {
     page.once('dialog', async (dialog) => {
       await dialog.accept();
     });
-    await row.getByRole('button', { name: 'Verwerfen' }).click();
+    await row.getByRole('button', { name: 'Runde verwerfen' }).click();
     await expect(row).toHaveCount(0);
   }
 
