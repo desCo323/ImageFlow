@@ -2,7 +2,9 @@
 
 These screenshots use the local mock UI, not a live Nextcloud account, so no private files or photos are included.
 
-## Current UI State
+## Development Screenshots
+
+Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-12 show the current Flow terminology and game-like sorting feedback.
 
 1. Dashboard and job management  
    ![Dashboard and job management](screenshots/01-dashboard-jobs.png)
@@ -30,3 +32,12 @@ These screenshots use the local mock UI, not a live Nextcloud account, so no pri
 
 9. Worklist queued state after confirmation
    ![Worklist queued state](screenshots/09-worklist-queued-state.png)
+
+10. Flow dashboard with lighter terminology
+   ![Flow dashboard with lighter terminology](screenshots/10-flow-dashboard.png)
+
+11. Sorting workspace with Flow progress bar
+   ![Sorting workspace with Flow progress bar](screenshots/11-sort-flow-gameplay.png)
+
+12. Decision feedback after adding an image to a quick target
+   ![Decision feedback after adding an image to a quick target](screenshots/12-flow-feedback-burst.png)

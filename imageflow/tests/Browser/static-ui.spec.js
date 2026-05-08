@@ -40,8 +40,8 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await mount(page);
 
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Sortierjob anlegen' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Job anlegen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Flow starten' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Flow starten' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Fortsetzen' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Von vorne' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Offen' }).first()).toBeVisible();
@@ -49,7 +49,7 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
 
   await page.getByLabel('Name').fill('Browser Smoke');
   await page.getByLabel('Quellordner').fill('/Photos/Smoke');
-  await page.getByRole('button', { name: 'Job anlegen' }).click();
+  await page.getByRole('button', { name: 'Flow starten' }).click();
   await expect(page.getByText('Browser Smoke')).toBeVisible();
 });
 
@@ -76,20 +76,21 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await mount(page);
 
   const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
-  await row.getByRole('button', { name: 'Ausfuehren' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Worklist pruefen' });
+  await row.getByRole('button', { name: 'Ablage pruefen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage pruefen' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('Operationen', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Ablagepunkte', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Dateioperationen gesperrt')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Ausfuehrung vormerken' }).click();
-  await expect(page.getByText('Ausfuehrung wurde vorgemerkt')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
+  await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible();
 });
 
 test('renders the sorting workspace with hotkey targets and filmstrip', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1"');
 
-  await expect(page.getByRole('heading', { name: 'Favoriten' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Ziele' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Schnellziele' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ablageziele' })).toBeVisible();
+  await expect(page.getByLabel('Flow-Fortschritt')).toContainText('Serie');
   await expect(page.locator('.imageflow-photo-img')).toBeVisible();
   await expect(page.locator('.imageflow-photo-meta strong', { hasText: 'IMG_4021.jpg' })).toBeVisible();
   await expect(page.getByText('Leertaste')).toBeVisible();
@@ -112,14 +113,25 @@ test('moves through the filmstrip with arrow keys and thumbnail selection', asyn
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
 });
 
+test('shows flow feedback after a sorting decision', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1"');
+
+  await page.locator('.imageflow-favorite', { hasText: 'Familie' }).click();
+
+  await expect(page.locator('.imageflow-feedback-burst')).toContainText('+1');
+  await expect(page.locator('.imageflow-feedback-burst')).toContainText('1er Serie');
+  await expect(page.locator('.imageflow-flow-chip.accent-warm strong')).toHaveText('1');
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
+});
+
 test('adds and removes favorites from the target rail', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1"');
 
-  await page.getByRole('button', { name: 'Zu Favoriten: Projekte' }).click();
+  await page.getByRole('button', { name: 'Zu Schnellzielen: Projekte' }).click();
   await expect(page.locator('.imageflow-favorite-list')).toContainText('Projekte');
-  await expect(page.getByText('Favorit wurde hinzugefuegt.')).toBeVisible();
+  await expect(page.getByText('Schnellziel wurde hinzugefuegt.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Favorit entfernen: Projekte' }).click();
+  await page.getByRole('button', { name: 'Schnellziel entfernen: Projekte' }).click();
   await expect(page.locator('.imageflow-favorite-list .imageflow-favorite', { hasText: 'Projekte' })).toHaveCount(0);
 });
 
@@ -128,6 +140,6 @@ test('browses folder targets in copy mode', async ({ page }) => {
 
   await expect(page.getByText('/Photos/Sortiert')).toBeVisible();
   await page.getByRole('button', { name: 'Hoeher' }).click();
-  await expect(page.getByRole('button', { name: 'Zu Favoriten: Inbox' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Zu Favoriten: Sortiert' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Inbox' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Sortiert' })).toBeVisible();
 });

@@ -297,7 +297,7 @@
 
 .imageflow-sort {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
   min-height: calc(100vh - 122px);
 }
@@ -322,6 +322,94 @@
 .imageflow-job-head p {
   margin-top: 3px;
   color: var(--color-text-maxcontrast);
+}
+
+.imageflow-gamebar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) repeat(3, minmax(108px, auto)) minmax(170px, auto);
+  gap: 10px;
+  align-items: stretch;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid #2f7d72;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-main-background) 94%, #b7eadf), transparent 74%),
+    var(--color-main-background);
+}
+
+.imageflow-flow-meter,
+.imageflow-flow-chip,
+.imageflow-flow-milestone {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, var(--color-main-text));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-main-background) 96%, var(--color-background-darker));
+}
+
+.imageflow-flow-meter {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.imageflow-flow-meter-head {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  color: var(--color-main-text);
+  font-weight: 800;
+}
+
+.imageflow-progress-track {
+  height: 11px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-main-background) 78%, var(--color-background-darker));
+}
+
+.imageflow-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f7d72, #d94f70 55%, #7357c8);
+  transition: width 220ms ease;
+}
+
+.imageflow-flow-chip {
+  display: grid;
+  place-items: center;
+  padding: 9px 10px;
+  text-align: center;
+}
+
+.imageflow-flow-chip strong {
+  color: #d94f70;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.imageflow-flow-chip.accent-cool strong {
+  color: #2f7d72;
+}
+
+.imageflow-flow-chip.accent-violet strong {
+  color: #7357c8;
+}
+
+.imageflow-flow-chip span,
+.imageflow-flow-milestone {
+  color: var(--color-text-maxcontrast);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.imageflow-flow-milestone {
+  display: grid;
+  place-items: center;
+  padding: 9px 12px;
+  color: var(--color-main-text);
+  background: color-mix(in srgb, var(--color-main-background) 88%, #ffe8a3);
 }
 
 .imageflow-sort-grid {
@@ -493,6 +581,10 @@
   will-change: transform, opacity;
 }
 
+.imageflow-photo-card.is-celebrating {
+  animation: imageflow-photo-in 160ms ease-out, imageflow-photo-pop 280ms ease-out;
+}
+
 .imageflow-photo-img {
   width: 100%;
   height: 100%;
@@ -546,6 +638,41 @@
 .imageflow-photo-meta span {
   display: block;
   overflow-wrap: anywhere;
+}
+
+.imageflow-feedback-burst {
+  position: absolute;
+  inset: 18px 18px auto auto;
+  display: grid;
+  gap: 2px;
+  min-width: 126px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 8px;
+  color: #111111;
+  background: rgba(255, 232, 163, 0.95);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.28);
+  animation: imageflow-feedback-burst 850ms ease-out forwards;
+}
+
+.imageflow-feedback-burst.skip {
+  background: rgba(183, 234, 223, 0.95);
+}
+
+.imageflow-feedback-burst strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.imageflow-feedback-burst span,
+.imageflow-feedback-burst small {
+  overflow-wrap: anywhere;
+  font-weight: 800;
+}
+
+.imageflow-feedback-burst small {
+  color: rgba(17, 17, 17, 0.72);
+  font-size: 12px;
 }
 
 .imageflow-hotkeys {
@@ -671,6 +798,40 @@
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes imageflow-photo-pop {
+  0% {
+    box-shadow: 0 0 0 rgba(217, 79, 112, 0);
+    transform: scale(1);
+  }
+  45% {
+    box-shadow: 0 0 0 5px rgba(217, 79, 112, 0.26);
+    transform: scale(1.008);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(217, 79, 112, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes imageflow-feedback-burst {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.94);
+  }
+  18% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  78% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.98);
   }
 }
 
@@ -825,7 +986,8 @@
   .imageflow-topbar,
   .imageflow-job-head,
   .imageflow-dashboard,
-  .imageflow-sort-grid {
+  .imageflow-sort-grid,
+  .imageflow-gamebar {
     grid-template-columns: 1fr;
   }
 
@@ -875,7 +1037,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .imageflow-photo-card,
-  .imageflow-thumb {
+  .imageflow-thumb,
+  .imageflow-feedback-burst,
+  .imageflow-progress-fill {
     animation: none;
     transition: none;
   }

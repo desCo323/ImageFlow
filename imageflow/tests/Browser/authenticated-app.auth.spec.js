@@ -24,14 +24,14 @@ test('creates and discards a job as the dedicated test user', async ({ page }) =
 
   await page.goto(`${baseUrl.replace(/\/$/, '')}/apps/imageflow/`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Sortierjob anlegen' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Job anlegen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Flow starten' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Flow starten' })).toBeVisible();
   await discardSmokeJobs(page);
 
   const jobName = `ImageFlow Smoke ${Date.now()}`;
   await page.getByLabel('Name').fill(jobName);
   await page.getByLabel('Quellordner').fill('/Photos');
-  await page.getByRole('button', { name: 'Job anlegen' }).click();
+  await page.getByRole('button', { name: 'Flow starten' }).click();
   await expect(page.getByText(jobName)).toBeVisible();
 
   page.once('dialog', async (dialog) => {

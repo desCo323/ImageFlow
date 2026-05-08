@@ -30,7 +30,7 @@ test('previews and queues a worklist without file writes as albentest', async ({
     await page.getByLabel('Quellordner').fill('/Photos');
     await page.getByLabel('Sortierart').selectOption('copy');
     await page.getByLabel('Zielordner').fill('/Photos');
-    await page.getByRole('button', { name: 'Job anlegen' }).click();
+    await page.getByRole('button', { name: 'Flow starten' }).click();
     await expect(page.getByText(jobName)).toBeVisible({ timeout: 10000 });
 
     const job = await findJob(page, jobName);
@@ -61,12 +61,12 @@ test('previews and queues a worklist without file writes as albentest', async ({
     expect(preview.summary.errors).toBe(0);
 
     const row = page.locator('tr', { hasText: jobName });
-    await row.getByRole('button', { name: 'Ausfuehren' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Worklist pruefen' });
+    await row.getByRole('button', { name: 'Ablage pruefen' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Ablage pruefen' });
     await expect(dialog).toBeVisible({ timeout: 10000 });
     await expect(dialog.getByText('Dateioperationen gesperrt')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Ausfuehrung vormerken' }).click();
-    await expect(page.getByText('Ausfuehrung wurde vorgemerkt')).toBeVisible({ timeout: 10000 });
+    await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
+    await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible({ timeout: 10000 });
 
     const afterQueue = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=10`);
     expect(afterQueue.summary.queued).toBeGreaterThan(0);

@@ -18,6 +18,7 @@
   const PAGE_LIMIT = 48;
   const imageBuffer = new Map();
   let positionSaveTimer = null;
+  let feedbackTimer = null;
 
   const state = {
     page: root.dataset.page || "jobs",
@@ -30,6 +31,10 @@
     bufferPlan: [],
     targets: [],
     toast: null,
+    feedback: null,
+    decisionStreak: 0,
+    decisionsThisSession: 0,
+    sessionStartedAt: Date.now(),
     loading: false,
     startMode: null,
     mockFavorites: null,
@@ -354,7 +359,7 @@
   function mockFavoritesWithSkip(favorites) {
     return [
       ...favorites,
-      { id: "skip", label: "Ueberspringen", hotkey: "0", position: 10, locked: true, targetType: "skip" },
+      { id: "skip", label: "Weiter", hotkey: "0", position: 10, locked: true, targetType: "skip" },
     ];
   }
 
@@ -446,7 +451,7 @@
           status: itemStatus,
           safeMode: true,
           readiness: "warning",
-          messages: ["Zieldatei existiert bereits; spaetere Ausfuehrung muss Duplikat sicher ueberspringen."],
+          messages: ["Zieldatei existiert bereits; die spaetere Ablage muss das Duplikat sicher ueberspringen."],
         },
         {
           id: 3,
@@ -558,10 +563,10 @@
         <img class="imageflow-mark" src="${escapeAttr(appIcon)}" alt="">
         <div class="imageflow-title">
           <h2>ImageFlow</h2>
-          <p>Sortierjobs planen, Bilder schnell zuordnen und Schreibaktionen kontrolliert ausfuehren.</p>
+          <p>Bildstapel in einen schnellen, sicheren Flow bringen.</p>
         </div>
         <nav class="imageflow-tabs" aria-label="ImageFlow">
-          <button class="imageflow-tab ${state.page === "jobs" ? "is-active" : ""}" data-action="go-jobs" type="button">Jobs</button>
+          <button class="imageflow-tab ${state.page === "jobs" ? "is-active" : ""}" data-action="go-jobs" type="button">Flows</button>
           <button class="imageflow-tab ${state.page === "sort" ? "is-active" : ""}" data-action="go-sort" type="button" ${state.jobId ? "" : "disabled"}>Sortieren</button>
           <button class="imageflow-tab" data-action="show-log" type="button">Protokoll</button>
         </nav>
@@ -573,12 +578,12 @@
     const totals = summarizeJobs(state.jobs);
     const draft = state.jobDraft;
     return `
-      <section class="imageflow-dashboard" aria-label="Sortierjobs">
+      <section class="imageflow-dashboard" aria-label="Flows">
         <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
           <div class="imageflow-panel-head">
             <div>
-              <h3>Sortierjob anlegen</h3>
-              <p>Alle Entscheidungen werden zuerst geplant. Kopieren, Verschieben oder Album-Zuordnung laufen erst nach Freigabe.</p>
+              <h3>Flow starten</h3>
+              <p>Waehle deinen Bildstapel, leg die Ablage fest und sammle Entscheidungen in einem schnellen Lauf.</p>
             </div>
           </div>
           <div class="imageflow-field">
@@ -613,21 +618,21 @@
             Sicherer Modus mit Pruefsummen
           </label>
           <div class="imageflow-actions">
-            <button class="imageflow-button primary" type="submit">Job anlegen</button>
+            <button class="imageflow-button primary" type="submit">Flow starten</button>
           </div>
         </form>
         <section class="imageflow-panel">
           <div class="imageflow-panel-head">
             <div>
-              <h3>Job-Uebersicht</h3>
-              <p>Status, Fortschritt und Queue-Freigabe bleiben auf der Hauptseite.</p>
+              <h3>Flow-Zentrale</h3>
+              <p>Fortschritt, Tempo und Ablagefreigabe bleiben an einem Ort.</p>
             </div>
             <button class="imageflow-button" data-action="refresh" type="button">Aktualisieren</button>
           </div>
           <div class="imageflow-status-grid">
-            <div class="imageflow-stat"><strong>${totals.jobs}</strong><span>Jobs</span></div>
-            <div class="imageflow-stat"><strong>${totals.sorted}</strong><span>Sortierte Bilder</span></div>
-            <div class="imageflow-stat"><strong>${totals.queued}</strong><span>Geplante Operationen</span></div>
+            <div class="imageflow-stat"><strong>${totals.jobs}</strong><span>Flows</span></div>
+            <div class="imageflow-stat"><strong>${totals.sorted}</strong><span>Eingesammelt</span></div>
+            <div class="imageflow-stat"><strong>${totals.queued}</strong><span>In der Ablage</span></div>
             <div class="imageflow-stat"><strong>${totals.failed}</strong><span>Fehler</span></div>
           </div>
           ${renderJobTable()}
@@ -638,7 +643,7 @@
 
   function renderJobTable() {
     if (state.jobs.length === 0) {
-      return `<div class="imageflow-empty">Noch keine Sortierjobs vorhanden.</div>`;
+      return `<div class="imageflow-empty">Noch keine Flows vorhanden.</div>`;
     }
 
     return `
@@ -646,11 +651,11 @@
         <table class="imageflow-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Quelle</th>
-              <th>Modus</th>
+              <th>Flow</th>
+              <th>Bildstapel</th>
+              <th>Ablage</th>
               <th>Status</th>
-              <th>Fortschritt</th>
+              <th>Stand</th>
               <th>Aktionen</th>
             </tr>
           </thead>
@@ -669,14 +674,14 @@
         <td>${escapeHtml(job.sourcePath || "/")}</td>
         <td>${modeLabel(job.targetMode)}</td>
         <td><span class="imageflow-badge ready">${statusLabel(job.status)}</span></td>
-        <td>${Number(job.sortedFiles || 0)} sortiert<br>${Number(job.queuedOperations || 0)} geplant</td>
+        <td>${Number(job.sortedFiles || 0)} eingesammelt<br>${Number(job.queuedOperations || 0)} in Ablage</td>
         <td>
           <div class="imageflow-actions">
             <button class="imageflow-button primary" data-action="open-sort" data-start-mode="resume" data-job-id="${job.id}" type="button">Fortsetzen</button>
             <button class="imageflow-button" data-action="open-sort" data-start-mode="begin" data-job-id="${job.id}" type="button">Von vorne</button>
             <button class="imageflow-button" data-action="open-sort" data-start-mode="unsorted" data-job-id="${job.id}" type="button">Offen</button>
             <button class="imageflow-button" data-action="pause-job" data-job-id="${job.id}" type="button">Pausieren</button>
-            <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ausfuehren</button>
+            <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ablage pruefen</button>
             <button class="imageflow-button danger" data-action="discard-job" data-job-id="${job.id}" type="button">Verwerfen</button>
           </div>
         </td>
@@ -702,65 +707,93 @@
     const pageEnd = Math.min(Number(page.total || images.length), Number(page.cursor || 0) + images.length);
     const targetFolder = state.targetFolderPage;
     const isFolderMode = job.targetMode === "move" || job.targetMode === "copy";
+    const progress = progressStats(job, page, images);
+    const tempo = sessionTempo();
+    const milestone = flowMilestone(progress.percent, state.decisionStreak);
 
     return `
       <section class="imageflow-sort" aria-label="Sortieransicht">
         <header class="imageflow-job-head">
           <div>
-            <h3>${escapeHtml(job.name || "Sortierjob")}</h3>
-            <p>${escapeHtml(job.sourcePath || "/")} · ${modeLabel(job.targetMode)} · ${statusLabel(job.status)} · ${images.length ? currentIndex + 1 : 0}/${images.length}</p>
+            <h3>${escapeHtml(job.name || "Flow")}</h3>
+            <p>${escapeHtml(job.sourcePath || "/")} · ${modeLabel(job.targetMode)} · ${statusLabel(job.status)} · Bild ${images.length ? currentIndex + 1 : 0}/${images.length}</p>
           </div>
           <div class="imageflow-toolbar">
             <span class="imageflow-badge safe">${job.safeMode ? "Sicherer Modus" : "Standardmodus"}</span>
-            <span class="imageflow-badge">${Number(job.sortedFiles || 0)} sortiert</span>
-            <span class="imageflow-badge">${Number(job.queuedOperations || 0)} geplant</span>
+            <span class="imageflow-badge">${Number(job.sortedFiles || 0)} eingesammelt</span>
+            <span class="imageflow-badge">${Number(job.queuedOperations || 0)} in Ablage</span>
             <button class="imageflow-button" data-action="start-sort" data-start-mode="resume" type="button">Fortsetzen</button>
             <button class="imageflow-button" data-action="start-sort" data-start-mode="begin" type="button">Von vorne</button>
             <button class="imageflow-button" data-action="start-sort" data-start-mode="unsorted" type="button">Offen</button>
             <button class="imageflow-button" data-action="go-jobs" type="button">Zurueck</button>
           </div>
         </header>
+        <section class="imageflow-gamebar" aria-label="Flow-Fortschritt">
+          <div class="imageflow-flow-meter">
+            <div class="imageflow-flow-meter-head">
+              <strong>${progress.done}/${progress.total} im Flow</strong>
+              <span>${progress.percent}%</span>
+            </div>
+            <div class="imageflow-progress-track" aria-hidden="true">
+              <span class="imageflow-progress-fill" style="width: ${progress.percent}%"></span>
+            </div>
+          </div>
+          <div class="imageflow-flow-chip accent-warm">
+            <strong>${state.decisionStreak}</strong>
+            <span>Serie</span>
+          </div>
+          <div class="imageflow-flow-chip accent-cool">
+            <strong>${state.decisionsThisSession}</strong>
+            <span>Jetzt gesammelt</span>
+          </div>
+          <div class="imageflow-flow-chip accent-violet">
+            <strong>${tempo}</strong>
+            <span>Bilder/min</span>
+          </div>
+          <div class="imageflow-flow-milestone">${escapeHtml(milestone)}</div>
+        </section>
         <div class="imageflow-sort-grid">
           <aside class="imageflow-rail">
-            <h4>Favoriten</h4>
+            <h4>Schnellziele</h4>
             <div class="imageflow-favorite-list">
               ${(sortState.favorites || []).map((favorite) => renderFavorite(favorite, current)).join("")}
             </div>
           </aside>
           <section class="imageflow-photo-stage">
             <div class="imageflow-photo">
-              <div class="imageflow-photo-card">
+              <div class="imageflow-photo-card ${state.feedback ? "is-celebrating" : ""}">
                 ${preview ? `<img class="imageflow-photo-img" src="${escapeAttr(preview)}" alt="${escapeAttr(current.name || "Bild")}" decoding="async" fetchpriority="high" draggable="false">` : '<div class="imageflow-photo-icon" aria-hidden="true"></div>'}
                 <div class="imageflow-photo-meta">
                   <strong>${escapeHtml(current.name || "Bild")}</strong>
                   <span>${escapeHtml(current.path || "")}</span>
                 </div>
+                ${renderFeedbackBurst()}
               </div>
             </div>
             <div class="imageflow-hotkeys">
-              <span class="imageflow-hotkey"><b>1-9</b> Favorit</span>
-              <span class="imageflow-hotkey"><b>0</b> Ueberspringen</span>
-              <span class="imageflow-hotkey"><b>Leertaste</b> Ueberspringen</span>
-              <span class="imageflow-hotkey"><b>←/→</b> Filmstreifen</span>
+              <span class="imageflow-hotkey"><b>1-9</b> Schnellziel</span>
+              <span class="imageflow-hotkey"><b>0</b> Weiter</span>
+              <span class="imageflow-hotkey"><b>Leertaste</b> Weiter</span>
+              <span class="imageflow-hotkey"><b>←/→</b> Bildband</span>
             </div>
           </section>
           <aside class="imageflow-targets">
             <div class="imageflow-panel-head">
               <div>
-                <h4>Ziele</h4>
+                <h4>Ablageziele</h4>
                 <p>${job.targetMode === "album" ? "Alben alphabetisch" : escapeHtml(targetFolder?.current?.path || state.targetBrowsePath || "/")}</p>
               </div>
               ${isFolderMode ? `<button class="imageflow-button" data-action="browse-target-parent" type="button" ${targetFolder?.parent ? "" : "disabled"}>Hoeher</button>` : ""}
             </div>
             <div class="imageflow-target-list">
-              ${(state.targets.length ? state.targets : (isFolderMode ? [] : mockTargets())).map((target, index) => renderTarget(target, current, index, isFolderMode)).join("") || '<div class="imageflow-empty">Keine Ziele in diesem Ordner.</div>'}
+              ${(state.targets.length ? state.targets : (isFolderMode ? [] : mockTargets())).map((target, index) => renderTarget(target, current, index, isFolderMode)).join("") || '<div class="imageflow-empty">Keine Ablageziele in diesem Ordner.</div>'}
             </div>
           </aside>
         </div>
         <footer class="imageflow-filmstrip">
           <div class="imageflow-filmstrip-head">
             <div>
-              <strong>Filmstreifen</strong>
+              <strong>Bildband</strong>
               <span>${pageStart}-${pageEnd} von ${Number(page.total || images.length)} · ${bufferPlan.length} im Puffer</span>
             </div>
             <div class="imageflow-page-actions">
@@ -768,7 +801,7 @@
               <button class="imageflow-icon-button" data-action="page-next" type="button" ${page.hasNext ? "" : "disabled"}>Weiter</button>
             </div>
           </div>
-          <div class="imageflow-strip" role="listbox" aria-label="Filmstreifen">
+          <div class="imageflow-strip" role="listbox" aria-label="Bildband">
             ${filmstrip.items.map((image, offset) => renderThumb(image, filmstrip.start + offset, currentIndex, bufferPlan)).join("") || '<div class="imageflow-empty">Keine Vorschaubilder geladen.</div>'}
           </div>
         </footer>
@@ -785,7 +818,7 @@
     const action = isSkip ? "skip-current" : "assign";
     const remove = isSkip
       ? '<span class="imageflow-mini-spacer" aria-hidden="true"></span>'
-      : `<button class="imageflow-mini-button danger" data-action="remove-favorite" data-favorite-id="${escapeAttr(favoriteId)}" aria-label="Favorit entfernen: ${escapeAttr(favorite.label)}" title="Favorit entfernen" type="button">x</button>`;
+      : `<button class="imageflow-mini-button danger" data-action="remove-favorite" data-favorite-id="${escapeAttr(favoriteId)}" aria-label="Schnellziel entfernen: ${escapeAttr(favorite.label)}" title="Schnellziel entfernen" type="button">x</button>`;
     return `
       <div class="imageflow-favorite-row ${isSkip ? "is-fixed" : ""}" ${rowAttrs}>
         <span class="imageflow-drag-handle" aria-hidden="true">::</span>
@@ -812,7 +845,24 @@
           <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(target.location || target.path || "")}</small></span>
         </button>
         ${browse}
-        <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Zu Favoriten: ${escapeAttr(label)}" title="Zu Favoriten" type="button">+</button>
+        <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Zu Schnellzielen: ${escapeAttr(label)}" title="Zu Schnellzielen" type="button">+</button>
+      </div>
+    `;
+  }
+
+  function renderFeedbackBurst() {
+    const feedback = state.feedback;
+    if (!feedback) {
+      return "";
+    }
+
+    const title = feedback.type === "skip" ? "Weiter" : "+1";
+    const label = feedback.label ? `zu ${feedback.label}` : "gesammelt";
+    return `
+      <div class="imageflow-feedback-burst ${feedback.type === "skip" ? "skip" : ""}" role="status">
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(label)}</span>
+        <small>${Number(feedback.streak || 0)}er Serie</small>
       </div>
     `;
   }
@@ -888,11 +938,11 @@
     const items = preview?.items || [];
     return `
       <div class="imageflow-modal-backdrop" role="presentation">
-        <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Worklist pruefen">
+        <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Ablage pruefen">
           <header class="imageflow-modal-head">
             <div>
-              <h3>Worklist pruefen</h3>
-              <p>${escapeHtml(preview?.job?.name || "Sortierjob")} | ${modeLabel(preview?.job?.targetMode || "")}</p>
+              <h3>Ablage pruefen</h3>
+              <p>${escapeHtml(preview?.job?.name || "Flow")} | ${modeLabel(preview?.job?.targetMode || "")}</p>
             </div>
             ${preview ? `<span class="imageflow-badge ${executionModeClass(preview.executionMode)}">${executionModeLabel(preview.executionMode)}</span>` : ""}
             <button class="imageflow-icon-button" data-action="close-worklist-preview" type="button">Schliessen</button>
@@ -901,7 +951,7 @@
           ${state.worklist.error ? `<div class="imageflow-empty">${escapeHtml(state.worklist.error)}</div>` : ""}
           ${preview ? `
             <div class="imageflow-status-grid">
-              <div class="imageflow-stat"><strong>${Number(summary.total || 0)}</strong><span>Operationen</span></div>
+              <div class="imageflow-stat"><strong>${Number(summary.total || 0)}</strong><span>Ablagepunkte</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.ready || 0)}</strong><span>Bereit</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.warnings || 0)}</strong><span>Warnungen</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.errors || 0)}</strong><span>Fehler</span></div>
@@ -911,11 +961,11 @@
             </div>
             <div class="imageflow-worklist-note">${escapeHtml(preview.message || "")}</div>
             <div class="imageflow-worklist-table">
-              ${items.map(renderWorklistItem).join("") || '<div class="imageflow-empty">Noch keine geplanten Operationen vorhanden.</div>'}
+              ${items.map(renderWorklistItem).join("") || '<div class="imageflow-empty">Noch keine Ablagepunkte vorhanden.</div>'}
             </div>
             <div class="imageflow-folder-actions">
               <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Neu pruefen</button>
-              <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.canQueue ? "" : "disabled"}>${preview.executionMode === "real-writes-enabled" ? "Ausfuehrung starten" : "Ausfuehrung vormerken"}</button>
+              <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.canQueue ? "" : "disabled"}>${preview.executionMode === "real-writes-enabled" ? "Ablage freigeben" : "Ablage vormerken"}</button>
             </div>
           ` : ""}
         </section>
@@ -983,11 +1033,11 @@
     try {
       const payload = await request("/api/v1/jobs", { method: "POST", body });
       state.jobs = [payload.job, ...state.jobs.filter((job) => job.id !== payload.job.id)];
-      state.toast = { type: "info", message: "Sortierjob wurde angelegt." };
+      state.toast = { type: "info", message: "Flow wurde gestartet." };
       state.jobDraft.name = "";
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Job konnte nicht angelegt werden." };
+      state.toast = { type: "error", message: error.message || "Flow konnte nicht gestartet werden." };
       render();
     }
   }
@@ -1263,12 +1313,12 @@
       state.toast = {
         type: "info",
         message: realWrites
-          ? "Ausfuehrung wurde vorgemerkt. Der Worker verarbeitet die Worklist in sicheren Batches."
-          : "Ausfuehrung wurde vorgemerkt. Reale Dateioperationen bleiben bis zur Freigabe blockiert.",
+          ? "Ablage wurde freigegeben. Der Worker verarbeitet sie in sicheren Batches."
+          : "Ablage wurde vorgemerkt. Reale Dateioperationen bleiben bis zur Freigabe blockiert.",
       };
       render();
     } catch (error) {
-      state.worklist.error = error.message || "Ausfuehrung konnte nicht vorgemerkt werden.";
+      state.worklist.error = error.message || "Ablage konnte nicht vorgemerkt werden.";
       render();
     }
   }
@@ -1283,6 +1333,7 @@
     state.startMode = startMode;
     state.targetBrowsePath = null;
     state.targetFolderPage = null;
+    resetSessionFlow();
     await load();
   }
 
@@ -1291,6 +1342,7 @@
     state.imagePage = null;
     state.pageCursor = null;
     state.startMode = startMode;
+    resetSessionFlow();
     await loadImagePage(null, null, true, startMode);
   }
 
@@ -1298,28 +1350,28 @@
     try {
       const payload = await request(`/api/v1/jobs/${jobId}/${operation}`, { method: "POST", body: {} });
       state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
-      state.toast = { type: "info", message: "Jobstatus wurde aktualisiert." };
+      state.toast = { type: "info", message: "Flowstatus wurde aktualisiert." };
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Jobstatus konnte nicht aktualisiert werden." };
+      state.toast = { type: "error", message: error.message || "Flowstatus konnte nicht aktualisiert werden." };
       render();
     }
   }
 
   async function discardJob(jobId) {
     const job = state.jobs.find((item) => item.id === jobId);
-    const label = job?.name || `Job ${jobId}`;
-    if (typeof window.confirm === "function" && !window.confirm(`Sortierjob "${label}" verwerfen?`)) {
+    const label = job?.name || `Flow ${jobId}`;
+    if (typeof window.confirm === "function" && !window.confirm(`Flow "${label}" verwerfen?`)) {
       return;
     }
 
     try {
       await request(`/api/v1/jobs/${jobId}/discard`, { method: "POST", body: {} });
       state.jobs = state.jobs.filter((item) => item.id !== jobId);
-      state.toast = { type: "info", message: "Sortierjob wurde verworfen." };
+      state.toast = { type: "info", message: "Flow wurde verworfen." };
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Sortierjob konnte nicht verworfen werden." };
+      state.toast = { type: "error", message: error.message || "Flow konnte nicht verworfen werden." };
       render();
     }
   }
@@ -1343,8 +1395,8 @@
           mimeType: button.dataset.mimeType || "",
         },
       });
-      state.toast = { type: "info", message: `Geplant: ${target.label}` };
-      completeCurrentDecision("assign");
+      state.toast = { type: "info", message: `Gesammelt: ${target.label}` };
+      completeCurrentDecision("assign", target.label);
       render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Sortierentscheidung konnte nicht gespeichert werden." };
@@ -1370,11 +1422,11 @@
       applyFavorites(payload.favorites);
       state.toast = {
         type: "info",
-        message: payload.duplicate ? "Favorit ist bereits vorhanden." : "Favorit wurde hinzugefuegt.",
+        message: payload.duplicate ? "Schnellziel ist bereits vorhanden." : "Schnellziel wurde hinzugefuegt.",
       };
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Favorit konnte nicht gespeichert werden." };
+      state.toast = { type: "error", message: error.message || "Schnellziel konnte nicht gespeichert werden." };
       render();
     }
   }
@@ -1387,10 +1439,10 @@
     try {
       const payload = await request(`/api/v1/favorites/${favoriteId}`, { method: "DELETE", body: {} });
       applyFavorites(payload.favorites);
-      state.toast = { type: "info", message: "Favorit wurde entfernt." };
+      state.toast = { type: "info", message: "Schnellziel wurde entfernt." };
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Favorit konnte nicht entfernt werden." };
+      state.toast = { type: "error", message: error.message || "Schnellziel konnte nicht entfernt werden." };
       render();
     }
   }
@@ -1413,11 +1465,11 @@
         },
       });
       applyFavorites(payload.favorites);
-      state.toast = { type: "info", message: "Favoriten-Reihenfolge gespeichert." };
+      state.toast = { type: "info", message: "Schnellziel-Reihenfolge gespeichert." };
       render();
     } catch (error) {
       state.sortState.favorites = previous;
-      state.toast = { type: "error", message: error.message || "Favoriten-Reihenfolge konnte nicht gespeichert werden." };
+      state.toast = { type: "error", message: error.message || "Schnellziel-Reihenfolge konnte nicht gespeichert werden." };
       render();
     }
   }
@@ -1485,8 +1537,8 @@
           mimeType: current?.mimeType || "",
         },
       });
-      state.toast = { type: "info", message: "Bild wurde uebersprungen." };
-      completeCurrentDecision("skip");
+      state.toast = { type: "info", message: "Weiter zum naechsten Bild." };
+      completeCurrentDecision("skip", "naechstes Bild");
       render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Bild konnte nicht uebersprungen werden." };
@@ -1581,7 +1633,7 @@
     await loadImagePage(Math.max(0, Number(cursor) || 0), preferredIndex);
   }
 
-  function completeCurrentDecision(type) {
+  function completeCurrentDecision(type, label = "") {
     const sortState = state.sortState;
     if (!sortState) {
       return;
@@ -1601,7 +1653,78 @@
     if (sortState.job.status === "draft") {
       sortState.job.status = "sorting";
     }
+    registerDecisionFeedback(type, label);
     persistPositionSoon();
+  }
+
+  function registerDecisionFeedback(type, label) {
+    state.decisionStreak = Math.min(999, Number(state.decisionStreak || 0) + 1);
+    state.decisionsThisSession = Math.min(9999, Number(state.decisionsThisSession || 0) + 1);
+
+    const id = Date.now();
+    state.feedback = {
+      id,
+      type,
+      label,
+      streak: state.decisionStreak,
+    };
+
+    if (feedbackTimer) {
+      window.clearTimeout(feedbackTimer);
+    }
+    feedbackTimer = window.setTimeout(() => {
+      if (state.feedback?.id === id) {
+        state.feedback = null;
+        render();
+      }
+    }, 850);
+  }
+
+  function resetSessionFlow() {
+    state.feedback = null;
+    state.decisionStreak = 0;
+    state.decisionsThisSession = 0;
+    state.sessionStartedAt = Date.now();
+    if (feedbackTimer) {
+      window.clearTimeout(feedbackTimer);
+      feedbackTimer = null;
+    }
+  }
+
+  function progressStats(job, page, images) {
+    const done = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0);
+    const visibleTotal = Number(page?.total || 0);
+    const fallbackTotal = done + Math.max(0, images.length);
+    const total = Math.max(visibleTotal, Number(job.totalFiles || 0), fallbackTotal, 1);
+    const percent = Math.min(100, Math.round((done / total) * 100));
+    return { done, total, percent };
+  }
+
+  function sessionTempo() {
+    const minutes = Math.max(0.05, (Date.now() - Number(state.sessionStartedAt || Date.now())) / 60000);
+    return Math.round((Number(state.decisionsThisSession || 0) / minutes) * 10) / 10;
+  }
+
+  function flowMilestone(percent, streak) {
+    if (percent >= 100) {
+      return "Flow komplett";
+    }
+    if (streak >= 25) {
+      return "Sehr starke Serie";
+    }
+    if (streak >= 10) {
+      return "Guter Lauf";
+    }
+    if (percent >= 75) {
+      return "Endspurt";
+    }
+    if (percent >= 50) {
+      return "Halbzeit geschafft";
+    }
+    if (percent >= 25) {
+      return "Rhythmus gefunden";
+    }
+    return "Bereit fuer den naechsten Griff";
   }
 
   function filmstripWindow(images, currentIndex) {
@@ -1747,11 +1870,11 @@
   function statusLabel(status) {
     return {
       draft: "Entwurf",
-      sorting: "Sortierung laeuft",
+      sorting: "Im Flow",
       paused: "Pausiert",
       ready: "Bereit",
-      queued: "Ausfuehrung geplant",
-      executing: "Ausfuehrung laeuft",
+      queued: "Ablage geplant",
+      executing: "Ablage laeuft",
       done: "Abgeschlossen",
       error: "Fehler",
     }[status] || escapeHtml(status || "");
