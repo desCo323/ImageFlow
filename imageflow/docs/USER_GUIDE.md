@@ -4,6 +4,7 @@
 
 Open ImageFlow from the Nextcloud navigation and start a Flow:
 
+- check the dashboard safety status before working on a productive server,
 - choose a source folder with the folder picker,
 - choose the target mode,
 - choose a target folder with the folder picker when using copy or move,
@@ -55,6 +56,8 @@ The Flow bar shows overall progress, the current decision streak, this session's
 Use `Ablage pruefen` on the Flow dashboard to open the safe preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
 
 The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt verarbeiten` runs a small manual batch. If both real writes and server-side background processing are enabled, and the Flow is marked for automatic processing, the cron worker can process queued work later.
+
+The dashboard also shows the current safety status. `Sicherer Testbetrieb` means real file operations and cron processing are locked on the server.
 
 When an administrator deliberately enables real execution for a controlled test window, ImageFlow processes the queued worklist in small background batches. Safe Mode verifies copy/move operations with checksums, existing album memberships or identical copy targets are skipped as already done, and conflicting target files are not overwritten.
 

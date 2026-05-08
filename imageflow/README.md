@@ -23,6 +23,10 @@ bash scripts/self-check.sh
 npm run test:browser
 ```
 
+## Manual Safe Test
+
+See `docs/SELF_TEST.md` for the deployed self-test checklist and screenshot locations.
+
 ## Safety
 
 Do not deploy this app to a production Nextcloud instance without the documented backup and rollback process. Authenticated tests may only use the dedicated test user `albentest`; credentials must never be stored in this repository.

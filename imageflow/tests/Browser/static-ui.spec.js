@@ -40,6 +40,9 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await mount(page);
 
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
+  await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Sicherer Testbetrieb');
+  await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Dateioperationen gesperrt');
+  await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Cron-Ablage aus');
   await expect(page.getByRole('heading', { name: 'Flow starten' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Flow starten' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Fortsetzen' }).first()).toBeVisible();

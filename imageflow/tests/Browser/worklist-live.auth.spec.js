@@ -21,9 +21,13 @@ test('previews and queues a worklist without file writes as albentest', async ({
   let jobId = null;
   try {
     await login(page, baseUrl, username, password);
-    await page.goto(`${baseUrl.replace(/\/$/, '')}/apps/imageflow/`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible({ timeout: 15000 });
-    await cleanupSmokeJobs(page);
+	    await page.goto(`${baseUrl.replace(/\/$/, '')}/apps/imageflow/`, { waitUntil: 'domcontentloaded' });
+	    await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible({ timeout: 15000 });
+	    await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Dateioperationen gesperrt');
+	    const health = await api(page, '/api/v1/health');
+	    expect(health.realExecutionEnabled).toBe(false);
+	    expect(health.backgroundProcessingEnabled).toBe(false);
+	    await cleanupSmokeJobs(page);
 
     const jobName = `${smokePrefix} ${Date.now()}`;
     await page.getByLabel('Name').fill(jobName);

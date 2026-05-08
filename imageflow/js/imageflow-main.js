@@ -20,8 +20,9 @@
   const state = {
     page: root.dataset.page || "jobs",
     jobId: numberOrNull(root.dataset.jobId),
-    jobs: [],
-    sortState: null,
+	    jobs: [],
+	    sortState: null,
+	    health: null,
     imageIndex: 0,
     pageCursor: null,
     imagePage: null,
@@ -122,9 +123,12 @@
     return payload;
   }
 
-  async function mockRequest(path, options) {
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    if (path === "/api/v1/jobs" && (!options.method || options.method === "GET")) {
+	  async function mockRequest(path, options) {
+	    await new Promise((resolve) => setTimeout(resolve, 20));
+	    if (path === "/api/v1/health") {
+	      return mockHealth();
+	    }
+	    if (path === "/api/v1/jobs" && (!options.method || options.method === "GET")) {
       return { jobs: mockJobs() };
     }
     if (path === "/api/v1/jobs" && options.method === "POST") {
@@ -286,7 +290,7 @@
     return {};
   }
 
-  function mockJobs() {
+	  function mockJobs() {
     return [
       {
         id: 1,
@@ -331,7 +335,20 @@
         updatedAt: Math.floor(Date.now() / 1000) - 900,
       },
     ];
-  }
+	  }
+
+	  function mockHealth() {
+	    return {
+	      app: "imageflow",
+	      version: "0.1.0",
+	      status: "safe-testing",
+	      processingMode: "locked",
+	      destructiveWritesEnabled: false,
+	      realExecutionEnabled: false,
+	      backgroundProcessingEnabled: false,
+	      safeModeDefault: true,
+	    };
+	  }
 
   function mockSortState(jobId, pageOptions = {}) {
     const baseJob = state.jobs.find((item) => item.id === jobId) || mockJobs().find((item) => item.id === jobId) || mockJobs()[0];
@@ -615,16 +632,25 @@
         const params = new URLSearchParams({ limit: "120" });
         const payload = await request(`/api/v1/logs?${params.toString()}`);
         state.logs.items = payload.logs || [];
-      } else {
-        const payload = await request("/api/v1/jobs");
-        state.jobs = payload.jobs || [];
-      }
+	      } else {
+	        const payload = await request("/api/v1/jobs");
+	        state.jobs = payload.jobs || [];
+	        await loadHealth();
+	      }
     } catch (error) {
       state.toast = { type: "error", message: error.message || "ImageFlow konnte nicht geladen werden." };
     } finally {
       state.loading = false;
       render();
-    }
+	  }
+
+	  async function loadHealth() {
+	    try {
+	      state.health = await request("/api/v1/health");
+	    } catch (error) {
+	      state.health = null;
+	    }
+	  }
   }
 
   async function loadImagePage(cursor = null, preferredIndex = null, renderLoading = true, startMode = null) {
@@ -715,12 +741,13 @@
     `;
   }
 
-  function renderJobsPage() {
-    const totals = summarizeJobs(state.jobs);
-    const draft = state.jobDraft;
-    return `
-      <section class="imageflow-dashboard" aria-label="Flows">
-        <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
+	  function renderJobsPage() {
+	    const totals = summarizeJobs(state.jobs);
+	    const draft = state.jobDraft;
+	    return `
+	      <section class="imageflow-dashboard" aria-label="Flows">
+	        ${renderSafetyStrip()}
+	        <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
           <div class="imageflow-panel-head">
             <div>
               <h3>Flow starten</h3>
@@ -791,8 +818,31 @@
           ${renderJobTable()}
         </section>
       </section>
-    `;
-  }
+	    `;
+	  }
+
+	  function renderSafetyStrip() {
+	    const health = state.health || mockHealth();
+	    const realWrites = Boolean(health.realExecutionEnabled || health.destructiveWritesEnabled);
+	    const background = Boolean(health.backgroundProcessingEnabled);
+	    const title = realWrites ? "Dateioperationen aktiv" : "Sicherer Testbetrieb";
+	    const message = realWrites
+	      ? "Reale Dateioperationen sind serverseitig freigeschaltet. Worklists koennen Dateien veraendern."
+	      : "Reale Dateioperationen sind serverseitig gesperrt. Worklists koennen geprueft und vorgemerkt werden, ohne Dateien zu veraendern.";
+	    return `
+	      <section class="imageflow-safety-strip ${realWrites ? "is-live" : ""}" aria-label="Sicherheitsstatus">
+	        <div>
+	          <h3>${escapeHtml(title)}</h3>
+	          <p>${escapeHtml(message)}</p>
+	        </div>
+	        <div class="imageflow-safety-badges">
+	          <span class="imageflow-badge ${realWrites ? "warning" : "safe"}">${realWrites ? "Dateioperationen aktiv" : "Dateioperationen gesperrt"}</span>
+	          <span class="imageflow-badge ${background ? "warning" : ""}">${background ? "Cron-Ablage aktiv" : "Cron-Ablage aus"}</span>
+	          <span class="imageflow-badge safe">Safe Mode Standard</span>
+	        </div>
+	      </section>
+	    `;
+	  }
 
   function renderJobTable() {
     if (state.jobs.length === 0) {

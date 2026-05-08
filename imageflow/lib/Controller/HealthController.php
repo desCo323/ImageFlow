@@ -8,20 +8,32 @@ use OCA\ImageFlow\AppInfo\Application;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
+use OCP\IConfig;
 use OCP\IRequest;
 
 class HealthController extends Controller {
-	public function __construct(IRequest $request) {
+	public function __construct(
+		IRequest $request,
+		private readonly IConfig $config,
+	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
 
 	#[NoAdminRequired]
 	public function index(): JSONResponse {
+		$realExecutionEnabled = $this->config->getAppValue(Application::APP_ID, 'real_execution_enabled', '0') === '1';
+		$backgroundProcessingEnabled = $this->config->getAppValue(Application::APP_ID, 'background_processing_enabled', '0') === '1';
+
 		return new JSONResponse([
 			'app' => Application::APP_ID,
 			'version' => Application::VERSION,
-			'status' => 'bootstrap',
-			'destructiveWritesEnabled' => false,
+			'status' => $realExecutionEnabled ? 'execution-enabled' : 'safe-testing',
+			'processingMode' => $realExecutionEnabled
+				? ($backgroundProcessingEnabled ? 'manual-and-background' : 'manual-only')
+				: 'locked',
+			'destructiveWritesEnabled' => $realExecutionEnabled,
+			'realExecutionEnabled' => $realExecutionEnabled,
+			'backgroundProcessingEnabled' => $backgroundProcessingEnabled,
 			'safeModeDefault' => true,
 		]);
 	}

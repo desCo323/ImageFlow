@@ -24,6 +24,16 @@ test('creates and discards a job as the dedicated test user', async ({ page }) =
 
   await page.goto(`${baseUrl.replace(/\/$/, '')}/apps/imageflow/`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
+  await expect(page.getByLabel('Sicherheitsstatus')).toContainText('Dateioperationen gesperrt');
+  const health = await page.evaluate(async () => {
+    const response = await fetch(window.OC.generateUrl('/apps/imageflow/api/v1/health'), {
+      credentials: 'same-origin',
+      headers: { requesttoken: window.OC.requestToken || '' },
+    });
+    return response.json();
+  });
+  expect(health.realExecutionEnabled).toBe(false);
+  expect(health.backgroundProcessingEnabled).toBe(false);
   await expect(page.getByRole('heading', { name: 'Flow starten' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Flow starten' })).toBeVisible();
   await discardSmokeJobs(page);

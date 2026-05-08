@@ -50,3 +50,6 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 15. Debug protocol view
    ![Debug protocol view](screenshots/15-debug-protocol.png)
+
+16. Dashboard self-test safety status
+   ![Dashboard self-test safety status](screenshots/16-self-test-status.png)
