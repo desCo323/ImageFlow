@@ -67,4 +67,13 @@ class QueueItemMapper extends QBMapper {
 
 		return $qb->executeStatement();
 	}
+
+	public function deleteForJob(string $userId, int $jobId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+
+		return $qb->executeStatement();
+	}
 }

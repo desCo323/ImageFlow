@@ -62,6 +62,24 @@ class JobController extends Controller {
 	}
 
 	#[NoAdminRequired]
+	public function delete(int $jobId): JSONResponse {
+		try {
+			return new JSONResponse([
+				'deleted' => true,
+				'jobId' => $jobId,
+				'removed' => $this->jobService->discardJob($this->userId, $jobId),
+			]);
+		} catch (DoesNotExistException) {
+			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (\InvalidArgumentException $e) {
+			return $this->error('job_delete_blocked', $e->getMessage(), Http::STATUS_CONFLICT);
+		} catch (\Throwable $e) {
+			$this->logService->exception('job_delete_failed', $e, $this->userId, $jobId);
+			return $this->error('job_delete_failed', 'Der Sortierjob konnte nicht verworfen werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	#[NoAdminRequired]
 	public function resume(int $jobId): JSONResponse {
 		return $this->status($jobId, 'sorting');
 	}

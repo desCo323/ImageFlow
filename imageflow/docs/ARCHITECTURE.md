@@ -5,6 +5,7 @@
 ImageFlow is a Nextcloud app for fast photo triage. The first version separates sorting decisions from destructive file writes:
 
 - Users create sort jobs.
+- Users can discard jobs until execution has started or operations were already executed.
 - The sorting view records assignments and skip decisions.
 - Assignments create queue rows.
 - Queue execution is only started from the main job dashboard.

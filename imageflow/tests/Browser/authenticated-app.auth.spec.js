@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.use({ trace: 'off', video: 'off', screenshot: 'off' });
 
-test('opens ImageFlow as the dedicated test user', async ({ page }) => {
+test('creates and discards a job as the dedicated test user', async ({ page }) => {
   test.skip(process.env.IMAGEFLOW_AUTH_TESTS !== '1', 'Authenticated live tests are opt-in.');
 
   const baseUrl = process.env.IMAGEFLOW_BASE_URL;
@@ -26,4 +26,17 @@ test('opens ImageFlow as the dedicated test user', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Sortierjob anlegen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Job anlegen' })).toBeVisible();
+
+  const jobName = `ImageFlow Smoke ${Date.now()}`;
+  await page.getByLabel('Name').fill(jobName);
+  await page.getByLabel('Quellordner').fill('/Photos');
+  await page.getByRole('button', { name: 'Job anlegen' }).click();
+  await expect(page.getByText(jobName)).toBeVisible();
+
+  page.once('dialog', async (dialog) => {
+    await dialog.accept();
+  });
+  const row = page.locator('tr', { hasText: jobName });
+  await row.getByRole('button', { name: 'Verwerfen' }).click();
+  await expect(page.getByText(jobName)).toHaveCount(0);
 });

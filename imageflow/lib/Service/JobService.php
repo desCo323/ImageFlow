@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\ImageFlow\Service;
 
 use OCA\ImageFlow\Db\QueueItemMapper;
+use OCA\ImageFlow\Db\SortAssignmentMapper;
 use OCA\ImageFlow\Db\SortJob;
 use OCA\ImageFlow\Db\SortJobMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -25,6 +26,7 @@ class JobService {
 	public function __construct(
 		private readonly SortJobMapper $jobMapper,
 		private readonly QueueItemMapper $queueMapper,
+		private readonly SortAssignmentMapper $assignmentMapper,
 		private readonly LogService $logService,
 	) {
 	}
@@ -145,6 +147,33 @@ class JobService {
 		], $jobId, 'Ausfuehrung wurde vom Hauptmenue aus vorgemerkt.');
 
 		return $this->serializeJob($job);
+	}
+
+	/**
+	 * @return array<string, int>
+	 * @throws DoesNotExistException
+	 */
+	public function discardJob(string $userId, int $jobId): array {
+		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		if ($job->getStatus() === 'executing' || $job->getExecutedOperations() > 0) {
+			throw new \InvalidArgumentException('Jobs mit laufender oder bereits ausgefuehrter Queue koennen nicht verworfen werden.');
+		}
+
+		$removedQueue = $this->queueMapper->deleteForJob($userId, $jobId);
+		$removedAssignments = $this->assignmentMapper->deleteForJob($userId, $jobId);
+		$this->jobMapper->delete($job);
+
+		$this->logService->info('job_discarded', $userId, [
+			'jobId' => $jobId,
+			'removedAssignments' => $removedAssignments,
+			'removedQueueItems' => $removedQueue,
+		], null, 'Sortierjob wurde verworfen.');
+
+		return [
+			'assignments' => $removedAssignments,
+			'queueItems' => $removedQueue,
+			'jobs' => 1,
+		];
 	}
 
 	/**

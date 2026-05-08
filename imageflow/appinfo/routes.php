@@ -10,6 +10,7 @@ return [
 		['name' => 'job#index', 'url' => '/api/v1/jobs', 'verb' => 'GET'],
 		['name' => 'job#create', 'url' => '/api/v1/jobs', 'verb' => 'POST'],
 		['name' => 'job#show', 'url' => '/api/v1/jobs/{jobId}', 'verb' => 'GET'],
+		['name' => 'job#delete', 'url' => '/api/v1/jobs/{jobId}', 'verb' => 'DELETE'],
 		['name' => 'job#pause', 'url' => '/api/v1/jobs/{jobId}/pause', 'verb' => 'POST'],
 		['name' => 'job#resume', 'url' => '/api/v1/jobs/{jobId}/resume', 'verb' => 'POST'],
 		['name' => 'job#markReady', 'url' => '/api/v1/jobs/{jobId}/ready', 'verb' => 'POST'],

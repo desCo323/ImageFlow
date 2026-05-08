@@ -17,6 +17,8 @@ Target modes:
 
 Sorting decisions are saved immediately, but file changes are not executed until the job is explicitly queued from the job dashboard.
 
+Jobs that have not executed file operations can be discarded from the dashboard. Discarding removes the job, its planned assignments and its queued operations; it does not touch source files, target folders or albums.
+
 ## Sorting
 
 The sorting page is structured for fast repeated decisions:

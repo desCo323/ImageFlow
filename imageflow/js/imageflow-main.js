@@ -81,6 +81,11 @@
       state.jobs = [job, ...state.jobs];
       return { job };
     }
+    if (/\/api\/v1\/jobs\/\d+$/.test(path) && options.method === "DELETE") {
+      const jobId = Number.parseInt(path.split("/").pop(), 10);
+      state.jobs = state.jobs.filter((job) => job.id !== jobId);
+      return { deleted: true, jobId };
+    }
     if (path.includes("/sort-state")) {
       return mockSortState(state.jobId || 1);
     }
@@ -326,6 +331,7 @@
             <button class="imageflow-button" data-action="open-sort" data-job-id="${job.id}" type="button">Sortieren</button>
             <button class="imageflow-button" data-action="pause-job" data-job-id="${job.id}" type="button">Pausieren</button>
             <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ausfuehren</button>
+            <button class="imageflow-button danger" data-action="discard-job" data-job-id="${job.id}" type="button">Verwerfen</button>
           </div>
         </td>
       </tr>
@@ -497,6 +503,8 @@
       await changeJobStatus(jobId, "pause");
     } else if (action === "queue-job" && jobId) {
       await changeJobStatus(jobId, "queue-execution");
+    } else if (action === "discard-job" && jobId) {
+      await discardJob(jobId);
     } else if (action === "assign") {
       await assignFromButton(event.currentTarget);
     } else if (action === "show-log") {
@@ -513,6 +521,24 @@
       render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Jobstatus konnte nicht aktualisiert werden." };
+      render();
+    }
+  }
+
+  async function discardJob(jobId) {
+    const job = state.jobs.find((item) => item.id === jobId);
+    const label = job?.name || `Job ${jobId}`;
+    if (typeof window.confirm === "function" && !window.confirm(`Sortierjob "${label}" verwerfen?`)) {
+      return;
+    }
+
+    try {
+      await request(`/api/v1/jobs/${jobId}`, { method: "DELETE", body: {} });
+      state.jobs = state.jobs.filter((item) => item.id !== jobId);
+      state.toast = { type: "info", message: "Sortierjob wurde verworfen." };
+      render();
+    } catch (error) {
+      state.toast = { type: "error", message: error.message || "Sortierjob konnte nicht verworfen werden." };
       render();
     }
   }
