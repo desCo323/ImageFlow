@@ -17,13 +17,27 @@ Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controll
 
 ## Current Write Behavior
 
-The app stores jobs, assignments, queue rows, favorites and logs. The Worklist preview validates planned operations before queueing. The background worker does not perform destructive writes yet; queued rows are marked `blocked` by the execution guard and logged.
+The app stores jobs, assignments, queue rows, favorites and logs. The Worklist preview validates planned operations before queueing.
 
-Before enabling real writes, implement and verify:
+Real execution code exists for album membership, copy and move operations, but it is disabled by default. Without explicit server-side enablement, queued rows are marked `blocked` by the execution guard and logged.
 
-- exact dry-run plans,
-- checksum validation,
-- conflict handling,
-- permission checks,
-- resumable queue execution,
-- rollback documentation.
+To enable the real execution path for a controlled test window:
+
+```bash
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow real_execution_enabled --value=1
+```
+
+To disable it again:
+
+```bash
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow real_execution_enabled --value=0
+```
+
+Only enable real execution after a fresh backup and only with isolated test folders/albums. Current execution safeguards:
+
+- exact dry-run plans before queueing,
+- Safe Mode SHA-256 validation for copy/move,
+- no overwrite of existing target files,
+- idempotent duplicate skip for matching copy targets and existing album memberships,
+- move operations never delete the source when a different target file already exists,
+- per-item queue status, attempts, checksums, error text and debug logs.

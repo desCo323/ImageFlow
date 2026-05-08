@@ -400,6 +400,8 @@
 
   function mockWorklistPreview(job) {
     const mode = job.targetMode || "album";
+    const queued = job.status === "queued";
+    const itemStatus = queued ? "queued" : "planned";
     return {
       job: {
         id: job.id,
@@ -410,15 +412,17 @@
       },
       summary: {
         total: 3,
-        planned: 3,
-        queued: 0,
+        planned: queued ? 0 : 3,
+        queued: queued ? 3 : 0,
+        executing: 0,
         blocked: 0,
         executed: 0,
+        failed: 0,
         ready: 2,
         warnings: 1,
         errors: 0,
       },
-      canQueue: true,
+      canQueue: !queued,
       executionMode: "dry-run-only",
       message: "Dateioperationen sind weiterhin gesperrt. Diese Vorschau prueft die Worklist vor der spaeteren Freigabe realer Writes.",
       items: [
@@ -428,7 +432,7 @@
           sourcePath: `${job.sourcePath || "/Photos"}/IMG_4021.jpg`,
           targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
           targetAlbumId: mode === "album" ? "family" : null,
-          status: "planned",
+          status: itemStatus,
           safeMode: true,
           readiness: "ready",
           messages: ["Bereit fuer sichere Pruefung mit Checksumme."],
@@ -439,7 +443,7 @@
           sourcePath: `${job.sourcePath || "/Photos"}/IMG_4022.jpg`,
           targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
           targetAlbumId: mode === "album" ? "travel" : null,
-          status: "planned",
+          status: itemStatus,
           safeMode: true,
           readiness: "warning",
           messages: ["Zieldatei existiert bereits; spaetere Ausfuehrung muss Duplikat sicher ueberspringen."],
@@ -450,7 +454,7 @@
           sourcePath: `${job.sourcePath || "/Photos"}/IMG_4023.jpg`,
           targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
           targetAlbumId: mode === "album" ? "archive" : null,
-          status: "planned",
+          status: itemStatus,
           safeMode: true,
           readiness: "ready",
           messages: ["Bereit fuer sichere Pruefung mit Checksumme."],
@@ -888,8 +892,9 @@
           <header class="imageflow-modal-head">
             <div>
               <h3>Worklist pruefen</h3>
-              <p>${escapeHtml(preview?.job?.name || "Sortierjob")} | ${modeLabel(preview?.job?.targetMode || "")} | ${escapeHtml(preview?.executionMode || "dry-run")}</p>
+              <p>${escapeHtml(preview?.job?.name || "Sortierjob")} | ${modeLabel(preview?.job?.targetMode || "")}</p>
             </div>
+            ${preview ? `<span class="imageflow-badge ${executionModeClass(preview.executionMode)}">${executionModeLabel(preview.executionMode)}</span>` : ""}
             <button class="imageflow-icon-button" data-action="close-worklist-preview" type="button">Schliessen</button>
           </header>
           ${state.worklist.loading ? '<div class="imageflow-empty">Worklist wird geprueft.</div>' : ""}
@@ -900,6 +905,9 @@
               <div class="imageflow-stat"><strong>${Number(summary.ready || 0)}</strong><span>Bereit</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.warnings || 0)}</strong><span>Warnungen</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.errors || 0)}</strong><span>Fehler</span></div>
+              <div class="imageflow-stat"><strong>${Number(summary.queued || 0) + Number(summary.executing || 0)}</strong><span>Vorgemerkt</span></div>
+              <div class="imageflow-stat"><strong>${Number(summary.executed || 0)}</strong><span>Erledigt</span></div>
+              <div class="imageflow-stat"><strong>${Number(summary.blocked || 0) + Number(summary.failed || 0)}</strong><span>Geblockt</span></div>
             </div>
             <div class="imageflow-worklist-note">${escapeHtml(preview.message || "")}</div>
             <div class="imageflow-worklist-table">
@@ -907,7 +915,7 @@
             </div>
             <div class="imageflow-folder-actions">
               <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Neu pruefen</button>
-              <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.canQueue ? "" : "disabled"}>Ausfuehrung vormerken</button>
+              <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.canQueue ? "" : "disabled"}>${preview.executionMode === "real-writes-enabled" ? "Ausfuehrung starten" : "Ausfuehrung vormerken"}</button>
             </div>
           ` : ""}
         </section>
@@ -923,6 +931,7 @@
           <strong>${escapeHtml(modeLabel(item.operationType))}</strong>
           <span>${escapeHtml(item.sourcePath || "")}</span>
           <small>${escapeHtml(item.targetPath || item.targetAlbumId || "")}</small>
+          <small>${escapeHtml(queueStatusLabel(item.status))}${item.safeMode ? " | Safe Mode" : ""}</small>
         </div>
         <span class="imageflow-badge ${badgeClass}">${readinessLabel(item.readiness)}</span>
         <p>${(item.messages || []).map(escapeHtml).join(" ")}</p>
@@ -1250,7 +1259,13 @@
       const payload = await request(`/api/v1/jobs/${jobId}/queue-execution`, { method: "POST", body: {} });
       state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
       state.worklist.preview = payload.preview || state.worklist.preview;
-      state.toast = { type: "info", message: "Ausfuehrung wurde vorgemerkt. Reale Dateioperationen bleiben bis zur Freigabe blockiert." };
+      const realWrites = state.worklist.preview?.executionMode === "real-writes-enabled";
+      state.toast = {
+        type: "info",
+        message: realWrites
+          ? "Ausfuehrung wurde vorgemerkt. Der Worker verarbeitet die Worklist in sicheren Batches."
+          : "Ausfuehrung wurde vorgemerkt. Reale Dateioperationen bleiben bis zur Freigabe blockiert.",
+      };
       render();
     } catch (error) {
       state.worklist.error = error.message || "Ausfuehrung konnte nicht vorgemerkt werden.";
@@ -1748,6 +1763,25 @@
       warning: "Warnung",
       error: "Fehler",
     }[readiness] || "Unklar";
+  }
+
+  function executionModeLabel(mode) {
+    return mode === "real-writes-enabled" ? "Dateioperationen aktiv" : "Dateioperationen gesperrt";
+  }
+
+  function executionModeClass(mode) {
+    return mode === "real-writes-enabled" ? "danger" : "safe";
+  }
+
+  function queueStatusLabel(status) {
+    return {
+      planned: "Geplant",
+      queued: "Vorgemerkt",
+      executing: "In Arbeit",
+      executed: "Erledigt",
+      blocked: "Geblockt",
+      failed: "Fehler",
+    }[status] || status || "";
   }
 
   function escapeHtml(value) {

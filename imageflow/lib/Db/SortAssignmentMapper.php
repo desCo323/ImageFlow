@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\ImageFlow\Db;
 
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -38,6 +39,20 @@ class SortAssignmentMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
 		return $qb->executeStatement();
+	}
+
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function findForUserById(string $userId, int $id): SortAssignment {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->setMaxResults(1);
+
+		return $this->findEntity($qb);
 	}
 
 	/**

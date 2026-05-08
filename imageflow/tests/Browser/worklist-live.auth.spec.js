@@ -64,7 +64,7 @@ test('previews and queues a worklist without file writes as albentest', async ({
     await row.getByRole('button', { name: 'Ausfuehren' }).click();
     const dialog = page.getByRole('dialog', { name: 'Worklist pruefen' });
     await expect(dialog).toBeVisible({ timeout: 10000 });
-    await expect(dialog.getByText('dry-run-only')).toBeVisible();
+    await expect(dialog.getByText('Dateioperationen gesperrt')).toBeVisible();
     await dialog.getByRole('button', { name: 'Ausfuehrung vormerken' }).click();
     await expect(page.getByText('Ausfuehrung wurde vorgemerkt')).toBeVisible({ timeout: 10000 });
 

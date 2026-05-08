@@ -57,6 +57,25 @@ class QueueItemMapper extends QBMapper {
 		return (int)($row['queue_count'] ?? 0);
 	}
 
+	/**
+	 * @param string[] $statuses
+	 */
+	public function countForJobByStatuses(int $jobId, array $statuses): int {
+		$statuses = array_values(array_unique(array_filter($statuses, static fn ($status): bool => is_string($status) && $status !== '')));
+		if ($statuses === []) {
+			return 0;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias($qb->func()->count('*'), 'queue_count')
+			->from($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->in('status', $qb->createNamedParameter($statuses, IQueryBuilder::PARAM_STR_ARRAY)));
+
+		$row = $qb->executeQuery()->fetch();
+		return (int)($row['queue_count'] ?? 0);
+	}
+
 	public function findDuplicateOperation(
 		string $userId,
 		int $jobId,

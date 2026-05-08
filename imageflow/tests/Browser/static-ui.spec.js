@@ -80,7 +80,7 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   const dialog = page.getByRole('dialog', { name: 'Worklist pruefen' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Operationen', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('dry-run-only')).toBeVisible();
+  await expect(dialog.getByText('Dateioperationen gesperrt')).toBeVisible();
   await dialog.getByRole('button', { name: 'Ausfuehrung vormerken' }).click();
   await expect(page.getByText('Ausfuehrung wurde vorgemerkt')).toBeVisible();
 });

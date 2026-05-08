@@ -12,6 +12,7 @@ use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\IConfig;
 use OCP\IDBConnection;
 
 class WorklistPreviewService {
@@ -19,6 +20,7 @@ class WorklistPreviewService {
 		private readonly SortJobMapper $jobMapper,
 		private readonly QueueItemMapper $queueMapper,
 		private readonly IRootFolder $rootFolder,
+		private readonly IConfig $config,
 		private readonly IDBConnection $db,
 		private readonly LogService $logService,
 	) {
@@ -37,8 +39,10 @@ class WorklistPreviewService {
 			'total' => 0,
 			'planned' => 0,
 			'queued' => 0,
+			'executing' => 0,
 			'blocked' => 0,
 			'executed' => 0,
+			'failed' => 0,
 			'ready' => 0,
 			'warnings' => 0,
 			'errors' => 0,
@@ -81,8 +85,10 @@ class WorklistPreviewService {
 			'summary' => $summary,
 			'items' => $rows,
 			'canQueue' => $canQueue,
-			'executionMode' => 'dry-run-only',
-			'message' => 'Dateioperationen sind weiterhin gesperrt. Diese Vorschau prueft die Worklist vor der spaeteren Freigabe realer Writes.',
+			'executionMode' => $this->realExecutionEnabled() ? 'real-writes-enabled' : 'dry-run-only',
+			'message' => $this->realExecutionEnabled()
+				? 'Echte Dateioperationen sind serverseitig freigeschaltet. Die Worklist wird vor der Ausfuehrung weiterhin idempotent und sicher geprueft.'
+				: 'Dateioperationen sind weiterhin gesperrt. Diese Vorschau prueft die Worklist vor der spaeteren Freigabe realer Writes.',
 		];
 	}
 
@@ -110,6 +116,9 @@ class WorklistPreviewService {
 			if ($item->getTargetAlbumId() === null || !$this->albumExists($userId, $item->getTargetAlbumId())) {
 				$readiness = $this->worseReadiness($readiness, 'warning');
 				$messages[] = 'Album konnte nicht sicher verifiziert werden.';
+			} elseif ($sourceNode instanceof File && $this->albumContainsFile((int)$item->getTargetAlbumId(), $sourceNode->getId())) {
+				$readiness = $this->worseReadiness($readiness, 'warning');
+				$messages[] = 'Bild ist bereits im Album; spaetere Ausfuehrung ueberspringt das Duplikat.';
 			}
 		} elseif ($item->getOperationType() === 'copy' || $item->getOperationType() === 'move') {
 			$targetPath = $item->getTargetPath();
@@ -190,6 +199,26 @@ class WorklistPreviewService {
 		} catch (\Throwable) {
 			return false;
 		}
+	}
+
+	private function albumContainsFile(int $albumId, int $fileId): bool {
+		try {
+			$qb = $this->db->getQueryBuilder();
+			$qb->selectAlias($qb->func()->count('*'), 'file_count')
+				->from('photos_albums_files')
+				->where($qb->expr()->eq('album_id', $qb->createNamedParameter($albumId, IQueryBuilder::PARAM_INT)))
+				->andWhere($qb->expr()->eq('file_id', $qb->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)))
+				->setMaxResults(1);
+
+			$row = $qb->executeQuery()->fetch();
+			return (int)($row['file_count'] ?? 0) > 0;
+		} catch (\Throwable) {
+			return false;
+		}
+	}
+
+	private function realExecutionEnabled(): bool {
+		return $this->config->getAppValue('imageflow', 'real_execution_enabled', '0') === '1';
 	}
 
 	private function worseReadiness(string $current, string $candidate): string {

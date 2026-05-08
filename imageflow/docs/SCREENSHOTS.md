@@ -24,3 +24,9 @@ These screenshots use the local mock UI, not a live Nextcloud account, so no pri
 
 7. Worklist dry-run preview before execution
    ![Worklist dry-run preview](screenshots/07-worklist-preview.png)
+
+8. Worklist safety preview with execution guard
+   ![Worklist safety preview](screenshots/08-worklist-safety-preview.png)
+
+9. Worklist queued state after confirmation
+   ![Worklist queued state](screenshots/09-worklist-queued-state.png)

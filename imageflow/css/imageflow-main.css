@@ -800,10 +800,15 @@
 }
 
 .imageflow-worklist-row strong,
-.imageflow-worklist-row span,
+.imageflow-worklist-row div span,
 .imageflow-worklist-row small {
   display: block;
   overflow-wrap: anywhere;
+}
+
+.imageflow-worklist-row > .imageflow-badge {
+  align-self: start;
+  justify-self: end;
 }
 
 .imageflow-worklist-row small,

@@ -124,9 +124,10 @@ class JobController extends Controller {
 				], Http::STATUS_CONFLICT);
 			}
 
+			$job = $this->jobService->queueExecution($this->userId, $jobId);
 			return new JSONResponse([
-				'job' => $this->jobService->queueExecution($this->userId, $jobId),
-				'preview' => $preview,
+				'job' => $job,
+				'preview' => $this->worklistPreviewService->preview($this->userId, $jobId, 500),
 			]);
 		} catch (DoesNotExistException) {
 			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);

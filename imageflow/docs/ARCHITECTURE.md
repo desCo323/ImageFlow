@@ -9,7 +9,7 @@ ImageFlow is a Nextcloud app for fast photo triage. The first version separates 
 - The sorting view records assignments and skip decisions.
 - Assignments create queue rows.
 - Queue execution is only started from the main job dashboard.
-- The bootstrap worker is non-destructive and logs that real writes are disabled.
+- The worker defaults to non-destructive guard mode. Real writes require the explicit app config flag `real_execution_enabled=1`.
 
 ## App Structure
 
@@ -35,15 +35,17 @@ Folder selection uses the same normalized user-relative path model as sorting. T
 
 ## Safety Boundary
 
-The current `QueueExecutionJob` does not copy, move, delete or write album membership. It blocks queued operations with an explicit guard status and log entry. This is intentional. Real execution must be implemented behind:
+The current `QueueExecutionJob` blocks queued operations unless `imageflow` app config `real_execution_enabled` is set to `1`. This default protects production installs during development.
 
-- explicit job-level user action,
-- dry-run preview,
-- safe-mode checksum validation for copy/move,
-- path normalization,
-- ownership and permission checks,
-- detailed logs,
-- rollback-tested deployment.
+When enabled, the worker executes small batches and uses these rules:
+
+- album mode inserts only missing album memberships and treats existing memberships as idempotent success,
+- copy mode never overwrites existing target files; Safe Mode can treat same-checksum targets as already done,
+- move mode never overwrites existing target files and does not delete the source if a conflicting target exists,
+- Safe Mode computes SHA-256 before and after copy/move and fails the queue item on mismatch,
+- every item records status, attempts, checksums, error text and an audit log entry.
+
+Real execution remains gated by explicit job-level user action, dry-run preview, normalized user-relative paths, current-user filesystem access and rollback-tested deployment.
 
 ## Next Performance Block
 
@@ -56,4 +58,4 @@ The next sorting workspace block is the high-speed filmstrip and worklist execut
 - Animations should use `transform` and `opacity` only, respect `prefers-reduced-motion`, and avoid layout shifts during rapid key navigation.
 - Queue creation must be idempotent. Album and copy operations need a stable operation key and a pre-execution duplicate check so repeated processing runs do not create duplicate album memberships or duplicate copied files.
 - The dashboard remains the execution gate: users can process the current worklist now, leave it queued for later, or allow a cron-controlled low-load execution window.
-- Background execution must process small batches with detailed logs, retry metadata, and explicit `skipped_duplicate` outcomes when the desired target state already exists.
+- Background execution processes small batches with detailed logs, retry metadata, and explicit idempotent outcomes when the desired target state already exists.

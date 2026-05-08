@@ -11,6 +11,7 @@
 - Add editable target favorites with add, remove, drag-and-drop reorder, and stable number hotkeys.
 - Add folder picker UI for source/target job setup and browsable folder targets in copy/move sorting mode.
 - Add worklist dry-run preview before execution queueing and guarded non-destructive execution blocking.
+- Add guarded real execution engine behind `real_execution_enabled` for album, copy, and move operations with checksum validation and idempotent duplicate handling.
 
 ## 0.1.0 - 2026-05-08
 

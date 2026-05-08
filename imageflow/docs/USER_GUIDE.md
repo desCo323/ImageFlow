@@ -50,4 +50,6 @@ Hotkeys:
 
 Use `Ausfuehren` on the job dashboard to open the Worklist preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
 
-In the current bootstrap version, real file writes are still blocked. Queueing execution records the intent and the background worker marks due items as blocked by the execution guard until real write execution is deliberately enabled in a later safety-reviewed block.
+The preview shows whether file operations are currently locked or active on the server. In the default development configuration, real file writes are locked. Queueing execution records the intent and the background worker marks due items as blocked by the execution guard.
+
+When an administrator deliberately enables real execution for a controlled test window, ImageFlow processes the queued worklist in small background batches. Safe Mode verifies copy/move operations with checksums, existing album memberships or identical copy targets are skipped as already done, and conflicting target files are not overwritten.
