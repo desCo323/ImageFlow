@@ -42,6 +42,9 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Sortierjob anlegen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Job anlegen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Fortsetzen' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Von vorne' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Offen' }).first()).toBeVisible();
 
   await page.getByLabel('Name').fill('Browser Smoke');
   await page.getByLabel('Quellordner').fill('/Photos/Smoke');
@@ -57,6 +60,9 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.locator('.imageflow-photo-img')).toBeVisible();
   await expect(page.locator('.imageflow-photo-meta strong', { hasText: 'IMG_4021.jpg' })).toBeVisible();
   await expect(page.getByText('Leertaste')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Fortsetzen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Von vorne' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Offen' })).toBeVisible();
 });
 
 test('moves through the filmstrip with arrow keys and thumbnail selection', async ({ page }) => {

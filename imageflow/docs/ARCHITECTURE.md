@@ -50,7 +50,7 @@ The next sorting workspace block is the high-speed filmstrip and worklist execut
 - ArrowLeft and ArrowRight move through the filmstrip immediately; number hotkeys still assign the currently focused photo.
 - The frontend keeps a bounded image buffer around the current position: decoded current image, several full-size neighbors, and a wider thumbnail window. Stale loads must be aborted, and memory must be released with an LRU-style cap.
 - Large folders are read through filecache-backed offset cursor pages. The browser only receives the current page plus preview URLs, not the entire folder.
-- A job resumes at its last saved cursor/index. Starting from the beginning and first-unsorted jumps remain planned controls.
+- A job can resume at its last saved cursor/index, restart from the beginning, or jump to the first image without a recorded sort/skip decision.
 - Animations should use `transform` and `opacity` only, respect `prefers-reduced-motion`, and avoid layout shifts during rapid key navigation.
 - Queue creation must be idempotent. Album and copy operations need a stable operation key and a pre-execution duplicate check so repeated processing runs do not create duplicate album memberships or duplicate copied files.
 - The dashboard remains the execution gate: users can process the current worklist now, leave it queued for later, or allow a cron-controlled low-load execution window.

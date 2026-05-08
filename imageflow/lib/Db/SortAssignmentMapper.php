@@ -39,4 +39,30 @@ class SortAssignmentMapper extends QBMapper {
 
 		return $qb->executeStatement();
 	}
+
+	/**
+	 * @param string[] $sourcePaths
+	 * @return string[]
+	 */
+	public function findExistingSourcePaths(string $userId, int $jobId, array $sourcePaths): array {
+		$sourcePaths = array_values(array_unique(array_filter($sourcePaths, static fn ($path): bool => is_string($path) && $path !== '')));
+		if ($sourcePaths === []) {
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('source_path')
+			->from($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->in('source_path', $qb->createNamedParameter($sourcePaths, IQueryBuilder::PARAM_STR_ARRAY)));
+
+		$result = $qb->executeQuery();
+		$existing = [];
+		while ($row = $result->fetch()) {
+			$existing[] = (string)$row['source_path'];
+		}
+
+		return array_values(array_unique($existing));
+	}
 }

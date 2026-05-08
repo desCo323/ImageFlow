@@ -31,6 +31,7 @@
     targets: [],
     toast: null,
     loading: false,
+    startMode: null,
   };
 
   function numberOrNull(value) {
@@ -214,6 +215,12 @@
         nextCursor: null,
         mode: "mock",
       },
+      start: {
+        mode: "resume",
+        cursor: 0,
+        index: 0,
+        fileId: 11,
+      },
       savedPosition: {
         cursor: 0,
         index: 0,
@@ -239,7 +246,7 @@
     render();
     try {
       if (state.page === "sort" && state.jobId) {
-        await loadImagePage(state.pageCursor, null, false);
+        await loadImagePage(state.pageCursor, null, false, state.startMode);
       } else {
         const payload = await request("/api/v1/jobs");
         state.jobs = payload.jobs || [];
@@ -252,7 +259,7 @@
     }
   }
 
-  async function loadImagePage(cursor = null, preferredIndex = null, renderLoading = true) {
+  async function loadImagePage(cursor = null, preferredIndex = null, renderLoading = true, startMode = null) {
     if (!state.jobId) {
       return;
     }
@@ -262,8 +269,11 @@
     }
 
     const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
+    const requestedStart = cursor === null || cursor === undefined ? startMode || state.startMode : null;
     if (cursor !== null && cursor !== undefined) {
       params.set("cursor", String(Math.max(0, Number(cursor) || 0)));
+    } else if (requestedStart) {
+      params.set("start", requestedStart);
     }
 
     try {
@@ -272,8 +282,12 @@
       state.imagePage = payload.imagePage || defaultImagePage(payload.nextImages || []);
       state.pageCursor = Number(state.imagePage.cursor || 0);
       const saved = payload.savedPosition || {};
+      const start = payload.start || {};
+      const startCursor = Number(start.cursor || 0);
       const savedIndex = Number(saved.cursor || 0) === state.pageCursor ? Number(saved.index || 0) : 0;
-      state.imageIndex = clampIndex(preferredIndex ?? savedIndex, sortImages(payload));
+      const startIndex = requestedStart && startCursor === state.pageCursor ? Number(start.index || 0) : null;
+      state.imageIndex = clampIndex(preferredIndex ?? startIndex ?? savedIndex, sortImages(payload));
+      state.startMode = null;
       await loadTargets(payload.job.targetMode);
       persistPositionSoon();
     } finally {
@@ -417,7 +431,9 @@
         <td>${Number(job.sortedFiles || 0)} sortiert<br>${Number(job.queuedOperations || 0)} geplant</td>
         <td>
           <div class="imageflow-actions">
-            <button class="imageflow-button" data-action="open-sort" data-job-id="${job.id}" type="button">Sortieren</button>
+            <button class="imageflow-button primary" data-action="open-sort" data-start-mode="resume" data-job-id="${job.id}" type="button">Fortsetzen</button>
+            <button class="imageflow-button" data-action="open-sort" data-start-mode="begin" data-job-id="${job.id}" type="button">Von vorne</button>
+            <button class="imageflow-button" data-action="open-sort" data-start-mode="unsorted" data-job-id="${job.id}" type="button">Offen</button>
             <button class="imageflow-button" data-action="pause-job" data-job-id="${job.id}" type="button">Pausieren</button>
             <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ausfuehren</button>
             <button class="imageflow-button danger" data-action="discard-job" data-job-id="${job.id}" type="button">Verwerfen</button>
@@ -455,6 +471,9 @@
             <span class="imageflow-badge safe">${job.safeMode ? "Sicherer Modus" : "Standardmodus"}</span>
             <span class="imageflow-badge">${Number(job.sortedFiles || 0)} sortiert</span>
             <span class="imageflow-badge">${Number(job.queuedOperations || 0)} geplant</span>
+            <button class="imageflow-button" data-action="start-sort" data-start-mode="resume" type="button">Fortsetzen</button>
+            <button class="imageflow-button" data-action="start-sort" data-start-mode="begin" type="button">Von vorne</button>
+            <button class="imageflow-button" data-action="start-sort" data-start-mode="unsorted" type="button">Offen</button>
             <button class="imageflow-button" data-action="go-jobs" type="button">Zurueck</button>
           </div>
         </header>
@@ -612,16 +631,11 @@
       state.pageCursor = null;
       await load();
     } else if (action === "go-sort" && state.jobId) {
-      state.page = "sort";
-      state.pageCursor = null;
-      await load();
+      await openSort(state.jobId, "resume");
     } else if (action === "open-sort" && jobId) {
-      state.page = "sort";
-      state.jobId = jobId;
-      state.imageIndex = 0;
-      state.imagePage = null;
-      state.pageCursor = null;
-      await load();
+      await openSort(jobId, event.currentTarget.dataset.startMode || "resume");
+    } else if (action === "start-sort") {
+      await restartSort(event.currentTarget.dataset.startMode || "resume");
     } else if (action === "pause-job" && jobId) {
       await changeJobStatus(jobId, "pause");
     } else if (action === "queue-job" && jobId) {
@@ -640,6 +654,25 @@
       state.toast = { type: "info", message: "Das Protokoll wird als eigene Ansicht ausgebaut; API und Datenmodell sind vorbereitet." };
       render();
     }
+  }
+
+  async function openSort(jobId, startMode) {
+    state.page = "sort";
+    state.jobId = jobId;
+    state.imageIndex = 0;
+    state.sortState = null;
+    state.imagePage = null;
+    state.pageCursor = null;
+    state.startMode = startMode;
+    await load();
+  }
+
+  async function restartSort(startMode) {
+    state.imageIndex = 0;
+    state.imagePage = null;
+    state.pageCursor = null;
+    state.startMode = startMode;
+    await loadImagePage(null, null, true, startMode);
   }
 
   async function changeJobStatus(jobId, operation) {

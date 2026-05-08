@@ -28,11 +28,36 @@ class SortService {
 	 * @return array<string, mixed>
 	 * @throws DoesNotExistException
 	 */
-	public function state(string $userId, int $jobId, ?int $cursor = null, int $limit = 48): array {
+	public function state(string $userId, int $jobId, ?int $cursor = null, int $limit = 48, ?string $start = null): array {
 		$job = $this->jobService->touchOpened($userId, $jobId);
 		$options = $this->decodeOptions($job->getOptionsJson());
 		$savedPosition = $this->savedPosition($options);
-		$pageCursor = $cursor ?? (int)$savedPosition['cursor'];
+		$startMode = $this->startMode($start);
+		$startPosition = [
+			'mode' => $startMode,
+			'cursor' => (int)$savedPosition['cursor'],
+			'index' => (int)$savedPosition['index'],
+			'fileId' => $savedPosition['fileId'],
+		];
+		if ($cursor !== null) {
+			$startPosition = [
+				'mode' => 'cursor',
+				'cursor' => $cursor,
+				'index' => 0,
+				'fileId' => null,
+			];
+		} elseif ($startMode === 'begin') {
+			$startPosition = [
+				'mode' => 'begin',
+				'cursor' => 0,
+				'index' => 0,
+				'fileId' => null,
+			];
+		} elseif ($startMode === 'unsorted') {
+			$startPosition = $this->firstUnsortedPosition($userId, $jobId, $job->getSourcePath(), $limit);
+		}
+
+		$pageCursor = (int)$startPosition['cursor'];
 		$imagePage = $this->safeImagePage($userId, $jobId, $job->getSourcePath(), $pageCursor, $limit);
 
 		return [
@@ -43,6 +68,7 @@ class SortService {
 			'nextImages' => $imagePage['images'],
 			'imagePage' => $imagePage['page'],
 			'savedPosition' => $savedPosition,
+			'start' => $startPosition,
 		];
 	}
 
@@ -263,6 +289,57 @@ class SortService {
 	}
 
 	/**
+	 * @return array{mode: string, cursor: int, index: int, fileId: ?int}
+	 */
+	private function firstUnsortedPosition(string $userId, int $jobId, string $sourcePath, int $limit): array {
+		$cursor = 0;
+		$pagesScanned = 0;
+		$maxPages = null;
+
+		do {
+			$imagePage = $this->safeImagePage($userId, $jobId, $sourcePath, $cursor, $limit);
+			$images = $imagePage['images'];
+			if ($maxPages === null) {
+				$total = $this->optionalInt($imagePage['page']['total'] ?? null) ?? 0;
+				$maxPages = max(1, (int)ceil($total / max(1, $limit)) + 1);
+			}
+
+			$paths = [];
+			foreach ($images as $image) {
+				$path = (string)($image['path'] ?? '');
+				if ($path !== '') {
+					$paths[] = $path;
+				}
+			}
+			$assigned = array_flip($this->assignmentMapper->findExistingSourcePaths($userId, $jobId, $paths));
+
+			foreach ($images as $index => $image) {
+				$path = (string)($image['path'] ?? '');
+				if ($path !== '' && !isset($assigned[$path])) {
+					return [
+						'mode' => 'unsorted',
+						'cursor' => (int)($imagePage['page']['cursor'] ?? $cursor),
+						'index' => $index,
+						'fileId' => $this->optionalInt($image['fileId'] ?? null),
+					];
+				}
+			}
+
+			$hasNext = (bool)($imagePage['page']['hasNext'] ?? false);
+			$nextCursor = $this->optionalInt($imagePage['page']['nextCursor'] ?? null);
+			$cursor = $nextCursor ?? ($cursor + $limit);
+			$pagesScanned++;
+		} while ($hasNext && $pagesScanned < ($maxPages ?? 1));
+
+		return [
+			'mode' => 'unsorted',
+			'cursor' => 0,
+			'index' => 0,
+			'fileId' => null,
+		];
+	}
+
+	/**
 	 * @param array<string, mixed> $options
 	 * @return array{cursor: int, index: int, fileId: ?int, savedAt: ?int}
 	 */
@@ -274,6 +351,13 @@ class SortService {
 			'fileId' => $this->optionalInt($position['fileId'] ?? null),
 			'savedAt' => $this->optionalInt($position['savedAt'] ?? null),
 		];
+	}
+
+	private function startMode(?string $start): string {
+		return match ($start) {
+			'begin', 'unsorted' => $start,
+			default => 'resume',
+		};
 	}
 
 	/**

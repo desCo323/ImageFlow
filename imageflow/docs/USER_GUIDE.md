@@ -19,6 +19,12 @@ Sorting decisions are saved immediately, but file changes are not executed until
 
 Jobs that have not executed file operations can be discarded from the dashboard. Discarding removes the job, its planned assignments and its queued operations; it does not touch source files, target folders or albums.
 
+Open a job with `Fortsetzen`, `Von vorne`, or `Offen`:
+
+- `Fortsetzen` starts at the last saved image position,
+- `Von vorne` starts at the first image in the source folder,
+- `Offen` starts at the first image without a saved sort or skip decision.
+
 ## Sorting
 
 The sorting page is structured for fast repeated decisions:
@@ -32,7 +38,8 @@ Hotkeys:
 
 - `1-9`: favorite targets,
 - `0`: skip,
-- `Space`: skip.
+- `Space`: skip,
+- `ArrowLeft` / `ArrowRight`: move through the filmstrip.
 
 ## Execution
 

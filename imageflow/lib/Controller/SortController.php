@@ -32,6 +32,7 @@ class SortController extends Controller {
 				$jobId,
 				$this->optionalIntParam('cursor', 0, PHP_INT_MAX),
 				$this->intParam('limit', 48, 1, 120),
+				$this->stringParam('start', 32),
 			));
 		} catch (DoesNotExistException) {
 			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
@@ -103,5 +104,15 @@ class SortController extends Controller {
 		$value = $this->request->getParam($key, $default);
 		$value = is_numeric($value) ? (int)$value : $default;
 		return max($min, min($max, $value));
+	}
+
+	private function stringParam(string $key, int $length): ?string {
+		$value = $this->request->getParam($key, null);
+		if (!is_scalar($value)) {
+			return null;
+		}
+
+		$value = trim((string)$value);
+		return $value === '' ? null : substr($value, 0, $length);
 	}
 }
