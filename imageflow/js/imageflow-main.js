@@ -51,6 +51,13 @@
     },
     targetBrowsePath: null,
     targetFolderPage: null,
+    worklist: {
+      open: false,
+      jobId: null,
+      loading: false,
+      preview: null,
+      error: null,
+    },
   };
 
   function numberOrNull(value) {
@@ -133,6 +140,18 @@
       const jobId = Number.parseInt(path.split("/").at(-2), 10);
       state.jobs = state.jobs.filter((job) => job.id !== jobId);
       return { deleted: true, jobId };
+    }
+    if (/\/api\/v1\/jobs\/\d+\/worklist-preview/.test(path)) {
+      const jobId = Number.parseInt(path.split("/").at(4), 10) || state.jobId || 1;
+      const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
+      return mockWorklistPreview(job);
+    }
+    if (/\/api\/v1\/jobs\/\d+\/queue-execution$/.test(path) && options.method === "POST") {
+      const jobId = Number.parseInt(path.split("/").at(-2), 10);
+      const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
+      const queued = { ...job, status: "queued", queuedOperations: Math.max(1, Number(job.queuedOperations || 0)) };
+      state.jobs = state.jobs.map((item) => (item.id === jobId ? queued : item));
+      return { job: queued, preview: mockWorklistPreview(queued) };
     }
     if (path.includes("/sort-state")) {
       return mockSortState(state.jobId || 1);
@@ -379,6 +398,67 @@
     };
   }
 
+  function mockWorklistPreview(job) {
+    const mode = job.targetMode || "album";
+    return {
+      job: {
+        id: job.id,
+        name: job.name,
+        targetMode: mode,
+        safeMode: job.safeMode !== false,
+        status: job.status || "sorting",
+      },
+      summary: {
+        total: 3,
+        planned: 3,
+        queued: 0,
+        blocked: 0,
+        executed: 0,
+        ready: 2,
+        warnings: 1,
+        errors: 0,
+      },
+      canQueue: true,
+      executionMode: "dry-run-only",
+      message: "Dateioperationen sind weiterhin gesperrt. Diese Vorschau prueft die Worklist vor der spaeteren Freigabe realer Writes.",
+      items: [
+        {
+          id: 1,
+          operationType: mode,
+          sourcePath: `${job.sourcePath || "/Photos"}/IMG_4021.jpg`,
+          targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
+          targetAlbumId: mode === "album" ? "family" : null,
+          status: "planned",
+          safeMode: true,
+          readiness: "ready",
+          messages: ["Bereit fuer sichere Pruefung mit Checksumme."],
+        },
+        {
+          id: 2,
+          operationType: mode,
+          sourcePath: `${job.sourcePath || "/Photos"}/IMG_4022.jpg`,
+          targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
+          targetAlbumId: mode === "album" ? "travel" : null,
+          status: "planned",
+          safeMode: true,
+          readiness: "warning",
+          messages: ["Zieldatei existiert bereits; spaetere Ausfuehrung muss Duplikat sicher ueberspringen."],
+        },
+        {
+          id: 3,
+          operationType: mode,
+          sourcePath: `${job.sourcePath || "/Photos"}/IMG_4023.jpg`,
+          targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
+          targetAlbumId: mode === "album" ? "archive" : null,
+          status: "planned",
+          safeMode: true,
+          readiness: "ready",
+          messages: ["Bereit fuer sichere Pruefung mit Checksumme."],
+        },
+      ],
+    };
+  }
+
   async function load() {
     state.loading = true;
     render();
@@ -460,6 +540,7 @@
           ${state.page === "sort" ? renderSortPage() : renderJobsPage()}
           ${renderToast()}
           ${renderFolderPicker()}
+          ${renderWorklistPreview()}
         </main>
       </div>
     `;
@@ -794,6 +875,61 @@
     `;
   }
 
+  function renderWorklistPreview() {
+    if (!state.worklist.open) {
+      return "";
+    }
+    const preview = state.worklist.preview;
+    const summary = preview?.summary || {};
+    const items = preview?.items || [];
+    return `
+      <div class="imageflow-modal-backdrop" role="presentation">
+        <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Worklist pruefen">
+          <header class="imageflow-modal-head">
+            <div>
+              <h3>Worklist pruefen</h3>
+              <p>${escapeHtml(preview?.job?.name || "Sortierjob")} | ${modeLabel(preview?.job?.targetMode || "")} | ${escapeHtml(preview?.executionMode || "dry-run")}</p>
+            </div>
+            <button class="imageflow-icon-button" data-action="close-worklist-preview" type="button">Schliessen</button>
+          </header>
+          ${state.worklist.loading ? '<div class="imageflow-empty">Worklist wird geprueft.</div>' : ""}
+          ${state.worklist.error ? `<div class="imageflow-empty">${escapeHtml(state.worklist.error)}</div>` : ""}
+          ${preview ? `
+            <div class="imageflow-status-grid">
+              <div class="imageflow-stat"><strong>${Number(summary.total || 0)}</strong><span>Operationen</span></div>
+              <div class="imageflow-stat"><strong>${Number(summary.ready || 0)}</strong><span>Bereit</span></div>
+              <div class="imageflow-stat"><strong>${Number(summary.warnings || 0)}</strong><span>Warnungen</span></div>
+              <div class="imageflow-stat"><strong>${Number(summary.errors || 0)}</strong><span>Fehler</span></div>
+            </div>
+            <div class="imageflow-worklist-note">${escapeHtml(preview.message || "")}</div>
+            <div class="imageflow-worklist-table">
+              ${items.map(renderWorklistItem).join("") || '<div class="imageflow-empty">Noch keine geplanten Operationen vorhanden.</div>'}
+            </div>
+            <div class="imageflow-folder-actions">
+              <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Neu pruefen</button>
+              <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.canQueue ? "" : "disabled"}>Ausfuehrung vormerken</button>
+            </div>
+          ` : ""}
+        </section>
+      </div>
+    `;
+  }
+
+  function renderWorklistItem(item) {
+    const badgeClass = item.readiness === "error" ? "danger" : item.readiness === "warning" ? "ready" : "safe";
+    return `
+      <div class="imageflow-worklist-row">
+        <div>
+          <strong>${escapeHtml(modeLabel(item.operationType))}</strong>
+          <span>${escapeHtml(item.sourcePath || "")}</span>
+          <small>${escapeHtml(item.targetPath || item.targetAlbumId || "")}</small>
+        </div>
+        <span class="imageflow-badge ${badgeClass}">${readinessLabel(item.readiness)}</span>
+        <p>${(item.messages || []).map(escapeHtml).join(" ")}</p>
+      </div>
+    `;
+  }
+
   function renderToast() {
     if (!state.toast) {
       return "";
@@ -896,7 +1032,7 @@
     } else if (action === "pause-job" && jobId) {
       await changeJobStatus(jobId, "pause");
     } else if (action === "queue-job" && jobId) {
-      await changeJobStatus(jobId, "queue-execution");
+      await openWorklistPreview(jobId);
     } else if (action === "discard-job" && jobId) {
       await discardJob(jobId);
     } else if (action === "assign") {
@@ -921,6 +1057,12 @@
       await browseTargetFolder(event.currentTarget.dataset.targetPath || "/");
     } else if (action === "browse-target-parent") {
       await browseTargetFolder(state.targetFolderPage?.parent || "/");
+    } else if (action === "close-worklist-preview") {
+      closeWorklistPreview();
+    } else if (action === "refresh-worklist-preview") {
+      await loadWorklistPreview(state.worklist.jobId);
+    } else if (action === "confirm-queue-job" && jobId) {
+      await confirmQueueJob(jobId);
     } else if (action === "select-image") {
       setImageIndex(numberOrNull(event.currentTarget.dataset.index) ?? state.imageIndex);
     } else if (action === "page-next") {
@@ -1051,6 +1193,69 @@
     state.targetBrowsePath = normalizeDisplayPath(path || "/");
     await loadTargets(state.sortState.job.targetMode);
     render();
+  }
+
+  async function openWorklistPreview(jobId) {
+    state.worklist = {
+      open: true,
+      jobId,
+      loading: true,
+      preview: null,
+      error: null,
+    };
+    render();
+    await loadWorklistPreview(jobId);
+  }
+
+  async function loadWorklistPreview(jobId) {
+    if (!jobId) {
+      return;
+    }
+    state.worklist.loading = true;
+    state.worklist.error = null;
+    render();
+    try {
+      const preview = await request(`/api/v1/jobs/${jobId}/worklist-preview?limit=250`);
+      state.worklist = {
+        ...state.worklist,
+        jobId,
+        loading: false,
+        preview,
+        error: null,
+      };
+      render();
+    } catch (error) {
+      state.worklist = {
+        ...state.worklist,
+        loading: false,
+        error: error.message || "Worklist konnte nicht geprueft werden.",
+      };
+      render();
+    }
+  }
+
+  function closeWorklistPreview() {
+    state.worklist = {
+      open: false,
+      jobId: null,
+      loading: false,
+      preview: null,
+      error: null,
+    };
+    render();
+  }
+
+  async function confirmQueueJob(jobId) {
+    try {
+      const payload = await request(`/api/v1/jobs/${jobId}/queue-execution`, { method: "POST", body: {} });
+      state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
+      state.worklist.preview = payload.preview || state.worklist.preview;
+      state.toast = { type: "info", message: "Ausfuehrung wurde vorgemerkt. Reale Dateioperationen bleiben bis zur Freigabe blockiert." };
+      render();
+    } catch (error) {
+      state.worklist.error = error.message || "Ausfuehrung konnte nicht vorgemerkt werden.";
+      render();
+    }
   }
 
   async function openSort(jobId, startMode) {
@@ -1535,6 +1740,14 @@
       done: "Abgeschlossen",
       error: "Fehler",
     }[status] || escapeHtml(status || "");
+  }
+
+  function readinessLabel(readiness) {
+    return {
+      ready: "Bereit",
+      warning: "Warnung",
+      error: "Fehler",
+    }[readiness] || "Unklar";
   }
 
   function escapeHtml(value) {

@@ -7,6 +7,7 @@ namespace OCA\ImageFlow\Controller;
 use OCA\ImageFlow\AppInfo\Application;
 use OCA\ImageFlow\Service\JobService;
 use OCA\ImageFlow\Service\LogService;
+use OCA\ImageFlow\Service\WorklistPreviewService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
@@ -19,6 +20,7 @@ class JobController extends Controller {
 		IRequest $request,
 		private readonly string $userId,
 		private readonly JobService $jobService,
+		private readonly WorklistPreviewService $worklistPreviewService,
 		private readonly LogService $logService,
 	) {
 		parent::__construct(Application::APP_ID, $request);
@@ -95,10 +97,36 @@ class JobController extends Controller {
 	}
 
 	#[NoAdminRequired]
+	public function worklistPreview(int $jobId): JSONResponse {
+		try {
+			return new JSONResponse($this->worklistPreviewService->preview(
+				$this->userId,
+				$jobId,
+				$this->intParam('limit', 250, 1, 500),
+			));
+		} catch (DoesNotExistException) {
+			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (\Throwable $e) {
+			$this->logService->exception('worklist_preview_failed', $e, $this->userId, $jobId);
+			return $this->error('worklist_preview_failed', 'Die Worklist konnte nicht geprueft werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	#[NoAdminRequired]
 	public function queueExecution(int $jobId): JSONResponse {
 		try {
+			$preview = $this->worklistPreviewService->preview($this->userId, $jobId, 500);
+			if (!($preview['canQueue'] ?? false)) {
+				return new JSONResponse([
+					'error' => 'worklist_not_ready',
+					'message' => 'Die Worklist enthaelt Fehler oder keine geplanten Operationen.',
+					'preview' => $preview,
+				], Http::STATUS_CONFLICT);
+			}
+
 			return new JSONResponse([
 				'job' => $this->jobService->queueExecution($this->userId, $jobId),
+				'preview' => $preview,
 			]);
 		} catch (DoesNotExistException) {
 			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
@@ -118,6 +146,12 @@ class JobController extends Controller {
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_job_status', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		}
+	}
+
+	private function intParam(string $key, int $default, int $min, int $max): int {
+		$value = $this->request->getParam($key, $default);
+		$value = is_numeric($value) ? (int)$value : $default;
+		return max($min, min($max, $value));
 	}
 
 	private function error(string $error, string $message, int $status): JSONResponse {

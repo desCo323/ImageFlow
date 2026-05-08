@@ -16,31 +16,35 @@ class QueueExecutionService {
 	}
 
 	/**
-	 * The first skeleton keeps execution intentionally non-destructive. Planned queue rows
-	 * can be promoted to queued, but this worker only records that real writes are disabled.
+	 * Reale Dateioperationen bleiben gesperrt, bis der Ausfuehrungsmodus bewusst
+	 * aktiviert wird. Der Worker markiert Queue-Zeilen nachvollziehbar als blocked,
+	 * statt sie still zurueck auf planned zu setzen.
 	 */
 	public function processDue(int $limit = 25): int {
 		$processed = 0;
 		foreach ($this->queueMapper->findDue($limit) as $item) {
 			$item->setAttempts($item->getAttempts() + 1);
-			$item->setStatus('planned');
-			$item->setLastError('Execution worker is in non-destructive bootstrap mode.');
+			$item->setStatus('blocked');
+			$item->setLastError('Real file writes are disabled. Review the dry-run worklist before enabling execution.');
 			$item->setUpdatedAt(time());
 			$this->queueMapper->update($item);
 
 			try {
 				$job = $this->jobMapper->findForUserById($item->getUserId(), $item->getJobId());
 				$job->setStatus('ready');
+				$job->setQueuedOperations($this->queueMapper->countForJobByStatus($item->getJobId(), 'queued'));
 				$job->setUpdatedAt(time());
 				$this->jobMapper->update($job);
 			} catch (\Throwable) {
 			}
 
-			$this->logService->warning('queue_execution_skipped_bootstrap', $item->getUserId(), [
+			$this->logService->warning('queue_execution_blocked_guard', $item->getUserId(), [
 				'queueItemId' => $item->getId(),
 				'jobId' => $item->getJobId(),
 				'operationType' => $item->getOperationType(),
-			], $item->getJobId(), 'Queue-Ausfuehrung ist im Bootstrap-Modus deaktiviert.');
+				'sourcePath' => $item->getSourcePath(),
+				'targetPath' => $item->getTargetPath(),
+			], $item->getJobId(), 'Queue-Ausfuehrung wurde durch den Sicherheitsmodus blockiert.');
 			$processed++;
 		}
 

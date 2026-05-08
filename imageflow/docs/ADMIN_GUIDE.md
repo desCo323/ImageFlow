@@ -17,7 +17,7 @@ Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controll
 
 ## Current Write Behavior
 
-The app stores jobs, assignments, queue rows and logs. The background worker does not perform destructive writes yet.
+The app stores jobs, assignments, queue rows, favorites and logs. The Worklist preview validates planned operations before queueing. The background worker does not perform destructive writes yet; queued rows are marked `blocked` by the execution guard and logged.
 
 Before enabling real writes, implement and verify:
 

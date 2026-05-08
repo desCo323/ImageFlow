@@ -35,7 +35,7 @@ Folder selection uses the same normalized user-relative path model as sorting. T
 
 ## Safety Boundary
 
-The current `QueueExecutionJob` does not copy, move, delete or write album membership. This is intentional. Real execution must be implemented behind:
+The current `QueueExecutionJob` does not copy, move, delete or write album membership. It blocks queued operations with an explicit guard status and log entry. This is intentional. Real execution must be implemented behind:
 
 - explicit job-level user action,
 - dry-run preview,

@@ -21,3 +21,6 @@ These screenshots use the local mock UI, not a live Nextcloud account, so no pri
 
 6. Mobile sorting workspace  
    ![Mobile sorting workspace](screenshots/06-mobile-sort-workspace.png)
+
+7. Worklist dry-run preview before execution
+   ![Worklist dry-run preview](screenshots/07-worklist-preview.png)

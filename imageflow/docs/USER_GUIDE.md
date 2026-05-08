@@ -48,4 +48,6 @@ Hotkeys:
 
 ## Execution
 
-Use the job dashboard to mark a job for execution. In the bootstrap version, execution is intentionally non-destructive and only records a log entry.
+Use `Ausfuehren` on the job dashboard to open the Worklist preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
+
+In the current bootstrap version, real file writes are still blocked. Queueing execution records the intent and the background worker marks due items as blocked by the execution guard until real write execution is deliberately enabled in a later safety-reviewed block.

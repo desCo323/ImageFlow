@@ -72,6 +72,19 @@ test('selects source and target folders with the folder picker', async ({ page }
   await expect(page.getByLabel('Zielordner')).toHaveValue('/Photos/Sortiert');
 });
 
+test('opens the worklist preview before queueing execution', async ({ page }) => {
+  await mount(page);
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ausfuehren' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Worklist pruefen' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Operationen', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('dry-run-only')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Ausfuehrung vormerken' }).click();
+  await expect(page.getByText('Ausfuehrung wurde vorgemerkt')).toBeVisible();
+});
+
 test('renders the sorting workspace with hotkey targets and filmstrip', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1"');
 
