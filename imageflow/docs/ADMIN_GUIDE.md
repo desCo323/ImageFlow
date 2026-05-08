@@ -17,7 +17,7 @@ Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controll
 
 ## Current Write Behavior
 
-The app stores Flows, assignments, queue rows, quick targets and logs. The Worklist preview validates planned operations before queueing.
+The app stores rounds, assignments, queue rows, quick targets and logs. The Ablage preview validates planned operations before queueing.
 
 Real execution code exists for album membership, copy and move operations, but it is disabled by default. Queued rows wait safely unless real execution is explicitly enabled and the user starts a manual batch or server-side background processing is enabled.
 
@@ -53,4 +53,4 @@ Only enable real execution after a fresh backup and only with isolated test fold
 - idempotent duplicate skip for matching copy targets and existing album memberships,
 - move operations never delete the source when a different target file already exists,
 - per-item queue status, attempts, checksums, error text and debug logs.
-- automatic cron processing requires both `real_execution_enabled=1` and `background_processing_enabled=1`, and only picks queued Flows whose `autoProcess` option is enabled.
+- automatic cron processing requires both `real_execution_enabled=1` and `background_processing_enabled=1`, and only picks queued rounds whose `autoProcess` option is enabled.

@@ -6,7 +6,7 @@ Current status: first functional preview. The app is installable as a Nextcloud 
 
 ## Features In This Build
 
-- Flow dashboard with create, pause, worklist preview and processing controls.
+- Round dashboard with save, edit, duplicate, pause, safe preview and processing controls.
 - Sorting workspace with favorites, targets, image stage, filmstrip and playful progress feedback.
 - Fast hotkeys for `1-9`, `0`, `Space` and arrow-key filmstrip navigation.
 - Bounded image preload modes for light, balanced and turbo sorting.

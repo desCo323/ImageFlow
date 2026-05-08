@@ -58,6 +58,6 @@ The sorting workspace now uses the high-speed filmstrip and worklist execution m
 - Animations should use `transform` and `opacity` only, respect `prefers-reduced-motion`, and avoid layout shifts during rapid key navigation.
 - Queue creation must be idempotent. Album and copy operations need a stable operation key and a pre-execution duplicate check so repeated processing runs do not create duplicate album memberships or duplicate copied files.
 - The dashboard remains the execution gate: users can process the current worklist now, leave it queued for later, or allow a cron-controlled low-load execution window.
-- Background execution is server-gated by `background_processing_enabled=1` and only processes queued Flows with `autoProcess=true`.
+- Background execution is server-gated by `background_processing_enabled=1` and only processes queued rounds with `autoProcess=true`.
 - Background execution processes small batches with detailed logs, retry metadata, and explicit idempotent outcomes when the desired target state already exists.
 - The `Protokoll` tab exposes per-user debug events from `imageflow_logs` so sorting, queue and safety behavior can be verified without shell access.

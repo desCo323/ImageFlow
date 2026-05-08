@@ -12,6 +12,8 @@ use OCP\AppFramework\Db\DoesNotExistException;
 
 class JobService {
 	private const MODES = ['album', 'move', 'copy'];
+	private const TARGET_ORDERINGS = ['relevance', 'alphabetical'];
+	private const HOTKEY_MODES = ['number-row', 'letters'];
 	private const STATUSES = [
 		'draft',
 		'sorting',
@@ -44,32 +46,19 @@ class JobService {
 	 */
 	public function createJob(string $userId, array $input): array {
 		$now = time();
-		$mode = $this->targetMode((string)($input['targetMode'] ?? 'album'));
-		$sourcePath = PathHelper::displayPath((string)($input['sourcePath'] ?? '/'));
-		$targetPath = null;
-		if ($mode === 'move' || $mode === 'copy') {
-			$targetPath = PathHelper::displayPath((string)($input['targetPath'] ?? '/'));
-		}
-
-		$name = trim((string)($input['name'] ?? ''));
-		if ($name === '') {
-			$name = 'Runde ' . date('Y-m-d H:i');
-		}
+		$settings = $this->jobSettings($input, null);
 
 		$job = new SortJob();
 		$job->setUserId($userId);
-		$job->setName(substr($name, 0, 160));
-		$job->setSourcePath($sourcePath);
-		$job->setTargetMode($mode);
-		$job->setTargetPath($targetPath);
-		$job->setAlbumName($mode === 'album' ? $this->optionalString($input['albumName'] ?? null, 255) : null);
+		$job->setName($settings['name']);
+		$job->setSourcePath($settings['sourcePath']);
+		$job->setTargetMode($settings['targetMode']);
+		$job->setTargetPath($settings['targetPath']);
+		$job->setAlbumName($settings['albumName']);
 		$job->setStatus('draft');
-		$job->setSafeMode((bool)($input['safeMode'] ?? true));
+		$job->setSafeMode($settings['safeMode']);
 		$job->setOptionsJson(json_encode([
-			'targetOrdering' => $input['targetOrdering'] ?? 'relevance',
-			'hotkeys' => $input['hotkeys'] ?? 'number-row',
-			'preloadMode' => $this->preloadMode((string)($input['preloadMode'] ?? 'balanced')),
-			'autoProcess' => (bool)($input['autoProcess'] ?? false),
+			...$settings['options'],
 			'createdBy' => 'imageflow-ui',
 		], JSON_THROW_ON_ERROR));
 		$job->setCreatedAt($now);
@@ -78,13 +67,78 @@ class JobService {
 		$job = $this->jobMapper->insert($job);
 		$this->logService->info('job_created', $userId, [
 			'jobId' => $job->getId(),
-			'mode' => $mode,
-			'sourcePath' => $sourcePath,
-			'targetPath' => $targetPath,
+			'mode' => $settings['targetMode'],
+			'sourcePath' => $settings['sourcePath'],
+			'targetPath' => $settings['targetPath'],
 			'safeMode' => $job->getSafeMode(),
 		], $job->getId(), 'Runde wurde angelegt.');
 
 		return $this->serializeJob($job);
+	}
+
+	/**
+	 * @param array<string, mixed> $input
+	 * @return array<string, mixed>
+	 * @throws DoesNotExistException
+	 */
+	public function updateJob(string $userId, int $jobId, array $input): array {
+		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		$settings = $this->jobSettings($input, $job);
+
+		if ($this->hasSavedDecisions($job) && $this->hasStructuralChanges($job, $settings)) {
+			throw new \InvalidArgumentException('Diese Runde hat schon Entscheidungen. Quelle, Zielart und Sicherheitsmodus bleiben deshalb gesperrt. Erstelle dafür eine Kopie.');
+		}
+		if ($job->getStatus() === 'executing' || $job->getStatus() === 'done') {
+			throw new \InvalidArgumentException('Laufende oder erledigte Runden können nicht mehr bearbeitet werden.');
+		}
+
+		$job->setName($settings['name']);
+		$job->setSourcePath($settings['sourcePath']);
+		$job->setTargetMode($settings['targetMode']);
+		$job->setTargetPath($settings['targetPath']);
+		$job->setAlbumName($settings['albumName']);
+		$job->setSafeMode($settings['safeMode']);
+		$job->setOptionsJson(json_encode($settings['options'], JSON_THROW_ON_ERROR));
+		$job->setUpdatedAt(time());
+		$job = $this->jobMapper->update($job);
+
+		$this->logService->info('job_updated', $userId, [
+			'jobId' => $jobId,
+			'mode' => $settings['targetMode'],
+			'sourcePath' => $settings['sourcePath'],
+			'targetPath' => $settings['targetPath'],
+			'safeMode' => $settings['safeMode'],
+		], $jobId, 'Runde wurde gespeichert.');
+
+		return $this->serializeJob($job);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 * @throws DoesNotExistException
+	 */
+	public function duplicateJob(string $userId, int $jobId): array {
+		$source = $this->jobMapper->findForUserById($userId, $jobId);
+		$options = $this->decodeJson($source->getOptionsJson());
+		$copy = $this->createJob($userId, [
+			'name' => substr($source->getName() . ' Kopie', 0, 160),
+			'sourcePath' => $source->getSourcePath(),
+			'targetMode' => $source->getTargetMode(),
+			'targetPath' => $source->getTargetPath(),
+			'albumName' => $source->getAlbumName(),
+			'safeMode' => $source->getSafeMode(),
+			'autoProcess' => (bool)($options['autoProcess'] ?? false),
+			'preloadMode' => $options['preloadMode'] ?? 'balanced',
+			'targetOrdering' => $options['targetOrdering'] ?? 'relevance',
+			'hotkeys' => $options['hotkeys'] ?? 'number-row',
+		]);
+
+		$this->logService->info('job_duplicated', $userId, [
+			'sourceJobId' => $jobId,
+			'copyJobId' => $copy['id'] ?? null,
+		], (int)($copy['id'] ?? $jobId), 'Runde wurde kopiert.');
+
+		return $copy;
 	}
 
 	/**
@@ -231,16 +285,89 @@ class JobService {
 		];
 	}
 
+	/**
+	 * @param array<string, mixed> $input
+	 * @return array{name: string, sourcePath: string, targetMode: string, targetPath: ?string, albumName: ?string, safeMode: bool, options: array<string, mixed>}
+	 */
+	private function jobSettings(array $input, ?SortJob $current): array {
+		$currentOptions = $current !== null ? $this->decodeJson($current->getOptionsJson()) : [];
+		$mode = $this->targetMode((string)($input['targetMode'] ?? $current?->getTargetMode() ?? 'album'));
+		$sourcePath = PathHelper::displayPath((string)($input['sourcePath'] ?? $current?->getSourcePath() ?? '/'));
+		$targetPath = null;
+		if ($mode === 'move' || $mode === 'copy') {
+			$targetPath = PathHelper::displayPath((string)($input['targetPath'] ?? $current?->getTargetPath() ?? '/'));
+		}
+
+		$name = trim((string)($input['name'] ?? $current?->getName() ?? ''));
+		if ($name === '') {
+			$name = 'Runde ' . date('Y-m-d H:i');
+		}
+
+		$options = $currentOptions;
+		$options['targetOrdering'] = $this->targetOrdering((string)($input['targetOrdering'] ?? $options['targetOrdering'] ?? 'relevance'));
+		$options['hotkeys'] = $this->hotkeyMode((string)($input['hotkeys'] ?? $options['hotkeys'] ?? 'number-row'));
+		$options['preloadMode'] = $this->preloadMode((string)($input['preloadMode'] ?? $options['preloadMode'] ?? 'balanced'));
+		$options['autoProcess'] = $this->boolValue($input['autoProcess'] ?? $options['autoProcess'] ?? false);
+
+		return [
+			'name' => substr($name, 0, 160),
+			'sourcePath' => $sourcePath,
+			'targetMode' => $mode,
+			'targetPath' => $targetPath,
+			'albumName' => $mode === 'album' ? $this->optionalString($input['albumName'] ?? $current?->getAlbumName(), 255) : null,
+			'safeMode' => $this->boolValue($input['safeMode'] ?? $current?->getSafeMode() ?? true),
+			'options' => $options,
+		];
+	}
+
+	/**
+	 * @param array{name: string, sourcePath: string, targetMode: string, targetPath: ?string, albumName: ?string, safeMode: bool, options: array<string, mixed>} $settings
+	 */
+	private function hasStructuralChanges(SortJob $job, array $settings): bool {
+		return $job->getSourcePath() !== $settings['sourcePath']
+			|| $job->getTargetMode() !== $settings['targetMode']
+			|| $job->getTargetPath() !== $settings['targetPath']
+			|| $job->getAlbumName() !== $settings['albumName']
+			|| $job->getSafeMode() !== $settings['safeMode'];
+	}
+
+	private function hasSavedDecisions(SortJob $job): bool {
+		return $job->getSortedFiles() > 0
+			|| $job->getSkippedFiles() > 0
+			|| $job->getQueuedOperations() > 0
+			|| $job->getExecutedOperations() > 0
+			|| $job->getFailedOperations() > 0;
+	}
+
 	private function targetMode(string $mode): string {
 		if (!in_array($mode, self::MODES, true)) {
-			throw new \InvalidArgumentException('Invalid target mode.');
+			throw new \InvalidArgumentException('Ungültige Ablageart.');
 		}
 
 		return $mode;
 	}
 
+	private function targetOrdering(string $ordering): string {
+		return in_array($ordering, self::TARGET_ORDERINGS, true) ? $ordering : 'relevance';
+	}
+
+	private function hotkeyMode(string $mode): string {
+		return in_array($mode, self::HOTKEY_MODES, true) ? $mode : 'number-row';
+	}
+
 	private function preloadMode(string $mode): string {
 		return in_array($mode, ['light', 'balanced', 'turbo'], true) ? $mode : 'balanced';
+	}
+
+	private function boolValue(mixed $value): bool {
+		if (is_bool($value)) {
+			return $value;
+		}
+		if (is_string($value)) {
+			return in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true);
+		}
+
+		return (bool)$value;
 	}
 
 	/**
@@ -249,7 +376,7 @@ class JobService {
 	 */
 	private function processingOptions(SortJob $job, array $input): array {
 		$options = $this->decodeJson($job->getOptionsJson());
-		$options['autoProcess'] = (bool)($input['autoProcess'] ?? ($options['autoProcess'] ?? false));
+		$options['autoProcess'] = $this->boolValue($input['autoProcess'] ?? ($options['autoProcess'] ?? false));
 		if (isset($input['preloadMode']) && is_scalar($input['preloadMode'])) {
 			$options['preloadMode'] = $this->preloadMode((string)$input['preloadMode']);
 		}

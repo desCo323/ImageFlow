@@ -34,7 +34,7 @@ test('previews and queues a worklist without file writes as albentest', async ({
     await page.getByLabel('Bilderordner').fill('/Photos');
     await page.getByLabel('Was soll mit passenden Bildern passieren?').selectOption('copy');
     await page.getByLabel('Ablageordner').fill('/Photos');
-    await page.getByRole('button', { name: 'Loslegen' }).click();
+    await page.getByRole('button', { name: 'Runde speichern' }).click();
     await expect(page.getByText(jobName)).toBeVisible({ timeout: 10000 });
 
     const job = await findJob(page, jobName);
@@ -65,8 +65,8 @@ test('previews and queues a worklist without file writes as albentest', async ({
     expect(preview.summary.errors).toBe(0);
 
     const row = page.locator('tr', { hasText: jobName });
-    await row.getByRole('button', { name: 'Ablage ansehen' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Ablage ansehen' });
+    await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
     await expect(dialog).toBeVisible({ timeout: 10000 });
     await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
     await dialog.getByRole('button', { name: 'Für später merken' }).click();

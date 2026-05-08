@@ -62,7 +62,7 @@ class SortService {
 
 		return [
 			'job' => $this->jobService->serializeJob($job),
-			'favorites' => $this->favorites($userId, $job->getTargetMode()),
+			'favorites' => $this->favorites($userId, $job->getTargetMode(), (string)($options['hotkeys'] ?? 'number-row')),
 			'recentAssignments' => array_map([$this, 'serializeAssignment'], $this->assignmentMapper->findForJob($userId, $jobId, 20)),
 			'queue' => array_map([$this, 'serializeQueueItem'], $this->queueMapper->findForJob($userId, $jobId, 20)),
 			'nextImages' => $imagePage['images'],
@@ -242,13 +242,13 @@ class SortService {
 	/**
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function favorites(string $userId, string $mode): array {
-		$favorites = array_map(static fn ($favorite): array => [
+	private function favorites(string $userId, string $mode, string $hotkeyMode = 'number-row'): array {
+		$favorites = array_map(fn ($favorite): array => [
 			'id' => $favorite->getId(),
 			'label' => $favorite->getTargetLabel(),
 			'path' => $favorite->getTargetPath(),
 			'targetId' => $favorite->getTargetId(),
-			'hotkey' => $favorite->getHotkey(),
+			'hotkey' => $this->displayHotkey($favorite->getSortPosition(), $hotkeyMode),
 			'position' => $favorite->getSortPosition(),
 			'targetMode' => $favorite->getTargetMode(),
 			'locked' => false,
@@ -266,6 +266,14 @@ class SortService {
 		];
 
 		return $favorites;
+	}
+
+	private function displayHotkey(int $position, string $hotkeyMode): string {
+		if ($hotkeyMode === 'letters') {
+			return chr(ord('a') + max(0, min(8, $position - 1)));
+		}
+
+		return (string)max(1, min(9, $position));
 	}
 
 	/**

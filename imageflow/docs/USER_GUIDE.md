@@ -11,7 +11,8 @@ Open ImageFlow from the Nextcloud navigation and start a sorting round:
 - keep safe mode enabled,
 - choose whether the round may be processed automatically during quiet server phases,
 - choose the image buffer mode for large folders,
-- start with `Loslegen`.
+- save the round with `Runde speichern`, or use `Speichern & sortieren` to open it immediately.
+- edit a saved draft from the overview with `Bearbeiten`, or create a fresh copy with `Kopie`.
 
 Target modes:
 
@@ -55,7 +56,7 @@ For large folders, ImageFlow keeps the visible filmstrip small, preloads nearby 
 
 ## Execution
 
-Use `Ablage ansehen` on the overview to open the safe preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
+Use `Ablage prüfen` on the overview to open the safe preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
 
 The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt ablegen` runs a small manual batch. If both real writes and server-side background processing are enabled, and the round is marked for automatic processing, the cron worker can process queued work later.
 

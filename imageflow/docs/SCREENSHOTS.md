@@ -56,3 +56,12 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 17. Large filmstrip with next-page prefetch
    ![Large filmstrip with next-page prefetch](screenshots/17-large-filmstrip-prefetch.png)
+
+18. Round dashboard with save, edit, duplicate and processing controls
+   ![Round dashboard with save, edit, duplicate and processing controls](screenshots/18-round-dashboard-management.png)
+
+19. Round editing form from the overview
+   ![Round editing form from the overview](screenshots/19-round-editing-form.png)
+
+20. Sorting workspace with letter hotkeys
+   ![Sorting workspace with letter hotkeys](screenshots/20-letter-hotkeys-sorting.png)

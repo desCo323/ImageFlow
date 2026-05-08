@@ -45,7 +45,23 @@ class JobController extends Controller {
 			return $this->error('invalid_job_request', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {
 			$this->logService->exception('job_create_failed', $e, $this->userId);
-				return $this->error('job_create_failed', 'Die Runde konnte nicht angelegt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+			return $this->error('job_create_failed', 'Die Runde konnte nicht angelegt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	#[NoAdminRequired]
+	public function update(int $jobId): JSONResponse {
+		try {
+			return new JSONResponse([
+				'job' => $this->jobService->updateJob($this->userId, $jobId, $this->request->getParams()),
+			]);
+		} catch (DoesNotExistException) {
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (\InvalidArgumentException $e) {
+			return $this->error('invalid_job_request', $e->getMessage(), Http::STATUS_BAD_REQUEST);
+		} catch (\Throwable $e) {
+			$this->logService->exception('job_update_failed', $e, $this->userId, $jobId);
+			return $this->error('job_update_failed', 'Die Runde konnte nicht gespeichert werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -56,7 +72,7 @@ class JobController extends Controller {
 				'job' => $this->jobService->getJob($this->userId, $jobId),
 			]);
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		}
 	}
 
@@ -71,6 +87,20 @@ class JobController extends Controller {
 	}
 
 	#[NoAdminRequired]
+	public function duplicate(int $jobId): JSONResponse {
+		try {
+			return new JSONResponse([
+				'job' => $this->jobService->duplicateJob($this->userId, $jobId),
+			], Http::STATUS_CREATED);
+		} catch (DoesNotExistException) {
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (\Throwable $e) {
+			$this->logService->exception('job_duplicate_failed', $e, $this->userId, $jobId);
+			return $this->error('job_duplicate_failed', 'Die Runde konnte nicht kopiert werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	#[NoAdminRequired]
 	public function discard(int $jobId): JSONResponse {
 		try {
 			return new JSONResponse([
@@ -79,12 +109,12 @@ class JobController extends Controller {
 				'removed' => $this->jobService->discardJob($this->userId, $jobId),
 			]);
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('job_delete_blocked', $e->getMessage(), Http::STATUS_CONFLICT);
 		} catch (\Throwable $e) {
 			$this->logService->exception('job_delete_failed', $e, $this->userId, $jobId);
-				return $this->error('job_delete_failed', 'Die Runde konnte nicht verworfen werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+			return $this->error('job_delete_failed', 'Die Runde konnte nicht verworfen werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -107,10 +137,10 @@ class JobController extends Controller {
 				$this->intParam('limit', 250, 1, 500),
 			));
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\Throwable $e) {
 			$this->logService->exception('worklist_preview_failed', $e, $this->userId, $jobId);
-				return $this->error('worklist_preview_failed', 'Die Ablage konnte nicht geprüft werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+			return $this->error('worklist_preview_failed', 'Die Ablage konnte nicht geprüft werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -140,10 +170,10 @@ class JobController extends Controller {
 				'preview' => $this->worklistPreviewService->preview($this->userId, $jobId, 500),
 			]);
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\Throwable $e) {
 			$this->logService->exception('job_queue_execution_failed', $e, $this->userId, $jobId);
-				return $this->error('job_queue_execution_failed', 'Die Ablage konnte nicht für später gemerkt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+			return $this->error('job_queue_execution_failed', 'Die Ablage konnte nicht für später gemerkt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -165,10 +195,10 @@ class JobController extends Controller {
 				'preview' => $this->worklistPreviewService->preview($this->userId, $jobId, 500),
 			]);
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\Throwable $e) {
 			$this->logService->exception('job_process_now_failed', $e, $this->userId, $jobId);
-				return $this->error('job_process_now_failed', 'Die Ablage konnte nicht abgelegt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+			return $this->error('job_process_now_failed', 'Die Ablage konnte nicht abgelegt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -178,7 +208,7 @@ class JobController extends Controller {
 				'job' => $this->jobService->setStatus($this->userId, $jobId, $status),
 			]);
 		} catch (DoesNotExistException) {
-				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_job_status', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		}

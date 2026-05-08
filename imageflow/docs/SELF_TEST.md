@@ -31,14 +31,15 @@ Expected output for both commands is `0`.
 ## Manual Round Check
 
 1. Open ImageFlow and create a round from a harmless folder owned by `albentest`.
-2. Open the round with `Weitermachen`, `Neu anfangen` and `Offene Bilder`.
-3. Use ArrowLeft and ArrowRight in the filmstrip.
-4. In a larger folder, hold ArrowRight near the end of the visible strip and confirm that the next page appears without a visible pause.
-5. Use hotkeys `1`, `2`, `3`, `0` and Space.
-6. Add and remove one quick target.
-7. Open `Ablage ansehen`.
-8. Confirm that file operations are locked and `Jetzt ablegen` is disabled or blocked.
-9. Open `Protokoll` and confirm that recent sorting and queue events appear.
-10. Discard the test round from the overview.
+2. Save it with `Runde speichern`, edit it with `Bearbeiten`, then create a duplicate with `Kopie`.
+3. Open the round with `Weitermachen`, `Neu anfangen` and `Offene Bilder`.
+4. Use ArrowLeft and ArrowRight in the filmstrip.
+5. In a larger folder, hold ArrowRight near the end of the visible strip and confirm that the next page appears without a visible pause.
+6. Use hotkeys `1`, `2`, `3`, `0` and Space, or `A-I` when the round uses letter hotkeys.
+7. Add and remove one quick target.
+8. Open `Ablage prüfen`.
+9. Confirm that file operations are locked and `Jetzt ablegen` is disabled or blocked.
+10. Open `Protokoll` and confirm that recent sorting and queue events appear.
+11. Discard the test round from the overview.
 
 No source files, target files or albums should be changed while both server flags are `0`.

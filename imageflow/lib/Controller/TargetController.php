@@ -30,6 +30,7 @@ class TargetController extends Controller {
 				$this->stringParam('query', ''),
 				$this->stringParam('path', '/'),
 				$this->intParam('limit', 100, 1, 200),
+				$this->stringParam('ordering', 'relevance'),
 			));
 		} catch (\InvalidArgumentException) {
 			return new JSONResponse([

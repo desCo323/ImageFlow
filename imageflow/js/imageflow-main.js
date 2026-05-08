@@ -47,6 +47,7 @@
     mockFavorites: null,
     dragFavoriteId: null,
     jobDraft: {
+      editingJobId: null,
       name: "",
       sourcePath: "/Photos",
       targetMode: "album",
@@ -54,6 +55,8 @@
       safeMode: true,
       autoProcess: false,
       preloadMode: "balanced",
+      targetOrdering: "relevance",
+      hotkeys: "number-row",
     },
     folderPicker: {
       open: false,
@@ -131,7 +134,7 @@
       return mockHealth();
     }
     if (path === "/api/v1/jobs" && (!options.method || options.method === "GET")) {
-      return { jobs: mockJobs() };
+      return { jobs: state.jobs.length ? state.jobs : mockJobs() };
     }
     if (path === "/api/v1/jobs" && options.method === "POST") {
       const job = {
@@ -152,11 +155,53 @@
         options: {
           autoProcess: Boolean(options.body.autoProcess),
           preloadMode: options.body.preloadMode || "balanced",
+          targetOrdering: options.body.targetOrdering || "relevance",
+          hotkeys: options.body.hotkeys || "number-row",
         },
         updatedAt: Math.floor(Date.now() / 1000),
       };
       state.jobs = [job, ...state.jobs];
       return { job };
+    }
+    if (/\/api\/v1\/jobs\/\d+$/.test(path) && options.method === "PUT") {
+      const jobId = Number.parseInt(path.split("/").at(-1), 10);
+      const current = state.jobs.find((job) => job.id === jobId) || mockJobs().find((job) => job.id === jobId) || mockJobs()[0];
+      const updated = {
+        ...current,
+        name: options.body.name || current.name,
+        sourcePath: options.body.sourcePath || current.sourcePath,
+        targetMode: options.body.targetMode || current.targetMode,
+        targetPath: options.body.targetMode === "album" ? null : (options.body.targetPath || current.targetPath || "/"),
+        safeMode: options.body.safeMode !== false,
+        options: {
+          ...(current.options || {}),
+          autoProcess: Boolean(options.body.autoProcess),
+          preloadMode: options.body.preloadMode || current.options?.preloadMode || "balanced",
+          targetOrdering: options.body.targetOrdering || current.options?.targetOrdering || "relevance",
+          hotkeys: options.body.hotkeys || current.options?.hotkeys || "number-row",
+        },
+        updatedAt: Math.floor(Date.now() / 1000),
+      };
+      state.jobs = state.jobs.map((job) => (job.id === jobId ? updated : job));
+      return { job: updated };
+    }
+    if (/\/api\/v1\/jobs\/\d+\/duplicate$/.test(path) && options.method === "POST") {
+      const jobId = Number.parseInt(path.split("/").at(-2), 10);
+      const current = state.jobs.find((job) => job.id === jobId) || mockJobs().find((job) => job.id === jobId) || mockJobs()[0];
+      const copy = {
+        ...current,
+        id: Date.now(),
+        name: `${current.name} Kopie`,
+        status: "draft",
+        sortedFiles: 0,
+        skippedFiles: 0,
+        queuedOperations: 0,
+        executedOperations: 0,
+        failedOperations: 0,
+        updatedAt: Math.floor(Date.now() / 1000),
+      };
+      state.jobs = [copy, ...state.jobs];
+      return { job: copy };
     }
     if (/\/api\/v1\/jobs\/\d+\/discard$/.test(path) && options.method === "POST") {
       const jobId = Number.parseInt(path.split("/").at(-2), 10);
@@ -312,6 +357,8 @@
         options: {
           autoProcess: false,
           preloadMode: "turbo",
+          targetOrdering: "relevance",
+          hotkeys: "number-row",
         },
         updatedAt: Math.floor(Date.now() / 1000) - 240,
       },
@@ -333,6 +380,8 @@
         options: {
           autoProcess: true,
           preloadMode: "balanced",
+          targetOrdering: "alphabetical",
+          hotkeys: "number-row",
         },
         updatedAt: Math.floor(Date.now() / 1000) - 900,
       },
@@ -364,7 +413,7 @@
     };
     return {
       job,
-      favorites: mockFavoritesWithSkip(mockRealFavorites()),
+      favorites: mockFavoritesForJob(job),
       nextImages: images,
       imagePage: {
         cursor,
@@ -481,6 +530,15 @@
       ...favorites,
       { id: "skip", label: "Überspringen", hotkey: "0", position: 10, locked: true, targetType: "skip" },
     ];
+  }
+
+  function mockFavoritesForJob(job) {
+    const hotkeys = job.options?.hotkeys === "letters" ? ["a", "b", "c", "d", "e", "f", "g", "h", "i"] : null;
+    const favorites = mockRealFavorites().map((favorite, index) => ({
+      ...favorite,
+      hotkey: hotkeys ? hotkeys[index] || favorite.hotkey : favorite.hotkey,
+    }));
+    return mockFavoritesWithSkip(favorites);
   }
 
   function mockTargets() {
@@ -712,7 +770,8 @@
 
   async function loadTargets(mode) {
     const targetMode = mode || "album";
-    const params = new URLSearchParams({ mode: targetMode, limit: "100" });
+    const ordering = state.sortState?.job?.options?.targetOrdering || "relevance";
+    const params = new URLSearchParams({ mode: targetMode, limit: "100", ordering });
     if (targetMode !== "album") {
       if (!state.targetBrowsePath) {
         state.targetBrowsePath = state.sortState?.job?.targetPath || "/";
@@ -762,14 +821,15 @@
   function renderJobsPage() {
     const totals = summarizeJobs(state.jobs);
     const draft = state.jobDraft;
+    const isEditing = Boolean(draft.editingJobId);
     return `
       <section class="imageflow-dashboard" aria-label="Sortierrunden">
         ${renderSafetyStrip()}
         <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
           <div class="imageflow-panel-head">
             <div>
-              <h3>Neue Runde</h3>
-              <p>Wähle den Bilderordner und entscheide, wohin die Bilder später sollen.</p>
+              <h3>${isEditing ? "Runde bearbeiten" : "Neue Runde vorbereiten"}</h3>
+              <p>${isEditing ? "Passe Name und Einstellungen an. Quelle und Ziel bleiben gesperrt, sobald Entscheidungen vorhanden sind." : "Speichere die Runde zuerst oder spring direkt in den Sortiermodus."}</p>
             </div>
           </div>
           <div class="imageflow-field">
@@ -815,8 +875,24 @@
               <option value="turbo" ${draft.preloadMode === "turbo" ? "selected" : ""}>Turbo für große Stapel</option>
             </select>
           </div>
+          <div class="imageflow-field">
+            <label for="ifl-target-ordering">Ziele anzeigen</label>
+            <select id="ifl-target-ordering" name="targetOrdering">
+              <option value="relevance" ${draft.targetOrdering === "relevance" ? "selected" : ""}>Lieblingsziele zuerst</option>
+              <option value="alphabetical" ${draft.targetOrdering === "alphabetical" ? "selected" : ""}>Alphabetisch</option>
+            </select>
+          </div>
+          <div class="imageflow-field">
+            <label for="ifl-hotkeys">Tastenbelegung</label>
+            <select id="ifl-hotkeys" name="hotkeys">
+              <option value="number-row" ${draft.hotkeys === "number-row" ? "selected" : ""}>Zahlen 1-9 und 0</option>
+              <option value="letters" ${draft.hotkeys === "letters" ? "selected" : ""}>Buchstaben A-I und 0</option>
+            </select>
+          </div>
           <div class="imageflow-actions">
-            <button class="imageflow-button primary" type="submit">Loslegen</button>
+            <button class="imageflow-button primary" type="submit" data-save-intent="save">${isEditing ? "Änderungen speichern" : "Runde speichern"}</button>
+            <button class="imageflow-button" type="submit" data-save-intent="open">Speichern & sortieren</button>
+            ${isEditing ? '<button class="imageflow-button" data-action="cancel-edit-job" type="button">Bearbeiten abbrechen</button>' : '<button class="imageflow-button" data-action="clear-job-draft" type="button">Zurücksetzen</button>'}
           </div>
         </form>
         <section class="imageflow-panel">
@@ -890,24 +966,31 @@
 
   function renderJobRow(job) {
     const options = job.options || {};
+    const paused = job.status === "paused";
+    const hasDecisions = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) + Number(job.queuedOperations || 0) > 0;
+    const primaryStartLabel = hasDecisions ? "Weitermachen" : "Sortieren";
     return `
       <tr>
         <td>
           <strong>${escapeHtml(job.name)}</strong><br>
           <span class="imageflow-badge safe">${job.safeMode ? "Extra sicher" : "Standard"}</span>
           <span class="imageflow-badge ${options.autoProcess ? "ready" : ""}">${options.autoProcess ? "Automatik an" : "Manuell"}</span>
+          <span class="imageflow-badge">${targetOrderingLabel(options.targetOrdering)}</span>
         </td>
         <td>${escapeHtml(job.sourcePath || "/")}</td>
         <td>${modeLabel(job.targetMode)}</td>
-        <td><span class="imageflow-badge ready">${statusLabel(job.status)}</span></td>
+        <td><span class="imageflow-badge ${statusClass(job.status)}">${statusLabel(job.status)}</span></td>
         <td>${Number(job.sortedFiles || 0)} entschieden<br>${Number(job.queuedOperations || 0)} warten</td>
         <td>
           <div class="imageflow-actions">
-            <button class="imageflow-button primary" data-action="open-sort" data-start-mode="resume" data-job-id="${job.id}" type="button">Weitermachen</button>
+            <button class="imageflow-button primary" data-action="open-sort" data-start-mode="resume" data-job-id="${job.id}" type="button">${primaryStartLabel}</button>
             <button class="imageflow-button" data-action="open-sort" data-start-mode="begin" data-job-id="${job.id}" type="button">Neu anfangen</button>
             <button class="imageflow-button" data-action="open-sort" data-start-mode="unsorted" data-job-id="${job.id}" type="button">Offene Bilder</button>
-            <button class="imageflow-button" data-action="pause-job" data-job-id="${job.id}" type="button">Pausieren</button>
-            <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ablage ansehen</button>
+            <button class="imageflow-button" data-action="edit-job" data-job-id="${job.id}" type="button">Bearbeiten</button>
+            <button class="imageflow-button" data-action="duplicate-job" data-job-id="${job.id}" type="button">Kopie</button>
+            <button class="imageflow-button" data-action="${paused ? "resume-job" : "pause-job"}" data-job-id="${job.id}" type="button">${paused ? "Fortsetzen" : "Pausieren"}</button>
+            <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ablage prüfen</button>
+            <button class="imageflow-button" data-action="show-job-log" data-job-id="${job.id}" type="button">Ereignisse</button>
             <button class="imageflow-button danger" data-action="discard-job" data-job-id="${job.id}" type="button">Runde verwerfen</button>
           </div>
         </td>
@@ -1001,7 +1084,7 @@
               </div>
             </div>
             <div class="imageflow-hotkeys">
-              <span class="imageflow-hotkey"><b>1-9</b> Schnellziel</span>
+              <span class="imageflow-hotkey"><b>${job.options?.hotkeys === "letters" ? "A-I" : "1-9"}</b> Schnellziel</span>
               <span class="imageflow-hotkey"><b>0</b> Überspringen</span>
               <span class="imageflow-hotkey"><b>Leertaste</b> Überspringen</span>
               <span class="imageflow-hotkey"><b>←/→</b> Filmstreifen</span>
@@ -1011,7 +1094,7 @@
             <div class="imageflow-panel-head">
               <div>
                 <h4>Alle Ziele</h4>
-                <p>${job.targetMode === "album" ? "Alben alphabetisch" : escapeHtml(targetFolder?.current?.path || state.targetBrowsePath || "/")}</p>
+                <p>${job.targetMode === "album" ? targetOrderingLabel(job.options?.targetOrdering) : escapeHtml(targetFolder?.current?.path || state.targetBrowsePath || "/")}</p>
               </div>
               ${isFolderMode ? `<button class="imageflow-button" data-action="browse-target-parent" type="button" ${targetFolder?.parent ? "" : "disabled"}>Eine Ebene hoch</button>` : ""}
             </div>
@@ -1174,10 +1257,10 @@
       : (preview?.executionMode === "real-writes-enabled" ? "Jetzt ablegen" : "Für später merken");
     return `
       <div class="imageflow-modal-backdrop" role="presentation">
-        <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Ablage ansehen">
+        <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Ablage prüfen">
           <header class="imageflow-modal-head">
             <div>
-              <h3>Ablage ansehen</h3>
+              <h3>Ablage prüfen</h3>
               <p>${escapeHtml(preview?.job?.name || "Runde")} | ${modeLabel(preview?.job?.targetMode || "")}</p>
             </div>
             ${preview ? `<span class="imageflow-badge ${executionModeClass(preview.executionMode)}">${executionModeLabel(preview.executionMode)}</span>` : ""}
@@ -1233,13 +1316,14 @@
 
   function renderLogsPage() {
     const logs = state.logs.items || [];
+    const filteredJob = state.logs.jobId ? state.jobs.find((job) => job.id === state.logs.jobId) : null;
     return `
       <section class="imageflow-log-page" aria-label="Protokoll">
         <div class="imageflow-panel">
           <div class="imageflow-panel-head">
             <div>
               <h3>Protokoll</h3>
-              <p>Sicherheits- und Sortierereignisse für deine Runden.</p>
+              <p>${filteredJob ? `Nur ${escapeHtml(filteredJob.name || `Runde ${state.logs.jobId}`)}` : "Sicherheits- und Sortierereignisse für deine Runden."}</p>
             </div>
             <div class="imageflow-actions">
               <select class="imageflow-select-compact" data-action="change-log-level" aria-label="Log-Level">
@@ -1249,6 +1333,7 @@
                 <option value="warning" ${state.logs.level === "warning" ? "selected" : ""}>Warnung</option>
                 <option value="error" ${state.logs.level === "error" ? "selected" : ""}>Fehler</option>
               </select>
+              ${state.logs.jobId ? '<button class="imageflow-button" data-action="show-log" type="button">Alle Runden</button>' : ""}
               <button class="imageflow-button" data-action="refresh-logs" type="button">Aktualisieren</button>
             </div>
           </div>
@@ -1286,7 +1371,7 @@
   function bindActions() {
     const form = document.getElementById("imageflow-job-form");
     if (form) {
-      form.addEventListener("submit", createJob);
+      form.addEventListener("submit", saveJob);
       form.addEventListener("input", updateJobDraft);
       form.addEventListener("change", updateJobDraft);
       const mode = document.getElementById("ifl-mode");
@@ -1306,11 +1391,34 @@
     }
   }
 
-  async function createJob(event) {
+  async function saveJob(event) {
     event.preventDefault();
     const form = event.currentTarget;
     readJobDraft(form);
-    const body = {
+    const intent = event.submitter?.dataset?.saveIntent || "save";
+    const editingJobId = numberOrNull(state.jobDraft.editingJobId);
+    const body = jobDraftPayload();
+
+    try {
+      const payload = editingJobId
+        ? await request(`/api/v1/jobs/${editingJobId}`, { method: "PUT", body })
+        : await request("/api/v1/jobs", { method: "POST", body });
+      state.jobs = [payload.job, ...state.jobs.filter((job) => job.id !== payload.job.id)];
+      state.toast = { type: "info", message: editingJobId ? "Runde wurde gespeichert." : "Runde wurde gespeichert und ist bereit." };
+      resetJobDraft();
+      if (intent === "open") {
+        await openSort(payload.job.id, "resume");
+        return;
+      }
+      render();
+    } catch (error) {
+      state.toast = { type: "error", message: error.message || "Runde konnte nicht gespeichert werden." };
+      render();
+    }
+  }
+
+  function jobDraftPayload() {
+    return {
       name: state.jobDraft.name.trim(),
       sourcePath: state.jobDraft.sourcePath.trim() || "/",
       targetMode: state.jobDraft.targetMode,
@@ -1318,18 +1426,24 @@
       safeMode: state.jobDraft.safeMode,
       autoProcess: state.jobDraft.autoProcess,
       preloadMode: state.jobDraft.preloadMode,
+      targetOrdering: state.jobDraft.targetOrdering,
+      hotkeys: state.jobDraft.hotkeys,
     };
+  }
 
-    try {
-      const payload = await request("/api/v1/jobs", { method: "POST", body });
-      state.jobs = [payload.job, ...state.jobs.filter((job) => job.id !== payload.job.id)];
-      state.toast = { type: "info", message: "Runde ist startklar." };
-      state.jobDraft.name = "";
-      render();
-    } catch (error) {
-      state.toast = { type: "error", message: error.message || "Runde konnte nicht gestartet werden." };
-      render();
-    }
+  function resetJobDraft() {
+    state.jobDraft = {
+      editingJobId: null,
+      name: "",
+      sourcePath: "/Photos",
+      targetMode: "album",
+      targetPath: "/Photos/Sortiert",
+      safeMode: true,
+      autoProcess: false,
+      preloadMode: "balanced",
+      targetOrdering: "relevance",
+      hotkeys: "number-row",
+    };
   }
 
   function toggleTargetPath() {
@@ -1353,6 +1467,7 @@
       return;
     }
     state.jobDraft = {
+      editingJobId: state.jobDraft.editingJobId,
       name: form.name?.value || "",
       sourcePath: form.sourcePath?.value || "/",
       targetMode: form.targetMode?.value || "album",
@@ -1360,6 +1475,8 @@
       safeMode: Boolean(form.safeMode?.checked),
       autoProcess: Boolean(form.autoProcess?.checked),
       preloadMode: form.preloadMode?.value || "balanced",
+      targetOrdering: form.targetOrdering?.value || "relevance",
+      hotkeys: form.hotkeys?.value || "number-row",
     };
   }
 
@@ -1380,8 +1497,17 @@
       await openSort(jobId, event.currentTarget.dataset.startMode || "resume");
     } else if (action === "start-sort") {
       await restartSort(event.currentTarget.dataset.startMode || "resume");
+    } else if (action === "edit-job" && jobId) {
+      editJob(jobId);
+    } else if (action === "cancel-edit-job" || action === "clear-job-draft") {
+      resetJobDraft();
+      render();
+    } else if (action === "duplicate-job" && jobId) {
+      await duplicateJob(jobId);
     } else if (action === "pause-job" && jobId) {
       await changeJobStatus(jobId, "pause");
+    } else if (action === "resume-job" && jobId) {
+      await changeJobStatus(jobId, "resume");
     } else if (action === "queue-job" && jobId) {
       await openWorklistPreview(jobId);
     } else if (action === "discard-job" && jobId) {
@@ -1431,6 +1557,10 @@
       state.logs.level = event.currentTarget.value || "";
       await loadLogs();
     } else if (action === "show-log") {
+      state.logs.jobId = null;
+      await openLogs();
+    } else if (action === "show-job-log" && jobId) {
+      state.logs.jobId = jobId;
       await openLogs();
     }
   }
@@ -1483,6 +1613,42 @@
   function handleFavoriteDragEnd(event) {
     state.dragFavoriteId = null;
     event.currentTarget.classList.remove("is-dragging");
+  }
+
+  function editJob(jobId) {
+    const job = state.jobs.find((item) => item.id === jobId);
+    if (!job) {
+      state.toast = { type: "error", message: "Diese Runde wurde nicht gefunden." };
+      render();
+      return;
+    }
+
+    state.jobDraft = {
+      editingJobId: job.id,
+      name: job.name || "",
+      sourcePath: job.sourcePath || "/",
+      targetMode: job.targetMode || "album",
+      targetPath: job.targetPath || "/Photos/Sortiert",
+      safeMode: job.safeMode !== false,
+      autoProcess: Boolean(job.options?.autoProcess),
+      preloadMode: job.options?.preloadMode || "balanced",
+      targetOrdering: job.options?.targetOrdering || "relevance",
+      hotkeys: job.options?.hotkeys || "number-row",
+    };
+    state.toast = { type: "info", message: "Runde ist zum Bearbeiten geöffnet." };
+    render();
+  }
+
+  async function duplicateJob(jobId) {
+    try {
+      const payload = await request(`/api/v1/jobs/${jobId}/duplicate`, { method: "POST", body: {} });
+      state.jobs = [payload.job, ...state.jobs.filter((job) => job.id !== payload.job.id)];
+      state.toast = { type: "info", message: "Kopie wurde angelegt." };
+      render();
+    } catch (error) {
+      state.toast = { type: "error", message: error.message || "Runde konnte nicht kopiert werden." };
+      render();
+    }
   }
 
   async function openFolderPicker(field) {
@@ -1740,6 +1906,9 @@
     try {
       await request(`/api/v1/jobs/${jobId}/discard`, { method: "POST", body: {} });
       state.jobs = state.jobs.filter((item) => item.id !== jobId);
+      if (state.jobDraft.editingJobId === jobId) {
+        resetJobDraft();
+      }
       state.toast = { type: "info", message: "Runde wurde verworfen." };
       render();
     } catch (error) {
@@ -1880,7 +2049,8 @@
       await skipCurrent(currentImage(sortState));
       return;
     }
-    const favorite = (sortState.favorites || []).find((item) => item.hotkey === event.key);
+    const pressedKey = String(event.key || "").toLowerCase();
+    const favorite = (sortState.favorites || []).find((item) => String(item.hotkey || "").toLowerCase() === pressedKey);
     if (favorite) {
       event.preventDefault();
       const current = currentImage(sortState);
@@ -2406,6 +2576,23 @@
       done: "Abgeschlossen",
       error: "Fehler",
     }[status] || escapeHtml(status || "");
+  }
+
+  function statusClass(status) {
+    return {
+      draft: "safe",
+      sorting: "ready",
+      paused: "",
+      ready: "ready",
+      queued: "ready",
+      executing: "warning",
+      done: "safe",
+      error: "danger",
+    }[status] || "";
+  }
+
+  function targetOrderingLabel(ordering) {
+    return ordering === "alphabetical" ? "Alphabetisch" : "Lieblingsziele zuerst";
   }
 
   function readinessLabel(readiness) {

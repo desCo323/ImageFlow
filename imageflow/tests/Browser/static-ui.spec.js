@@ -43,22 +43,49 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByLabel('Schutzstatus')).toContainText('Geschützter Testbetrieb');
   await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen gesperrt');
   await expect(page.getByLabel('Schutzstatus')).toContainText('Automatik aus');
-  await expect(page.getByRole('heading', { name: 'Neue Runde' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Loslegen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Neue Runde vorbereiten' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Runde speichern' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Speichern & sortieren' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Weitermachen' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Neu anfangen' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Offene Bilder' }).first()).toBeVisible();
   await expect(page.getByLabel('Ablageordner')).toBeHidden();
   await expect(page.getByLabel('Bilder vorladen')).toBeVisible();
+  await expect(page.getByLabel('Ziele anzeigen')).toBeVisible();
+  await expect(page.getByLabel('Tastenbelegung')).toBeVisible();
   await expect(page.getByLabel('Automatisch ablegen, wenn der Server ruhig ist')).toBeVisible();
 
   await page.getByLabel('Name').fill('Browser Smoke');
   await page.getByLabel('Bilderordner').fill('/Photos/Smoke');
   await page.getByLabel('Bilder vorladen').selectOption('turbo');
+  await page.getByLabel('Ziele anzeigen').selectOption('alphabetical');
+  await page.getByLabel('Tastenbelegung').selectOption('letters');
   await page.getByLabel('Automatisch ablegen, wenn der Server ruhig ist').check();
-  await page.getByRole('button', { name: 'Loslegen' }).click();
+  await page.getByRole('button', { name: 'Runde speichern' }).click();
   await expect(page.getByText('Browser Smoke')).toBeVisible();
   await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Automatik an');
+  await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Alphabetisch');
+
+  await page.locator('tr', { hasText: 'Browser Smoke' }).getByRole('button', { name: 'Bearbeiten' }).click();
+  await expect(page.getByRole('heading', { name: 'Runde bearbeiten' })).toBeVisible();
+  await page.getByLabel('Name').fill('Browser Smoke Bearbeitet');
+  await page.getByRole('button', { name: 'Änderungen speichern' }).click();
+  await expect(page.getByText('Browser Smoke Bearbeitet')).toBeVisible();
+
+  await page.locator('tr', { hasText: 'Browser Smoke Bearbeitet' }).getByRole('button', { name: 'Kopie' }).click();
+  await expect(page.getByText('Browser Smoke Bearbeitet Kopie')).toBeVisible();
+});
+
+test('saves and opens a letter-hotkey round from the dashboard', async ({ page }) => {
+  await mount(page);
+
+  await page.getByLabel('Name').fill('Letter Hotkeys');
+  await page.getByLabel('Tastenbelegung').selectOption('letters');
+  await page.getByRole('button', { name: 'Speichern & sortieren' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Schnellziele' })).toBeVisible();
+  await expect(page.locator('.imageflow-hotkey', { hasText: 'A-I' })).toBeVisible();
+  await expect(page.locator('.imageflow-key').first()).toHaveText('a');
 });
 
 test('selects source and target folders with the folder picker', async ({ page }) => {
@@ -84,8 +111,8 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await mount(page);
 
   const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
-  await row.getByRole('button', { name: 'Ablage ansehen' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Ablage ansehen' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Entscheidungen', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
