@@ -6,6 +6,7 @@
 - Document the next high-speed filmstrip, preload buffer, idempotent worklist, and cron execution architecture block.
 - Add keyboard filmstrip navigation, bounded image preload planning, active thumbnail selection, and duplicate queue protection for planned sort operations.
 - Add Nextcloud preview and thumbnail URLs to image samples and render real images in the sorting stage and filmstrip.
+- Add filecache-backed image paging, page controls, and persisted sort position per job for large folders.
 
 ## 0.1.0 - 2026-05-08
 

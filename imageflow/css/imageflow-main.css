@@ -505,10 +505,22 @@
   margin-bottom: 8px;
 }
 
+.imageflow-filmstrip-head > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
 .imageflow-filmstrip-head span {
   color: var(--color-text-maxcontrast);
   font-size: 13px;
   font-weight: 700;
+}
+
+.imageflow-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .imageflow-strip {

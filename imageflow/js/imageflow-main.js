@@ -15,7 +15,9 @@
   const PRELOAD_RADIUS = 4;
   const THUMB_WINDOW = 16;
   const MAX_BUFFERED_IMAGES = 32;
+  const PAGE_LIMIT = 48;
   const imageBuffer = new Map();
+  let positionSaveTimer = null;
 
   const state = {
     page: root.dataset.page || "jobs",
@@ -23,6 +25,8 @@
     jobs: [],
     sortState: null,
     imageIndex: 0,
+    pageCursor: null,
+    imagePage: null,
     bufferPlan: [],
     targets: [],
     toast: null,
@@ -94,6 +98,16 @@
     }
     if (path.includes("/sort-state")) {
       return mockSortState(state.jobId || 1);
+    }
+    if (path.includes("/position")) {
+      return {
+        savedPosition: {
+          cursor: options.body.cursor || 0,
+          index: options.body.index || 0,
+          fileId: options.body.fileId || null,
+          savedAt: Math.floor(Date.now() / 1000),
+        },
+      };
     }
     if (path.includes("/assign")) {
       return {
@@ -189,6 +203,23 @@
           thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%2332254a'/%3E%3Cpath d='M30 180 102 65l52 80 42-40 104 75z' fill='%237357c8'/%3E%3C/svg%3E",
         },
       ],
+      imagePage: {
+        cursor: 0,
+        limit: PAGE_LIMIT,
+        total: 3,
+        returned: 3,
+        hasPrevious: false,
+        previousCursor: null,
+        hasNext: false,
+        nextCursor: null,
+        mode: "mock",
+      },
+      savedPosition: {
+        cursor: 0,
+        index: 0,
+        fileId: 11,
+        savedAt: null,
+      },
       recentAssignments: [],
       queue: [],
     };
@@ -208,10 +239,7 @@
     render();
     try {
       if (state.page === "sort" && state.jobId) {
-        const payload = await request(`/api/v1/jobs/${state.jobId}/sort-state`);
-        state.sortState = payload;
-        state.imageIndex = clampIndex(state.imageIndex, sortImages(payload));
-        await loadTargets(payload.job.targetMode);
+        await loadImagePage(state.pageCursor, null, false);
       } else {
         const payload = await request("/api/v1/jobs");
         state.jobs = payload.jobs || [];
@@ -221,6 +249,38 @@
     } finally {
       state.loading = false;
       render();
+    }
+  }
+
+  async function loadImagePage(cursor = null, preferredIndex = null, renderLoading = true) {
+    if (!state.jobId) {
+      return;
+    }
+    if (renderLoading) {
+      state.loading = true;
+      render();
+    }
+
+    const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
+    if (cursor !== null && cursor !== undefined) {
+      params.set("cursor", String(Math.max(0, Number(cursor) || 0)));
+    }
+
+    try {
+      const payload = await request(`/api/v1/jobs/${state.jobId}/sort-state?${params.toString()}`);
+      state.sortState = payload;
+      state.imagePage = payload.imagePage || defaultImagePage(payload.nextImages || []);
+      state.pageCursor = Number(state.imagePage.cursor || 0);
+      const saved = payload.savedPosition || {};
+      const savedIndex = Number(saved.cursor || 0) === state.pageCursor ? Number(saved.index || 0) : 0;
+      state.imageIndex = clampIndex(preferredIndex ?? savedIndex, sortImages(payload));
+      await loadTargets(payload.job.targetMode);
+      persistPositionSoon();
+    } finally {
+      if (renderLoading) {
+        state.loading = false;
+        render();
+      }
     }
   }
 
@@ -380,6 +440,9 @@
     const bufferPlan = planImageBuffer(images, currentIndex);
     const filmstrip = filmstripWindow(images, currentIndex);
     const preview = imageUrl(current);
+    const page = sortState.imagePage || state.imagePage || defaultImagePage(images);
+    const pageStart = page.total > 0 ? Number(page.cursor || 0) + 1 : 0;
+    const pageEnd = Math.min(Number(page.total || images.length), Number(page.cursor || 0) + images.length);
 
     return `
       <section class="imageflow-sort" aria-label="Sortieransicht">
@@ -433,8 +496,14 @@
         </div>
         <footer class="imageflow-filmstrip">
           <div class="imageflow-filmstrip-head">
-            <strong>Filmstreifen</strong>
-            <span>${bufferPlan.length} im Puffer</span>
+            <div>
+              <strong>Filmstreifen</strong>
+              <span>${pageStart}-${pageEnd} von ${Number(page.total || images.length)} · ${bufferPlan.length} im Puffer</span>
+            </div>
+            <div class="imageflow-page-actions">
+              <button class="imageflow-icon-button" data-action="page-prev" type="button" ${page.hasPrevious ? "" : "disabled"}>Zurueck</button>
+              <button class="imageflow-icon-button" data-action="page-next" type="button" ${page.hasNext ? "" : "disabled"}>Weiter</button>
+            </div>
           </div>
           <div class="imageflow-strip" role="listbox" aria-label="Filmstreifen">
             ${filmstrip.items.map((image, offset) => renderThumb(image, filmstrip.start + offset, currentIndex, bufferPlan)).join("") || '<div class="imageflow-empty">Keine Vorschaubilder geladen.</div>'}
@@ -539,13 +608,19 @@
     } else if (action === "go-jobs") {
       state.page = "jobs";
       state.sortState = null;
+      state.imagePage = null;
+      state.pageCursor = null;
       await load();
     } else if (action === "go-sort" && state.jobId) {
       state.page = "sort";
+      state.pageCursor = null;
       await load();
     } else if (action === "open-sort" && jobId) {
       state.page = "sort";
       state.jobId = jobId;
+      state.imageIndex = 0;
+      state.imagePage = null;
+      state.pageCursor = null;
       await load();
     } else if (action === "pause-job" && jobId) {
       await changeJobStatus(jobId, "pause");
@@ -557,6 +632,10 @@
       await assignFromButton(event.currentTarget);
     } else if (action === "select-image") {
       setImageIndex(numberOrNull(event.currentTarget.dataset.index) ?? state.imageIndex);
+    } else if (action === "page-next") {
+      await goToImagePage(pageInfo().nextCursor, 0);
+    } else if (action === "page-prev") {
+      await goToImagePage(pageInfo().previousCursor, PAGE_LIMIT - 1);
     } else if (action === "show-log") {
       state.toast = { type: "info", message: "Das Protokoll wird als eigene Ansicht ausgebaut; API und Datenmodell sind vorbereitet." };
       render();
@@ -628,22 +707,23 @@
     const sortState = state.sortState || mockSortState(state.jobId || 1);
     if (event.key === "ArrowRight") {
       event.preventDefault();
-      setImageIndex(state.imageIndex + 1);
+      await moveImage(1);
       return;
     }
     if (event.key === "ArrowLeft") {
       event.preventDefault();
-      setImageIndex(state.imageIndex - 1);
+      await moveImage(-1);
       return;
     }
     if (event.key === "Home") {
       event.preventDefault();
-      setImageIndex(0);
+      await goToImagePage(0, 0);
       return;
     }
     if (event.key === "End") {
       event.preventDefault();
-      setImageIndex(sortImages(sortState).length - 1);
+      const page = pageInfo(sortState);
+      await goToImagePage(Math.max(0, Number(page.total || 0) - Number(page.limit || PAGE_LIMIT)), PAGE_LIMIT - 1);
       return;
     }
     if (event.key === " " || event.key === "0") {
@@ -713,10 +793,35 @@
     const nextIndex = clampIndex(index, images);
     if (nextIndex === state.imageIndex) {
       syncImageBuffer();
+      persistPositionSoon();
       return;
     }
     state.imageIndex = nextIndex;
     render();
+    persistPositionSoon();
+  }
+
+  async function moveImage(delta) {
+    const images = sortImages(state.sortState || mockSortState(state.jobId || 1));
+    const page = pageInfo();
+    const nextIndex = state.imageIndex + delta;
+    if (nextIndex >= images.length && page.hasNext) {
+      await goToImagePage(page.nextCursor, 0);
+      return;
+    }
+    if (nextIndex < 0 && page.hasPrevious) {
+      await goToImagePage(page.previousCursor, PAGE_LIMIT - 1);
+      return;
+    }
+
+    setImageIndex(nextIndex);
+  }
+
+  async function goToImagePage(cursor, preferredIndex) {
+    if (cursor === null || cursor === undefined) {
+      return;
+    }
+    await loadImagePage(Math.max(0, Number(cursor) || 0), preferredIndex);
   }
 
   function completeCurrentDecision(type) {
@@ -739,6 +844,7 @@
     if (sortState.job.status === "draft") {
       sortState.job.status = "sorting";
     }
+    persistPositionSoon();
   }
 
   function filmstripWindow(images, currentIndex) {
@@ -816,6 +922,49 @@
 
   function imageUrl(image) {
     return image?.previewUrl || image?.thumbnailUrl || image?.url || "";
+  }
+
+  function pageInfo(sortState = state.sortState) {
+    return sortState?.imagePage || state.imagePage || defaultImagePage(sortImages(sortState));
+  }
+
+  function defaultImagePage(images) {
+    return {
+      cursor: 0,
+      limit: PAGE_LIMIT,
+      total: images.length,
+      returned: images.length,
+      hasPrevious: false,
+      previousCursor: null,
+      hasNext: false,
+      nextCursor: null,
+      mode: "local",
+    };
+  }
+
+  function persistPositionSoon() {
+    if (state.page !== "sort" || !state.jobId || !state.sortState) {
+      return;
+    }
+    if (positionSaveTimer) {
+      window.clearTimeout(positionSaveTimer);
+    }
+    positionSaveTimer = window.setTimeout(() => {
+      savePosition().catch(() => {});
+    }, 350);
+  }
+
+  async function savePosition() {
+    const page = pageInfo();
+    const current = currentImage();
+    await request(`/api/v1/jobs/${state.jobId}/position`, {
+      method: "POST",
+      body: {
+        cursor: Number(page.cursor || 0),
+        index: state.imageIndex,
+        fileId: current?.fileId || null,
+      },
+    });
   }
 
   function summarizeJobs(jobs) {

@@ -19,6 +19,7 @@ return [
 		['name' => 'sort#state', 'url' => '/api/v1/jobs/{jobId}/sort-state', 'verb' => 'GET'],
 		['name' => 'sort#assign', 'url' => '/api/v1/jobs/{jobId}/assign', 'verb' => 'POST'],
 		['name' => 'sort#skip', 'url' => '/api/v1/jobs/{jobId}/skip', 'verb' => 'POST'],
+		['name' => 'sort#position', 'url' => '/api/v1/jobs/{jobId}/position', 'verb' => 'POST'],
 		['name' => 'target#index', 'url' => '/api/v1/targets', 'verb' => 'GET'],
 		['name' => 'folder#index', 'url' => '/api/v1/folders', 'verb' => 'GET'],
 		['name' => 'log#index', 'url' => '/api/v1/logs', 'verb' => 'GET'],

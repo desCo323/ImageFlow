@@ -9,12 +9,15 @@ use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\Files\StorageNotAvailableException;
+use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\IDBConnection;
 use OCP\IURLGenerator;
 
 class FolderBrowserService {
 	public function __construct(
 		private readonly IRootFolder $rootFolder,
 		private readonly IURLGenerator $urlGenerator,
+		private readonly IDBConnection $db,
 	) {
 	}
 
@@ -70,17 +73,34 @@ class FolderBrowserService {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function listSampleImages(string $userId, string $path, int $limit = 12): array {
-		$limit = max(1, min(50, $limit));
+		return $this->listImagePage($userId, $path, 0, $limit)['images'];
+	}
+
+	/**
+	 * @return array{images: array<int, array<string, mixed>>, page: array<string, mixed>}
+	 */
+	public function listImagePage(string $userId, string $path, int $cursor = 0, int $limit = 48): array {
+		$limit = max(1, min(120, $limit));
+		$cursor = max(0, $cursor);
 		$currentPath = PathHelper::normalizeUserPath($path);
-		$userFolder = $this->rootFolder->getUserFolder($userId);
-		$current = $currentPath === '' ? $userFolder : $userFolder->get($currentPath);
-		if (!$current instanceof Folder) {
-			throw new NotFoundException('Folder not found');
+		$current = $this->folderForUserPath($userId, $currentPath);
+		$total = $this->countImagesInFolder($current);
+		if ($total === 0) {
+			return [
+				'images' => [],
+				'page' => $this->pageMeta($cursor, $limit, 0, 0),
+			];
 		}
 
+		if ($cursor >= $total) {
+			$cursor = max(0, $total - $limit);
+		}
+
+		$fileIds = $this->imageIdsForFolderPage($current, $cursor, $limit);
 		$images = [];
-		foreach ($current->getDirectoryListing() as $node) {
-			if (!$node instanceof File || !str_starts_with((string)$node->getMimeType(), 'image/')) {
+		foreach ($fileIds as $fileId) {
+			$node = $this->firstReadableFileById($current, $fileId);
+			if ($node === null) {
 				continue;
 			}
 			$relativePath = trim($currentPath . '/' . $node->getName(), '/');
@@ -98,12 +118,88 @@ class FolderBrowserService {
 					'fileid' => $node->getId(),
 				]),
 			];
-			if (count($images) >= $limit) {
-				break;
+		}
+
+		return [
+			'images' => $images,
+			'page' => $this->pageMeta($cursor, $limit, $total, count($images)),
+		];
+	}
+
+	private function folderForUserPath(string $userId, string $currentPath): Folder {
+		$userFolder = $this->rootFolder->getUserFolder($userId);
+		$current = $currentPath === '' ? $userFolder : $userFolder->get($currentPath);
+		if (!$current instanceof Folder) {
+			throw new NotFoundException('Folder not found');
+		}
+
+		return $current;
+	}
+
+	private function countImagesInFolder(Folder $folder): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias($qb->func()->count('*'), 'image_count')
+			->from('filecache', 'fc')
+			->innerJoin('fc', 'mimetypes', 'mt', $qb->expr()->eq('fc.mimetype', 'mt.id'))
+			->where($qb->expr()->eq('fc.parent', $qb->createNamedParameter($folder->getId(), IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')));
+
+		$row = $qb->executeQuery()->fetch();
+		return (int)($row['image_count'] ?? 0);
+	}
+
+	/**
+	 * @return int[]
+	 */
+	private function imageIdsForFolderPage(Folder $folder, int $cursor, int $limit): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('fc.fileid')
+			->from('filecache', 'fc')
+			->innerJoin('fc', 'mimetypes', 'mt', $qb->expr()->eq('fc.mimetype', 'mt.id'))
+			->where($qb->expr()->eq('fc.parent', $qb->createNamedParameter($folder->getId(), IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')))
+			->orderBy('fc.name', 'ASC')
+			->addOrderBy('fc.fileid', 'ASC')
+			->setFirstResult($cursor)
+			->setMaxResults($limit);
+
+		$result = $qb->executeQuery();
+		$fileIds = [];
+		while ($row = $result->fetch()) {
+			$fileIds[] = (int)$row['fileid'];
+		}
+
+		return $fileIds;
+	}
+
+	private function firstReadableFileById(Folder $folder, int $fileId): ?File {
+		foreach ($folder->getById($fileId) as $node) {
+			if ($node instanceof File && str_starts_with((string)$node->getMimeType(), 'image/') && $node->isReadable()) {
+				return $node;
 			}
 		}
 
-		return $images;
+		return null;
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function pageMeta(int $cursor, int $limit, int $total, int $returned): array {
+		$nextCursor = $cursor + $limit;
+		$previousCursor = max(0, $cursor - $limit);
+
+		return [
+			'cursor' => $cursor,
+			'limit' => $limit,
+			'total' => $total,
+			'returned' => $returned,
+			'hasPrevious' => $cursor > 0,
+			'previousCursor' => $cursor > 0 ? $previousCursor : null,
+			'hasNext' => $nextCursor < $total,
+			'nextCursor' => $nextCursor < $total ? $nextCursor : null,
+			'mode' => 'filecache-offset',
+		];
 	}
 
 	private function previewUrl(File $file, int $width, int $height, string $mode): string {

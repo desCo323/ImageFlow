@@ -28,16 +28,55 @@ class SortService {
 	 * @return array<string, mixed>
 	 * @throws DoesNotExistException
 	 */
-	public function state(string $userId, int $jobId): array {
-		$job = $this->jobMapper->findForUserById($userId, $jobId);
-		$this->jobService->touchOpened($userId, $jobId);
+	public function state(string $userId, int $jobId, ?int $cursor = null, int $limit = 48): array {
+		$job = $this->jobService->touchOpened($userId, $jobId);
+		$options = $this->decodeOptions($job->getOptionsJson());
+		$savedPosition = $this->savedPosition($options);
+		$pageCursor = $cursor ?? (int)$savedPosition['cursor'];
+		$imagePage = $this->safeImagePage($userId, $jobId, $job->getSourcePath(), $pageCursor, $limit);
 
 		return [
 			'job' => $this->jobService->serializeJob($job),
 			'favorites' => $this->favorites($userId, $job->getTargetMode()),
 			'recentAssignments' => array_map([$this, 'serializeAssignment'], $this->assignmentMapper->findForJob($userId, $jobId, 20)),
 			'queue' => array_map([$this, 'serializeQueueItem'], $this->queueMapper->findForJob($userId, $jobId, 20)),
-			'nextImages' => $this->safeSamples($userId, $job->getSourcePath(), 48),
+			'nextImages' => $imagePage['images'],
+			'imagePage' => $imagePage['page'],
+			'savedPosition' => $savedPosition,
+		];
+	}
+
+	/**
+	 * @param array<string, mixed> $input
+	 * @return array<string, mixed>
+	 * @throws DoesNotExistException
+	 */
+	public function position(string $userId, int $jobId, array $input): array {
+		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		$options = $this->decodeOptions($job->getOptionsJson());
+		$position = [
+			'cursor' => max(0, $this->optionalInt($input['cursor'] ?? 0) ?? 0),
+			'index' => max(0, $this->optionalInt($input['index'] ?? 0) ?? 0),
+			'fileId' => $this->optionalInt($input['fileId'] ?? null),
+			'savedAt' => time(),
+		];
+		$options['sortPosition'] = $position;
+
+		$job->setOptionsJson(json_encode($options, JSON_THROW_ON_ERROR));
+		$job->setLastOpenedAt($position['savedAt']);
+		$job->setUpdatedAt($position['savedAt']);
+		$job = $this->jobMapper->update($job);
+
+		$this->logService->debug('sort_position_saved', $userId, [
+			'jobId' => $jobId,
+			'cursor' => $position['cursor'],
+			'index' => $position['index'],
+			'fileId' => $position['fileId'],
+		], $jobId, 'Sortierposition wurde gespeichert.');
+
+		return [
+			'savedPosition' => $position,
+			'job' => $this->jobService->serializeJob($job),
 		];
 	}
 
@@ -199,12 +238,55 @@ class SortService {
 	}
 
 	/**
-	 * @return array<int, array<string, mixed>>
+	 * @return array{images: array<int, array<string, mixed>>, page: array<string, mixed>}
 	 */
-	private function safeSamples(string $userId, string $sourcePath, int $limit): array {
+	private function safeImagePage(string $userId, int $jobId, string $sourcePath, int $cursor, int $limit): array {
 		try {
-			return $this->folderBrowserService->listSampleImages($userId, $sourcePath, $limit);
-		} catch (\Throwable) {
+			return $this->folderBrowserService->listImagePage($userId, $sourcePath, $cursor, $limit);
+		} catch (\Throwable $e) {
+			$this->logService->exception('image_page_failed', $e, $userId, $jobId);
+			return [
+				'images' => [],
+				'page' => [
+					'cursor' => max(0, $cursor),
+					'limit' => $limit,
+					'total' => 0,
+					'returned' => 0,
+					'hasPrevious' => false,
+					'previousCursor' => null,
+					'hasNext' => false,
+					'nextCursor' => null,
+					'mode' => 'unavailable',
+				],
+			];
+		}
+	}
+
+	/**
+	 * @param array<string, mixed> $options
+	 * @return array{cursor: int, index: int, fileId: ?int, savedAt: ?int}
+	 */
+	private function savedPosition(array $options): array {
+		$position = is_array($options['sortPosition'] ?? null) ? $options['sortPosition'] : [];
+		return [
+			'cursor' => max(0, $this->optionalInt($position['cursor'] ?? 0) ?? 0),
+			'index' => max(0, $this->optionalInt($position['index'] ?? 0) ?? 0),
+			'fileId' => $this->optionalInt($position['fileId'] ?? null),
+			'savedAt' => $this->optionalInt($position['savedAt'] ?? null),
+		];
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function decodeOptions(?string $json): array {
+		if ($json === null || $json === '') {
+			return [];
+		}
+		try {
+			$decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+			return is_array($decoded) ? $decoded : [];
+		} catch (\JsonException) {
 			return [];
 		}
 	}

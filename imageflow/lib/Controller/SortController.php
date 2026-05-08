@@ -27,7 +27,12 @@ class SortController extends Controller {
 	#[NoAdminRequired]
 	public function state(int $jobId): JSONResponse {
 		try {
-			return new JSONResponse($this->sortService->state($this->userId, $jobId));
+			return new JSONResponse($this->sortService->state(
+				$this->userId,
+				$jobId,
+				$this->optionalIntParam('cursor', 0, PHP_INT_MAX),
+				$this->intParam('limit', 48, 1, 120),
+			));
 		} catch (DoesNotExistException) {
 			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		}
@@ -61,10 +66,42 @@ class SortController extends Controller {
 		}
 	}
 
+	#[NoAdminRequired]
+	public function position(int $jobId): JSONResponse {
+		try {
+			return new JSONResponse($this->sortService->position($this->userId, $jobId, $this->request->getParams()));
+		} catch (DoesNotExistException) {
+			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (\InvalidArgumentException $e) {
+			return $this->error('invalid_position', $e->getMessage(), Http::STATUS_BAD_REQUEST);
+		} catch (\Throwable $e) {
+			$this->logService->exception('position_save_failed', $e, $this->userId, $jobId);
+			return $this->error('position_save_failed', 'Die aktuelle Position konnte nicht gespeichert werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
 	private function error(string $error, string $message, int $status): JSONResponse {
 		return new JSONResponse([
 			'error' => $error,
 			'message' => $message,
 		], $status);
+	}
+
+	private function optionalIntParam(string $key, int $min, int $max): ?int {
+		$value = $this->request->getParam($key, null);
+		if ($value === null || $value === '') {
+			return null;
+		}
+		if (!is_numeric($value)) {
+			return null;
+		}
+
+		return max($min, min($max, (int)$value));
+	}
+
+	private function intParam(string $key, int $default, int $min, int $max): int {
+		$value = $this->request->getParam($key, $default);
+		$value = is_numeric($value) ? (int)$value : $default;
+		return max($min, min($max, $value));
 	}
 }
