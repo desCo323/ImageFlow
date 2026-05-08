@@ -34,7 +34,7 @@ class TargetController extends Controller {
 		} catch (\InvalidArgumentException) {
 			return new JSONResponse([
 				'error' => 'invalid_target_request',
-				'message' => 'Die Zielauswahl ist ungueltig.',
+				'message' => 'Die Zielauswahl ist ungültig.',
 			], Http::STATUS_BAD_REQUEST);
 		}
 	}

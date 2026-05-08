@@ -51,6 +51,8 @@ Hotkeys:
 
 The round bar shows overall progress, the current decision streak, this session's collected decisions and the current pace. Each saved decision gives immediate visual feedback without changing files yet.
 
+For large folders, ImageFlow keeps the visible filmstrip small, preloads nearby images and warms the next image page before you reach the end of the current page. Arrow-key navigation should therefore stay smooth even when the source folder contains far more images than the visible strip.
+
 ## Execution
 
 Use `Ablage ansehen` on the overview to open the safe preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.

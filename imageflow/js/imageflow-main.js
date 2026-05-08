@@ -13,6 +13,8 @@
   const MAX_BUFFERED_IMAGES = 32;
   const PAGE_LIMIT = 48;
   const imageBuffer = new Map();
+  const imagePageCache = new Map();
+  const imagePagePrefetches = new Map();
   let positionSaveTimer = null;
   let feedbackTimer = null;
   let imagePageLoadPromise = null;
@@ -657,32 +659,34 @@
     if (!state.jobId) {
       return;
     }
+    const requestedCursor = cursor !== null && cursor !== undefined ? Math.max(0, Number(cursor) || 0) : null;
+    const requestedStart = requestedCursor === null ? startMode || state.startMode : null;
+    const cached = requestedStart === null && requestedCursor !== null ? imagePageCache.get(imagePageCacheKey(state.jobId, requestedCursor)) : null;
+    if (cached) {
+      root.dataset.pageCacheHit = "1";
+      await applyImagePagePayload(cached, preferredIndex, requestedStart);
+      persistPositionSoon();
+      render();
+      return;
+    }
+
     if (renderLoading) {
       state.loading = true;
       render();
     }
 
     const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
-    const requestedStart = cursor === null || cursor === undefined ? startMode || state.startMode : null;
-    if (cursor !== null && cursor !== undefined) {
-      params.set("cursor", String(Math.max(0, Number(cursor) || 0)));
+    if (requestedCursor !== null) {
+      params.set("cursor", String(requestedCursor));
     } else if (requestedStart) {
       params.set("start", requestedStart);
     }
 
     try {
       const payload = await request(`/api/v1/jobs/${state.jobId}/sort-state?${params.toString()}`);
-      state.sortState = payload;
-      state.imagePage = payload.imagePage || defaultImagePage(payload.nextImages || []);
-      state.pageCursor = Number(state.imagePage.cursor || 0);
-      const saved = payload.savedPosition || {};
-      const start = payload.start || {};
-      const startCursor = Number(start.cursor || 0);
-      const savedIndex = Number(saved.cursor || 0) === state.pageCursor ? Number(saved.index || 0) : 0;
-      const startIndex = requestedStart && startCursor === state.pageCursor ? Number(start.index || 0) : null;
-      state.imageIndex = clampIndex(preferredIndex ?? startIndex ?? savedIndex, sortImages(payload));
-      state.startMode = null;
-      await loadTargets(payload.job.targetMode);
+      root.dataset.pageCacheHit = "0";
+      rememberImagePage(payload);
+      await applyImagePagePayload(payload, preferredIndex, requestedStart);
       persistPositionSoon();
     } finally {
       if (renderLoading) {
@@ -690,6 +694,20 @@
         render();
       }
     }
+  }
+
+  async function applyImagePagePayload(payload, preferredIndex = null, requestedStart = null) {
+    state.sortState = mergeSortPayload(payload);
+    state.imagePage = state.sortState.imagePage || defaultImagePage(state.sortState.nextImages || []);
+    state.pageCursor = Number(state.imagePage.cursor || 0);
+    const saved = state.sortState.savedPosition || {};
+    const start = state.sortState.start || {};
+    const startCursor = Number(start.cursor || 0);
+    const savedIndex = Number(saved.cursor || 0) === state.pageCursor ? Number(saved.index || 0) : 0;
+    const startIndex = requestedStart && startCursor === state.pageCursor ? Number(start.index || 0) : null;
+    state.imageIndex = clampIndex(preferredIndex ?? startIndex ?? savedIndex, sortImages(state.sortState));
+    state.startMode = null;
+    await loadTargets(state.sortState.job.targetMode);
   }
 
   async function loadTargets(mode) {
@@ -1685,6 +1703,7 @@
     state.startMode = startMode;
     state.targetBrowsePath = null;
     state.targetFolderPage = null;
+    clearImagePageCache();
     resetSessionFlow();
     await load();
   }
@@ -1694,6 +1713,7 @@
     state.imagePage = null;
     state.pageCursor = null;
     state.startMode = startMode;
+    clearImagePageCache();
     resetSessionFlow();
     await loadImagePage(null, null, true, startMode);
   }
@@ -2018,6 +2038,7 @@
     }
     registerDecisionFeedback(type, label);
     persistPositionSoon();
+    prefetchAdjacentImagePages();
   }
 
   function registerDecisionFeedback(type, label) {
@@ -2145,6 +2166,7 @@
     });
     root.dataset.bufferedImages = String(imageBuffer.size);
     root.dataset.bufferPlan = String(state.bufferPlan.length);
+    prefetchAdjacentImagePages();
   }
 
   function preloadImage(image, key) {
@@ -2208,6 +2230,106 @@
 
   function imageUrl(image) {
     return image?.previewUrl || image?.thumbnailUrl || image?.url || "";
+  }
+
+  function prefetchAdjacentImagePages() {
+    if (state.page !== "sort" || !state.jobId || !state.sortState) {
+      root.dataset.pageCacheSize = String(imagePageCache.size);
+      root.dataset.pagePrefetchPending = String(imagePagePrefetches.size);
+      return;
+    }
+
+    const images = sortImages(state.sortState);
+    const page = pageInfo(state.sortState);
+    const radius = activePreloadRadius() + 2;
+    if (page.hasNext && state.imageIndex >= Math.max(0, images.length - radius)) {
+      prefetchImagePage(page.nextCursor);
+    }
+    if (page.hasPrevious && state.imageIndex <= radius) {
+      prefetchImagePage(page.previousCursor);
+    }
+
+    root.dataset.pageCacheSize = String(imagePageCache.size);
+    root.dataset.pagePrefetchPending = String(imagePagePrefetches.size);
+  }
+
+  function prefetchImagePage(cursor) {
+    if (cursor === null || cursor === undefined || !state.jobId) {
+      return;
+    }
+    const numericCursor = Math.max(0, Number(cursor) || 0);
+    const key = imagePageCacheKey(state.jobId, numericCursor);
+    if (imagePageCache.has(key) || imagePagePrefetches.has(key)) {
+      return;
+    }
+
+    const params = new URLSearchParams({ limit: String(PAGE_LIMIT), cursor: String(numericCursor) });
+    const promise = request(`/api/v1/jobs/${state.jobId}/sort-state?${params.toString()}`)
+      .then((payload) => {
+        rememberImagePage(payload);
+        preloadFirstPageImages(payload);
+      })
+      .catch(() => {})
+      .finally(() => {
+        imagePagePrefetches.delete(key);
+        root.dataset.pageCacheSize = String(imagePageCache.size);
+        root.dataset.pagePrefetchPending = String(imagePagePrefetches.size);
+      });
+    imagePagePrefetches.set(key, promise);
+    root.dataset.pagePrefetchPending = String(imagePagePrefetches.size);
+  }
+
+  function preloadFirstPageImages(payload) {
+    const images = Array.isArray(payload?.nextImages) ? payload.nextImages : [];
+    const radius = activePreloadRadius();
+    images.slice(0, radius).forEach((image, index) => {
+      preloadImage(image, imageKey(image, index));
+    });
+  }
+
+  function rememberImagePage(payload) {
+    const cursor = Number(payload?.imagePage?.cursor ?? Number.NaN);
+    const jobId = Number(payload?.job?.id || state.jobId || 0);
+    if (!Number.isFinite(cursor) || jobId <= 0) {
+      return;
+    }
+    imagePageCache.set(imagePageCacheKey(jobId, cursor), payload);
+    while (imagePageCache.size > 5) {
+      imagePageCache.delete(imagePageCache.keys().next().value);
+    }
+    root.dataset.pageCacheSize = String(imagePageCache.size);
+  }
+
+  function clearImagePageCache() {
+    imagePageCache.clear();
+    imagePagePrefetches.clear();
+    root.dataset.pageCacheSize = "0";
+    root.dataset.pagePrefetchPending = "0";
+    root.dataset.pageCacheHit = "0";
+  }
+
+  function imagePageCacheKey(jobId, cursor) {
+    return `${jobId}:${Math.max(0, Number(cursor) || 0)}`;
+  }
+
+  function mergeSortPayload(payload) {
+    const previousJob = state.sortState?.job;
+    if (!previousJob || !payload?.job || String(previousJob.id) !== String(payload.job.id)) {
+      return payload;
+    }
+
+    return {
+      ...payload,
+      job: {
+        ...payload.job,
+        status: previousJob.status || payload.job.status,
+        sortedFiles: Math.max(Number(payload.job.sortedFiles || 0), Number(previousJob.sortedFiles || 0)),
+        skippedFiles: Math.max(Number(payload.job.skippedFiles || 0), Number(previousJob.skippedFiles || 0)),
+        queuedOperations: Math.max(Number(payload.job.queuedOperations || 0), Number(previousJob.queuedOperations || 0)),
+        executedOperations: Math.max(Number(payload.job.executedOperations || 0), Number(previousJob.executedOperations || 0)),
+        failedOperations: Math.max(Number(payload.job.failedOperations || 0), Number(previousJob.failedOperations || 0)),
+      },
+    };
   }
 
   function pageInfo(sortState = state.sortState) {

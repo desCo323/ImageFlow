@@ -43,7 +43,7 @@ class QueueExecutionService {
 			$this->logService->debug('queue_background_execution_skipped', null, [
 				'backgroundProcessingEnabled' => true,
 				'realExecutionEnabled' => false,
-			], null, 'ImageFlow Hintergrund-Ablage wartet, weil echte Dateioperationen deaktiviert sind.');
+			], null, 'ImageFlow Hintergrund-Ablage wartet, weil echte Dateiänderungen deaktiviert sind.');
 			return 0;
 		}
 
@@ -58,11 +58,11 @@ class QueueExecutionService {
 			$this->logService->warning('queue_manual_processing_blocked', $userId, [
 				'jobId' => $jobId,
 				'realExecutionEnabled' => false,
-			], $jobId, 'Manuelle Ablage wurde blockiert, weil echte Dateioperationen deaktiviert sind.');
+			], $jobId, 'Manuelle Ablage wurde blockiert, weil echte Dateiänderungen deaktiviert sind.');
 			return [
 				'processed' => 0,
 				'realExecutionEnabled' => false,
-				'message' => 'Echte Dateioperationen sind serverseitig deaktiviert.',
+				'message' => 'Echte Dateiänderungen sind serverseitig deaktiviert.',
 			];
 		}
 
@@ -70,7 +70,7 @@ class QueueExecutionService {
 		return [
 			'processed' => $processed,
 			'realExecutionEnabled' => true,
-			'message' => $processed > 0 ? 'Ablage-Batch wurde verarbeitet.' : 'Keine vorgemerkten Ablagepunkte gefunden.',
+			'message' => $processed > 0 ? 'Die vorgemerkte Ablage wurde abgelegt.' : 'Keine wartenden Bilder für die Ablage gefunden.',
 		];
 	}
 
@@ -141,7 +141,7 @@ class QueueExecutionService {
 			'album' => $this->executeAlbum($item),
 			'copy' => $this->executeCopy($item),
 			'move' => $this->executeMove($item),
-			default => $this->failedResult('Unbekannter Operationstyp.', [
+			default => $this->failedResult('Unbekannte Ablageart.', [
 				'operationType' => $item->getOperationType(),
 			]),
 		};
@@ -162,7 +162,7 @@ class QueueExecutionService {
 
 		$sourceChecksum = $this->checksumIfEnabled($source, $item);
 		if ($this->albumContainsFile((int)$albumId, $source->getId())) {
-			return $this->executedResult('Bild ist bereits im Album; Duplikat wurde uebersprungen.', $sourceChecksum, null, [
+			return $this->executedResult('Bild ist bereits im Album; Doppelung wurde übersprungen.', $sourceChecksum, null, [
 				'albumId' => (int)$albumId,
 				'fileId' => $source->getId(),
 				'idempotent' => true,
@@ -170,7 +170,7 @@ class QueueExecutionService {
 		}
 
 		$this->addFileToAlbum((int)$albumId, $source->getId(), $source->getOwner()?->getUID() ?? $item->getUserId());
-		return $this->executedResult('Bild wurde dem Album hinzugefuegt.', $sourceChecksum, null, [
+		return $this->executedResult('Bild wurde dem Album hinzugefügt.', $sourceChecksum, null, [
 			'albumId' => (int)$albumId,
 			'fileId' => $source->getId(),
 		]);
@@ -186,7 +186,7 @@ class QueueExecutionService {
 			return $this->failedResult('Quelle fehlt oder ist keine Datei.');
 		}
 		if (!$targetFolder instanceof Folder) {
-			return $this->failedResult('Zielordner fehlt oder ist nicht lesbar.');
+			return $this->failedResult('Ablageordner fehlt oder ist nicht lesbar.');
 		}
 
 		$fileName = PathHelper::fileNameFromPath($item->getSourcePath());
@@ -202,11 +202,11 @@ class QueueExecutionService {
 
 		$targetNode = $source->copy($targetFolder->getFullPath($fileName));
 		if (!$targetNode instanceof File) {
-			return $this->failedResult('Kopieren hat keine gueltige Zieldatei erzeugt.');
+			return $this->failedResult('Kopieren hat keine gültige Zieldatei erzeugt.');
 		}
 		$targetChecksum = $this->checksumIfEnabled($targetNode, $item);
 		if ($item->getSafeMode() && $sourceChecksum !== $targetChecksum) {
-			return $this->failedResult('Checksumme nach dem Kopieren stimmt nicht ueberein.', [
+			return $this->failedResult('Checksumme nach dem Kopieren stimmt nicht überein.', [
 				'sourceChecksum' => $sourceChecksum,
 				'targetChecksum' => $targetChecksum,
 			]);
@@ -228,7 +228,7 @@ class QueueExecutionService {
 			return $this->failedResult('Quelle fehlt oder ist keine Datei.');
 		}
 		if (!$targetFolder instanceof Folder) {
-			return $this->failedResult('Zielordner fehlt oder ist nicht lesbar.');
+			return $this->failedResult('Ablageordner fehlt oder ist nicht lesbar.');
 		}
 
 		$fileName = PathHelper::fileNameFromPath($item->getSourcePath());
@@ -240,23 +240,23 @@ class QueueExecutionService {
 		$existingTarget = $this->existingTargetFile($targetFolder, $fileName);
 		if ($existingTarget !== null) {
 			if ($existingTarget->getPath() === $source->getPath()) {
-				return $this->executedResult('Quelle liegt bereits im Zielordner; Verschieben wurde als erledigt markiert.', $sourceChecksum, $sourceChecksum, [
+				return $this->executedResult('Quelle liegt bereits im Ablageordner; Verschieben wurde als erledigt markiert.', $sourceChecksum, $sourceChecksum, [
 					'idempotent' => true,
 				]);
 			}
 
-			return $this->blockedResult('Zieldatei existiert bereits. Move ueberschreibt nicht und loescht die Quelle nicht.', [
+			return $this->blockedResult('Zieldatei existiert bereits. Verschieben überschreibt nicht und löscht die Quelle nicht.', [
 				'targetPath' => $this->joinDisplayPath((string)$item->getTargetPath(), $fileName),
 			], $sourceChecksum);
 		}
 
 		$targetNode = $source->move($targetFolder->getFullPath($fileName));
 		if (!$targetNode instanceof File) {
-			return $this->failedResult('Verschieben hat keine gueltige Zieldatei erzeugt.');
+			return $this->failedResult('Verschieben hat keine gültige Zieldatei erzeugt.');
 		}
 		$targetChecksum = $this->checksumIfEnabled($targetNode, $item);
 		if ($item->getSafeMode() && $sourceChecksum !== $targetChecksum) {
-			return $this->failedResult('Checksumme nach dem Verschieben stimmt nicht ueberein.', [
+			return $this->failedResult('Checksumme nach dem Verschieben stimmt nicht überein.', [
 				'sourceChecksum' => $sourceChecksum,
 				'targetChecksum' => $targetChecksum,
 			]);
@@ -273,18 +273,18 @@ class QueueExecutionService {
 	 */
 	private function handleExistingCopyTarget(QueueItem $item, File $source, File $target, ?string $sourceChecksum): array {
 		if ($target->getPath() === $source->getPath()) {
-			return $this->executedResult('Quelle liegt bereits im Zielordner; Kopieren wurde als erledigt markiert.', $sourceChecksum, $sourceChecksum, [
+			return $this->executedResult('Quelle liegt bereits im Ablageordner; Kopieren wurde als erledigt markiert.', $sourceChecksum, $sourceChecksum, [
 				'idempotent' => true,
 			]);
 		}
 
 		if (!$item->getSafeMode()) {
-			return $this->blockedResult('Zieldatei existiert bereits. Ohne Safe Mode wird kein Duplikat ueberschrieben.', [], $sourceChecksum);
+			return $this->blockedResult('Zieldatei existiert bereits. Ohne Safe Mode wird keine Doppelung überschrieben.', [], $sourceChecksum);
 		}
 
 		$targetChecksum = $target->hash('sha256');
 		if ($sourceChecksum === $targetChecksum) {
-			return $this->executedResult('Zieldatei existiert bereits mit gleicher Checksumme; Duplikat wurde uebersprungen.', $sourceChecksum, $targetChecksum, [
+			return $this->executedResult('Zieldatei existiert bereits mit gleicher Checksumme; Doppelung wurde übersprungen.', $sourceChecksum, $targetChecksum, [
 				'idempotent' => true,
 			]);
 		}
@@ -297,7 +297,7 @@ class QueueExecutionService {
 
 	private function finishItem(QueueItem $item, array $result): void {
 		$status = (string)($result['status'] ?? self::STATUS_FAILED);
-		$message = (string)($result['message'] ?? 'Unbekannter Ausfuehrungsstatus.');
+		$message = (string)($result['message'] ?? 'Unbekannter Ablagestatus.');
 		$item->setStatus($status);
 		$item->setSourceChecksum($result['sourceChecksum'] ?? null);
 		$item->setTargetChecksum($result['targetChecksum'] ?? null);
@@ -365,7 +365,7 @@ class QueueExecutionService {
 				$job->setStatus('executing');
 			} elseif ($failed > 0) {
 				$job->setStatus('error');
-				$job->setErrorMessage('Mindestens eine Queue-Operation wurde blockiert oder ist fehlgeschlagen.');
+				$job->setErrorMessage('Mindestens eine Ablage wurde blockiert oder ist fehlgeschlagen.');
 				$job->setExecutionFinishedAt(time());
 			} elseif ($planned > 0) {
 				$job->setStatus('ready');

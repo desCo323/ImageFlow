@@ -52,7 +52,7 @@ class FavoriteService {
 		}
 
 		if ($this->favoriteMapper->countForUserAndMode($userId, $mode) >= self::MAX_FAVORITES) {
-			throw new \InvalidArgumentException('Maximal neun Favoriten sind fuer direkte Hotkeys vorgesehen.');
+				throw new \InvalidArgumentException('Maximal neun Schnellziele können direkte Hotkeys bekommen.');
 		}
 
 		$now = time();
@@ -75,7 +75,7 @@ class FavoriteService {
 			'mode' => $mode,
 			'targetLabel' => $targetLabel,
 			'targetPath' => $targetPath,
-		], null, 'Favorit wurde hinzugefuegt.');
+			], null, 'Schnellziel wurde hinzugefügt.');
 
 		return [
 			'favorite' => $this->serializeFavorite($favorite),
@@ -171,7 +171,7 @@ class FavoriteService {
 	private function withSkip(array $favorites): array {
 		$favorites[] = [
 			'id' => 'skip',
-			'label' => 'Ueberspringen',
+				'label' => 'Überspringen',
 			'path' => null,
 			'targetId' => null,
 			'hotkey' => '0',
@@ -217,7 +217,7 @@ class FavoriteService {
 
 	private function targetMode(string $mode): string {
 		if (!in_array($mode, self::MODES, true)) {
-			throw new \InvalidArgumentException('Ungueltiger Zielmodus.');
+			throw new \InvalidArgumentException('Ungültige Ablageart.');
 		}
 
 		return $mode;
@@ -228,7 +228,7 @@ class FavoriteService {
 			return null;
 		}
 		if (!is_scalar($value) || trim((string)$value) === '') {
-			throw new \InvalidArgumentException('Fuer Ordner-Favoriten wird ein Zielordner benoetigt.');
+			throw new \InvalidArgumentException('Für Ordner-Schnellziele wird ein Ablageordner benötigt.');
 		}
 
 		return PathHelper::displayPath((string)$value);

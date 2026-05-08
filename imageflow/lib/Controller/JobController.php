@@ -45,7 +45,7 @@ class JobController extends Controller {
 			return $this->error('invalid_job_request', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {
 			$this->logService->exception('job_create_failed', $e, $this->userId);
-			return $this->error('job_create_failed', 'Der Flow konnte nicht angelegt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+				return $this->error('job_create_failed', 'Die Runde konnte nicht angelegt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -56,7 +56,7 @@ class JobController extends Controller {
 				'job' => $this->jobService->getJob($this->userId, $jobId),
 			]);
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		}
 	}
 
@@ -79,12 +79,12 @@ class JobController extends Controller {
 				'removed' => $this->jobService->discardJob($this->userId, $jobId),
 			]);
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('job_delete_blocked', $e->getMessage(), Http::STATUS_CONFLICT);
 		} catch (\Throwable $e) {
 			$this->logService->exception('job_delete_failed', $e, $this->userId, $jobId);
-			return $this->error('job_delete_failed', 'Der Flow konnte nicht verworfen werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+				return $this->error('job_delete_failed', 'Die Runde konnte nicht verworfen werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -107,10 +107,10 @@ class JobController extends Controller {
 				$this->intParam('limit', 250, 1, 500),
 			));
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\Throwable $e) {
 			$this->logService->exception('worklist_preview_failed', $e, $this->userId, $jobId);
-			return $this->error('worklist_preview_failed', 'Die Worklist konnte nicht geprueft werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+				return $this->error('worklist_preview_failed', 'Die Ablage konnte nicht geprüft werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -129,7 +129,7 @@ class JobController extends Controller {
 				}
 				return new JSONResponse([
 					'error' => 'worklist_not_ready',
-					'message' => 'Die Worklist enthaelt Fehler oder keine geplanten Operationen.',
+					'message' => 'Die Ablage enthält Fehler oder noch keine Entscheidungen.',
 					'preview' => $preview,
 				], Http::STATUS_CONFLICT);
 			}
@@ -140,10 +140,10 @@ class JobController extends Controller {
 				'preview' => $this->worklistPreviewService->preview($this->userId, $jobId, 500),
 			]);
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\Throwable $e) {
 			$this->logService->exception('job_queue_execution_failed', $e, $this->userId, $jobId);
-			return $this->error('job_queue_execution_failed', 'Die Ausfuehrung konnte nicht vorgemerkt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+				return $this->error('job_queue_execution_failed', 'Die Ablage konnte nicht für später gemerkt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -153,7 +153,7 @@ class JobController extends Controller {
 			if (!$this->queueExecutionService->isRealExecutionEnabled()) {
 				return new JSONResponse([
 					'error' => 'real_execution_disabled',
-					'message' => 'Echte Dateioperationen sind serverseitig deaktiviert.',
+					'message' => 'Echte Dateiänderungen sind serverseitig deaktiviert.',
 					'preview' => $this->worklistPreviewService->preview($this->userId, $jobId, 500),
 				], Http::STATUS_CONFLICT);
 			}
@@ -165,10 +165,10 @@ class JobController extends Controller {
 				'preview' => $this->worklistPreviewService->preview($this->userId, $jobId, 500),
 			]);
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\Throwable $e) {
 			$this->logService->exception('job_process_now_failed', $e, $this->userId, $jobId);
-			return $this->error('job_process_now_failed', 'Die Ablage konnte nicht verarbeitet werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+				return $this->error('job_process_now_failed', 'Die Ablage konnte nicht abgelegt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -178,7 +178,7 @@ class JobController extends Controller {
 				'job' => $this->jobService->setStatus($this->userId, $jobId, $status),
 			]);
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+				return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_job_status', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		}

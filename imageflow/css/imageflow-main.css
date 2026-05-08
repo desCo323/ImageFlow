@@ -341,6 +341,7 @@
   border-bottom: 1px solid var(--color-border);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
 .imageflow-badge {
@@ -403,7 +404,9 @@
 
 .imageflow-job-head h3,
 .imageflow-job-head p {
+  min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .imageflow-job-head p {
@@ -489,6 +492,7 @@
   color: var(--color-text-maxcontrast);
   font-size: 12px;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .imageflow-flow-milestone {
@@ -508,6 +512,8 @@
 
 .imageflow-rail,
 .imageflow-targets {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   padding: 10px;
@@ -526,6 +532,12 @@
 .imageflow-strip {
   display: grid;
   gap: 8px;
+}
+
+.imageflow-favorite-list,
+.imageflow-target-list {
+  min-height: 0;
+  overflow: auto;
 }
 
 .imageflow-favorite-row,
@@ -1130,20 +1142,20 @@
     grid-template-columns: 1fr;
   }
 
-	  .imageflow-sort {
-	    min-height: auto;
-	  }
+  .imageflow-sort {
+    min-height: auto;
+  }
 
-	  .imageflow-safety-strip {
-	    align-items: flex-start;
-	    flex-direction: column;
-	  }
+  .imageflow-safety-strip {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 
-	  .imageflow-safety-badges {
-	    justify-content: flex-start;
-	  }
+  .imageflow-safety-badges {
+    justify-content: flex-start;
+  }
 
-	  .imageflow-photo {
+  .imageflow-photo {
     min-height: 300px;
   }
 }
@@ -1180,6 +1192,24 @@
   .imageflow-mark {
     width: 42px;
     height: 42px;
+  }
+
+  .imageflow-photo {
+    min-height: 240px;
+    padding: 10px;
+  }
+
+  .imageflow-photo-card {
+    width: 100%;
+  }
+
+  .imageflow-feedback-burst {
+    inset: 10px 10px auto auto;
+    max-width: calc(100% - 20px);
+  }
+
+  .imageflow-strip {
+    grid-auto-columns: minmax(112px, 132px);
   }
 }
 

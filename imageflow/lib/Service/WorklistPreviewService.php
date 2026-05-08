@@ -73,7 +73,10 @@ class WorklistPreviewService {
 			'errors' => $summary['errors'],
 			'warnings' => $summary['warnings'],
 			'canQueue' => $canQueue,
-		], $jobId, 'Worklist-Dry-Run wurde berechnet.');
+		], $jobId, 'Ablage-Vorschau wurde geprüft.');
+
+		$realExecutionEnabled = $this->realExecutionEnabled();
+		$backgroundProcessingEnabled = $this->backgroundProcessingEnabled();
 
 		return [
 			'job' => [
@@ -87,12 +90,21 @@ class WorklistPreviewService {
 			'summary' => $summary,
 			'items' => $rows,
 			'canQueue' => $canQueue,
-			'executionMode' => $this->realExecutionEnabled() ? 'real-writes-enabled' : 'dry-run-only',
-				'backgroundMode' => ($this->backgroundProcessingEnabled() && $this->realExecutionEnabled()) ? 'cron-enabled' : 'manual-only',
+			'executionMode' => $realExecutionEnabled ? 'real-writes-enabled' : 'dry-run-only',
+			'backgroundMode' => ($backgroundProcessingEnabled && $realExecutionEnabled) ? 'cron-enabled' : 'manual-only',
 			'autoProcess' => (bool)($options['autoProcess'] ?? false),
-			'message' => $this->realExecutionEnabled()
-				? 'Echte Dateioperationen sind serverseitig freigeschaltet. Die Worklist wird vor der Ausfuehrung weiterhin idempotent und sicher geprueft.'
-				: 'Dateioperationen sind weiterhin gesperrt. Diese Vorschau prueft die Worklist vor der spaeteren Freigabe realer Writes.',
+			'safety' => [
+				'realExecutionEnabled' => $realExecutionEnabled,
+				'backgroundProcessingEnabled' => $backgroundProcessingEnabled,
+				'writesBlocked' => !$realExecutionEnabled,
+				'duplicateCheck' => true,
+				'targetConflictCheck' => true,
+				'checksumOnExecution' => $job->getSafeMode(),
+				'checkedItems' => $summary['total'],
+			],
+			'message' => $realExecutionEnabled
+				? 'Echte Dateiänderungen sind serverseitig freigeschaltet. Jede Ablage wird trotzdem noch einmal auf Doppelungen, Zielkonflikte und Prüfsummen geprüft.'
+				: 'Dateiänderungen sind gesperrt. Du kannst die Ablage prüfen und für später merken, ohne Dateien zu verändern.',
 		];
 	}
 
@@ -106,7 +118,7 @@ class WorklistPreviewService {
 		$key = $this->operationKey($item);
 		if (isset($seenKeys[$key])) {
 			$readiness = 'warning';
-			$messages[] = 'Doppelte Operation in dieser Worklist.';
+			$messages[] = 'Diese Entscheidung ist doppelt vorgemerkt und wird später nur einmal wirksam.';
 		}
 		$seenKeys[$key] = true;
 
@@ -119,35 +131,35 @@ class WorklistPreviewService {
 		if ($item->getOperationType() === 'album') {
 			if ($item->getTargetAlbumId() === null || !$this->albumExists($userId, $item->getTargetAlbumId())) {
 				$readiness = $this->worseReadiness($readiness, 'warning');
-				$messages[] = 'Album konnte nicht sicher verifiziert werden.';
+				$messages[] = 'Album konnte noch nicht sicher verifiziert werden.';
 			} elseif ($sourceNode instanceof File && $this->albumContainsFile((int)$item->getTargetAlbumId(), $sourceNode->getId())) {
 				$readiness = $this->worseReadiness($readiness, 'warning');
-				$messages[] = 'Bild ist bereits im Album; spaetere Ausfuehrung ueberspringt das Duplikat.';
+				$messages[] = 'Bild ist bereits im Album; die spätere Ablage überspringt die Doppelung.';
 			}
 		} elseif ($item->getOperationType() === 'copy' || $item->getOperationType() === 'move') {
 			$targetPath = $item->getTargetPath();
 			$targetNode = $targetPath !== null ? $this->nodeForDisplayPath($userId, $targetPath) : null;
 			if (!$targetNode instanceof Folder) {
 				$readiness = 'error';
-				$messages[] = 'Zielordner fehlt oder ist nicht lesbar.';
+				$messages[] = 'Ablageordner fehlt oder ist nicht lesbar.';
 			} elseif ($sourceNode instanceof File) {
 				$targetFilePath = rtrim($targetPath ?? '/', '/') . '/' . PathHelper::fileNameFromPath($item->getSourcePath());
 				if ($this->nodeForDisplayPath($userId, $targetFilePath) instanceof File) {
 					$readiness = $this->worseReadiness($readiness, 'warning');
-					$messages[] = 'Zieldatei existiert bereits; spaetere Ausfuehrung muss Duplikat sicher ueberspringen.';
+					$messages[] = 'Zieldatei existiert bereits; die spätere Ablage muss die Doppelung sicher überspringen.';
 				}
 				if (PathHelper::parentPath($item->getSourcePath()) === PathHelper::displayPath((string)$targetPath)) {
 					$readiness = $this->worseReadiness($readiness, 'warning');
-					$messages[] = 'Quelle liegt bereits im Zielordner.';
+					$messages[] = 'Quelle liegt bereits im Ablageordner.';
 				}
 			}
 		} else {
 			$readiness = 'error';
-			$messages[] = 'Unbekannter Operationstyp.';
+			$messages[] = 'Unbekannte Ablageart.';
 		}
 
 		if ($messages === []) {
-			$messages[] = $item->getSafeMode() ? 'Bereit fuer sichere Pruefung mit Checksumme.' : 'Bereit, aber ohne Checksumme.';
+			$messages[] = $item->getSafeMode() ? 'Bereit für die sichere Prüfung mit Checksumme.' : 'Bereit, aber ohne Checksumme.';
 		}
 
 		return [

@@ -53,7 +53,7 @@ class JobService {
 
 		$name = trim((string)($input['name'] ?? ''));
 		if ($name === '') {
-			$name = 'Sortierung ' . date('Y-m-d H:i');
+			$name = 'Runde ' . date('Y-m-d H:i');
 		}
 
 		$job = new SortJob();
@@ -82,7 +82,7 @@ class JobService {
 			'sourcePath' => $sourcePath,
 			'targetPath' => $targetPath,
 			'safeMode' => $job->getSafeMode(),
-		], $job->getId(), 'Flow wurde angelegt.');
+		], $job->getId(), 'Runde wurde angelegt.');
 
 		return $this->serializeJob($job);
 	}
@@ -126,7 +126,7 @@ class JobService {
 		$this->logService->info('job_status_changed', $userId, [
 			'jobId' => $jobId,
 			'status' => $status,
-		], $jobId, 'Flowstatus wurde geaendert.');
+		], $jobId, 'Rundenstatus wurde geändert.');
 
 		return $this->serializeJob($job);
 	}
@@ -150,7 +150,7 @@ class JobService {
 			'queuedItems' => $queued,
 			'safeMode' => $job->getSafeMode(),
 			'autoProcess' => (bool)$options['autoProcess'],
-		], $jobId, 'Ausfuehrung wurde vom Hauptmenue aus vorgemerkt.');
+		], $jobId, 'Ablage wurde in der Übersicht für später gemerkt.');
 
 		return $this->serializeJob($job);
 	}
@@ -182,7 +182,7 @@ class JobService {
 	public function discardJob(string $userId, int $jobId): array {
 		$job = $this->jobMapper->findForUserById($userId, $jobId);
 		if ($job->getStatus() === 'executing' || $job->getExecutedOperations() > 0) {
-			throw new \InvalidArgumentException('Flows mit laufender oder bereits ausgefuehrter Ablage koennen nicht verworfen werden.');
+			throw new \InvalidArgumentException('Runden mit laufender oder bereits abgelegter Ablage können nicht verworfen werden.');
 		}
 
 		$removedQueue = $this->queueMapper->deleteForJob($userId, $jobId);
@@ -193,7 +193,7 @@ class JobService {
 			'jobId' => $jobId,
 			'removedAssignments' => $removedAssignments,
 			'removedQueueItems' => $removedQueue,
-		], null, 'Flow wurde verworfen.');
+		], null, 'Runde wurde verworfen.');
 
 		return [
 			'assignments' => $removedAssignments,

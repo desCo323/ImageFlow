@@ -53,3 +53,6 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 16. Overview self-test protection status
    ![Overview self-test protection status](screenshots/16-self-test-status.png)
+
+17. Large filmstrip with next-page prefetch
+   ![Large filmstrip with next-page prefetch](screenshots/17-large-filmstrip-prefetch.png)

@@ -136,7 +136,7 @@ class SortService {
 				'queueItemId' => $duplicateQueueItem->getId(),
 				'sourcePath' => $sourcePath,
 				'targetLabel' => $targetLabel,
-			], $jobId, 'Doppelte Sortierentscheidung wurde nicht erneut in die Queue geschrieben.');
+			], $jobId, 'Doppelte Entscheidung wurde nicht erneut für die Ablage vorgemerkt.');
 
 			return [
 				'assignment' => null,
@@ -188,7 +188,7 @@ class SortService {
 			'queueItemId' => $queueItem->getId(),
 			'sourcePath' => $sourcePath,
 			'targetLabel' => $targetLabel,
-		], $jobId, 'Sortierentscheidung wurde als geplante Operation gespeichert.');
+		], $jobId, 'Entscheidung wurde für die spätere Ablage gespeichert.');
 
 		return [
 			'assignment' => $this->serializeAssignment($assignment),
@@ -215,7 +215,7 @@ class SortService {
 		$assignment->setFileName(PathHelper::fileNameFromPath($sourcePath) ?: 'Bild');
 		$assignment->setMimeType($this->optionalString($input['mimeType'] ?? null, 128));
 		$assignment->setTargetType('skip');
-		$assignment->setTargetLabel('Uebersprungen');
+		$assignment->setTargetLabel('Übersprungen');
 		$assignment->setHotkey($this->optionalString($input['hotkey'] ?? '0', 16));
 		$assignment->setActionStatus('skipped');
 		$assignment->setCreatedAt($now);
@@ -231,7 +231,7 @@ class SortService {
 			'jobId' => $jobId,
 			'assignmentId' => $assignment->getId(),
 			'sourcePath' => $sourcePath,
-		], $jobId, 'Bild wurde uebersprungen.');
+		], $jobId, 'Bild wurde übersprungen.');
 
 		return [
 			'assignment' => $this->serializeAssignment($assignment),
@@ -256,7 +256,7 @@ class SortService {
 
 		$favorites[] = [
 			'id' => 'skip',
-			'label' => 'Weiter',
+			'label' => 'Überspringen',
 			'path' => null,
 			'targetId' => null,
 			'hotkey' => '0',

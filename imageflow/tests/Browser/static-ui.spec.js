@@ -147,12 +147,19 @@ test('keeps a large filmstrip bounded and responsive', async ({ page }) => {
   const buffered = Number(await app.getAttribute('data-buffered-images'));
   expect(buffered).toBeLessThanOrEqual(32);
 
-  for (let index = 0; index < 28; index += 1) {
+  for (let index = 0; index < 21; index += 1) {
+    await page.keyboard.press('ArrowRight');
+  }
+  await expect(currentName).toHaveText('IMG_0042.jpg');
+  await expect.poll(async () => Number(await app.getAttribute('data-page-cache-size'))).toBeGreaterThan(1);
+
+  for (let index = 0; index < 7; index += 1) {
     await page.keyboard.press('ArrowRight');
   }
   await expect(currentName).toHaveText('IMG_0049.jpg');
   await expect(filmstrip).toContainText('49-96 von 1200');
   await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
+  await expect(app).toHaveAttribute('data-page-cache-hit', '1');
   expect(Number(await app.getAttribute('data-buffered-images'))).toBeLessThanOrEqual(32);
 });
 
