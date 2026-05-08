@@ -15,6 +15,7 @@
   const imageBuffer = new Map();
   let positionSaveTimer = null;
   let feedbackTimer = null;
+  let imagePageLoadPromise = null;
 
   const state = {
     page: root.dataset.page || "jobs",
@@ -188,7 +189,13 @@
       };
     }
     if (path.includes("/sort-state")) {
-      return mockSortState(state.jobId || 1);
+      const jobId = Number.parseInt(path.split("/").at(4), 10) || state.jobId || 1;
+      const query = new URLSearchParams(path.split("?")[1] || "");
+      return mockSortState(jobId, {
+        cursor: query.has("cursor") ? Number.parseInt(query.get("cursor") || "0", 10) : null,
+        limit: query.has("limit") ? Number.parseInt(query.get("limit") || String(PAGE_LIMIT), 10) : PAGE_LIMIT,
+        start: query.get("start"),
+      });
     }
     if (path.includes("/position")) {
       return {
@@ -326,63 +333,117 @@
     ];
   }
 
-  function mockSortState(jobId) {
-    const job = state.jobs.find((item) => item.id === jobId) || mockJobs().find((item) => item.id === jobId) || mockJobs()[0];
+  function mockSortState(jobId, pageOptions = {}) {
+    const baseJob = state.jobs.find((item) => item.id === jobId) || mockJobs().find((item) => item.id === jobId) || mockJobs()[0];
+    const total = mockImageCount();
+    const limit = Math.max(1, Math.min(PAGE_LIMIT, Number(pageOptions.limit || PAGE_LIMIT)));
+    const cursor = Math.max(0, Math.min(Math.max(0, total - 1), Number(pageOptions.cursor || 0)));
+    const images = mockImagesForPage(baseJob, cursor, limit);
+    const job = {
+      ...baseJob,
+      totalFiles: Math.max(Number(baseJob.totalFiles || 0), total),
+    };
     return {
       job,
       favorites: mockFavoritesWithSkip(mockRealFavorites()),
-      nextImages: [
-        {
-          fileId: 11,
-          name: "IMG_4021.jpg",
-          path: `${job.sourcePath}/IMG_4021.jpg`,
-          mimeType: "image/jpeg",
-          previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%231d1d1d'/%3E%3Cpath d='M80 650 380 310l190 230 150-160 400 270z' fill='%23b7eadf'/%3E%3Ccircle cx='880' cy='190' r='80' fill='%23f4a4b8'/%3E%3C/svg%3E",
-          thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%231d1d1d'/%3E%3Cpath d='M20 185 105 80l50 70 44-50 100 85z' fill='%23b7eadf'/%3E%3C/svg%3E",
-        },
-        {
-          fileId: 12,
-          name: "IMG_4022.jpg",
-          path: `${job.sourcePath}/IMG_4022.jpg`,
-          mimeType: "image/jpeg",
-          previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%232f3d46'/%3E%3Cpath d='M0 600 280 350l200 190 260-290 460 350v200H0z' fill='%23d94f70'/%3E%3Ccircle cx='980' cy='150' r='70' fill='%23ffe8a3'/%3E%3C/svg%3E",
-          thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%232f3d46'/%3E%3Cpath d='M0 180 80 95l60 55 70-82 110 112v40H0z' fill='%23d94f70'/%3E%3C/svg%3E",
-        },
-        {
-          fileId: 13,
-          name: "IMG_4023.jpg",
-          path: `${job.sourcePath}/IMG_4023.jpg`,
-          mimeType: "image/jpeg",
-          previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%2332254a'/%3E%3Cpath d='M120 620 360 260l180 250 140-130 380 240z' fill='%237357c8'/%3E%3Ccircle cx='930' cy='210' r='88' fill='%23b7eadf'/%3E%3C/svg%3E",
-          thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%2332254a'/%3E%3Cpath d='M30 180 102 65l52 80 42-40 104 75z' fill='%237357c8'/%3E%3C/svg%3E",
-        },
-      ],
+      nextImages: images,
       imagePage: {
-        cursor: 0,
-        limit: PAGE_LIMIT,
-        total: 3,
-        returned: 3,
-        hasPrevious: false,
-        previousCursor: null,
-        hasNext: false,
-        nextCursor: null,
+        cursor,
+        limit,
+        total,
+        returned: images.length,
+        hasPrevious: cursor > 0,
+        previousCursor: cursor > 0 ? Math.max(0, cursor - limit) : null,
+        hasNext: cursor + images.length < total,
+        nextCursor: cursor + images.length < total ? cursor + images.length : null,
         mode: "mock",
       },
       start: {
-        mode: "resume",
-        cursor: 0,
+        mode: pageOptions.start || "resume",
+        cursor,
         index: 0,
-        fileId: 11,
+        fileId: images[0]?.fileId || null,
       },
       savedPosition: {
-        cursor: 0,
+        cursor,
         index: 0,
-        fileId: 11,
+        fileId: images[0]?.fileId || null,
         savedAt: null,
       },
       recentAssignments: [],
       queue: [],
     };
+  }
+
+  function mockImageCount() {
+    const count = Number.parseInt(root.dataset.mockImageCount || "3", 10);
+    return Math.max(3, Math.min(5000, Number.isFinite(count) ? count : 3));
+  }
+
+  function mockImagesForPage(job, cursor, limit) {
+    if (mockImageCount() <= 3) {
+      return mockBaseImages(job);
+    }
+
+    const total = mockImageCount();
+    const end = Math.min(total, cursor + limit);
+    const images = [];
+    for (let index = cursor; index < end; index += 1) {
+      images.push(mockGeneratedImage(job, index));
+    }
+    return images;
+  }
+
+  function mockBaseImages(job) {
+    return [
+      {
+        fileId: 11,
+        name: "IMG_4021.jpg",
+        path: `${job.sourcePath}/IMG_4021.jpg`,
+        mimeType: "image/jpeg",
+        previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%231d1d1d'/%3E%3Cpath d='M80 650 380 310l190 230 150-160 400 270z' fill='%23b7eadf'/%3E%3Ccircle cx='880' cy='190' r='80' fill='%23f4a4b8'/%3E%3C/svg%3E",
+        thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%231d1d1d'/%3E%3Cpath d='M20 185 105 80l50 70 44-50 100 85z' fill='%23b7eadf'/%3E%3C/svg%3E",
+      },
+      {
+        fileId: 12,
+        name: "IMG_4022.jpg",
+        path: `${job.sourcePath}/IMG_4022.jpg`,
+        mimeType: "image/jpeg",
+        previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%232f3d46'/%3E%3Cpath d='M0 600 280 350l200 190 260-290 460 350v200H0z' fill='%23d94f70'/%3E%3Ccircle cx='980' cy='150' r='70' fill='%23ffe8a3'/%3E%3C/svg%3E",
+        thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%232f3d46'/%3E%3Cpath d='M0 180 80 95l60 55 70-82 110 112v40H0z' fill='%23d94f70'/%3E%3C/svg%3E",
+      },
+      {
+        fileId: 13,
+        name: "IMG_4023.jpg",
+        path: `${job.sourcePath}/IMG_4023.jpg`,
+        mimeType: "image/jpeg",
+        previewUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800'%3E%3Crect width='1200' height='800' fill='%2332254a'/%3E%3Cpath d='M120 620 360 260l180 250 140-130 380 240z' fill='%237357c8'/%3E%3Ccircle cx='930' cy='210' r='88' fill='%23b7eadf'/%3E%3C/svg%3E",
+        thumbnailUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 220'%3E%3Crect width='320' height='220' fill='%2332254a'/%3E%3Cpath d='M30 180 102 65l52 80 42-40 104 75z' fill='%237357c8'/%3E%3C/svg%3E",
+      },
+    ];
+  }
+
+  function mockGeneratedImage(job, index) {
+    const number = String(index + 1).padStart(4, "0");
+    const palette = [
+      ["#1d1d1d", "#b7eadf", "#f4a4b8"],
+      ["#2f3d46", "#d94f70", "#ffe8a3"],
+      ["#33254a", "#7357c8", "#b7eadf"],
+      ["#163f3a", "#ffd36e", "#d94f70"],
+    ][index % 4];
+    return {
+      fileId: 10000 + index,
+      name: `IMG_${number}.jpg`,
+      path: `${job.sourcePath}/IMG_${number}.jpg`,
+      mimeType: "image/jpeg",
+      previewUrl: mockSvgDataUrl(1200, 800, palette, number),
+      thumbnailUrl: mockSvgDataUrl(320, 220, palette, number),
+    };
+  }
+
+  function mockSvgDataUrl(width, height, palette, label) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><rect width="${width}" height="${height}" fill="${palette[0]}"/><path d="M0 ${height * 0.82} ${width * 0.25} ${height * 0.45} ${width * 0.42} ${height * 0.68} ${width * 0.62} ${height * 0.36} ${width} ${height * 0.82}V${height}H0z" fill="${palette[1]}"/><circle cx="${width * 0.8}" cy="${height * 0.23}" r="${Math.max(18, width * 0.06)}" fill="${palette[2]}"/><text x="${width * 0.06}" y="${height * 0.18}" fill="#ffffff" font-family="Arial" font-size="${Math.max(22, width * 0.06)}" font-weight="700">${label}</text></svg>`;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
   }
 
   function mockRealFavorites() {
@@ -1874,7 +1935,15 @@
     if (cursor === null || cursor === undefined) {
       return;
     }
-    await loadImagePage(Math.max(0, Number(cursor) || 0), preferredIndex);
+    if (imagePageLoadPromise) {
+      await imagePageLoadPromise;
+      return;
+    }
+    imagePageLoadPromise = loadImagePage(Math.max(0, Number(cursor) || 0), preferredIndex)
+      .finally(() => {
+        imagePageLoadPromise = null;
+      });
+    await imagePageLoadPromise;
   }
 
   function completeCurrentDecision(type, label = "") {
@@ -2005,7 +2074,7 @@
 
   function syncImageBuffer() {
     if (state.page !== "sort") {
-      imageBuffer.clear();
+      clearImageBuffer();
       return;
     }
 
@@ -2021,9 +2090,11 @@
 
     Array.from(imageBuffer.keys()).forEach((key) => {
       if (!keepKeys.has(key) || imageBuffer.size > MAX_BUFFERED_IMAGES) {
-        imageBuffer.delete(key);
+        deleteBufferedImage(key);
       }
     });
+    root.dataset.bufferedImages = String(imageBuffer.size);
+    root.dataset.bufferPlan = String(state.bufferPlan.length);
   }
 
   function preloadImage(image, key) {
@@ -2049,6 +2120,35 @@
       }).catch(() => {
         entry.status = "failed";
       });
+    }
+  }
+
+  function deleteBufferedImage(key) {
+    const entry = imageBuffer.get(key);
+    if (!entry) {
+      return;
+    }
+    releaseBufferedImage(entry);
+    imageBuffer.delete(key);
+  }
+
+  function clearImageBuffer() {
+    Array.from(imageBuffer.keys()).forEach(deleteBufferedImage);
+    root.dataset.bufferedImages = "0";
+    root.dataset.bufferPlan = "0";
+  }
+
+  function releaseBufferedImage(entry) {
+    const loader = entry?.loader;
+    if (!loader) {
+      return;
+    }
+    loader.onload = null;
+    loader.onerror = null;
+    try {
+      loader.removeAttribute("src");
+    } catch (error) {
+      loader.src = "";
     }
   }
 

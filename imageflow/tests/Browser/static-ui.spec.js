@@ -120,6 +120,39 @@ test('moves through the filmstrip with arrow keys and thumbnail selection', asyn
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
 });
 
+test('keeps a large filmstrip bounded and responsive', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1" data-mock-image-count="1200"');
+
+  const app = page.locator('#imageflow-app');
+  const currentName = page.locator('.imageflow-photo-meta strong');
+  const filmstrip = page.locator('.imageflow-filmstrip');
+
+  await expect(currentName).toHaveText('IMG_0001.jpg');
+  await expect(filmstrip).toContainText('1-48 von 1200');
+  await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
+  await expect(app).toHaveAttribute('data-buffer-plan', '9');
+
+  const startedAt = Date.now();
+  for (let index = 0; index < 20; index += 1) {
+    await page.keyboard.press('ArrowRight');
+  }
+  expect(Date.now() - startedAt).toBeLessThan(5000);
+  await expect(currentName).toHaveText('IMG_0021.jpg');
+  await expect(app).toHaveAttribute('data-buffer-plan', '17');
+  await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
+
+  const buffered = Number(await app.getAttribute('data-buffered-images'));
+  expect(buffered).toBeLessThanOrEqual(32);
+
+  for (let index = 0; index < 28; index += 1) {
+    await page.keyboard.press('ArrowRight');
+  }
+  await expect(currentName).toHaveText('IMG_0049.jpg');
+  await expect(filmstrip).toContainText('49-96 von 1200');
+  await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
+  expect(Number(await app.getAttribute('data-buffered-images'))).toBeLessThanOrEqual(32);
+});
+
 test('shows flow feedback after a sorting decision', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1"');
 

@@ -13,6 +13,7 @@
 - Add worklist dry-run preview before execution queueing and guarded non-destructive execution blocking.
 - Add guarded real execution engine behind `real_execution_enabled` for album, copy, and move operations with checksum validation and idempotent duplicate handling.
 - Add Flow terminology, automatic processing opt-in, manual batch processing endpoint, preload mode controls, user-visible debug protocol, and final preview screenshots.
+- Add large-folder filmstrip stabilization coverage and explicit stale image preload release.
 
 ## 0.1.0 - 2026-05-08
 

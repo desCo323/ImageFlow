@@ -68,10 +68,19 @@ test('previews and queues a worklist without file writes as albentest', async ({
     await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
     await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible({ timeout: 10000 });
 
-    const afterQueue = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=10`);
-    expect(afterQueue.summary.queued).toBeGreaterThan(0);
+	    const afterQueue = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=10`);
+	    expect(afterQueue.summary.queued).toBeGreaterThan(0);
+	    expect(afterQueue.executionMode).toBe('dry-run-only');
+	    expect(afterQueue.backgroundMode).toBe('manual-only');
+	    let processNowBlocked = false;
+	    try {
+	      await api(page, `/api/v1/jobs/${jobId}/process-now`, { method: 'POST', body: { limit: 1 } });
+	    } catch (error) {
+	      processNowBlocked = /deaktiviert|HTTP 409/.test(error.message);
+	    }
+	    expect(processNowBlocked).toBe(true);
 
-    await api(page, `/api/v1/jobs/${jobId}/discard`, { method: 'POST', body: {} });
+	    await api(page, `/api/v1/jobs/${jobId}/discard`, { method: 'POST', body: {} });
     jobId = null;
     await cleanupSmokeJobs(page);
   } finally {

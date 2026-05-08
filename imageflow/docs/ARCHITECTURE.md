@@ -52,7 +52,7 @@ Real execution remains gated by explicit job-level user action, dry-run preview,
 The sorting workspace now uses the high-speed filmstrip and worklist execution model:
 
 - ArrowLeft and ArrowRight move through the filmstrip immediately; number hotkeys still assign the currently focused photo.
-- The frontend keeps a bounded image buffer around the current position. `light`, `balanced` and `turbo` preload modes control the neighbor radius while the global image buffer still has a memory cap.
+- The frontend keeps a bounded image buffer around the current position. `light`, `balanced` and `turbo` preload modes control the neighbor radius while the global image buffer still has a memory cap and releases stale image loaders when they leave the buffer.
 - Large folders are read through filecache-backed offset cursor pages. The browser only receives the current page plus preview URLs, not the entire folder.
 - A job can resume at its last saved cursor/index, restart from the beginning, or jump to the first image without a recorded sort/skip decision.
 - Animations should use `transform` and `opacity` only, respect `prefers-reduced-motion`, and avoid layout shifts during rapid key navigation.
