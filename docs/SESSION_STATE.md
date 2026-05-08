@@ -40,6 +40,8 @@ Datum: 2026-05-08
 - Remote-Stand nach Bootstrap-Push: `origin/main` bei Commit `6838eba` (`merge GitHub initial state`).
 - Deploy-/Rollback-Skript `imageflow/scripts/production-update.sh` und Runbook `imageflow/docs/DEPLOYMENT_RUNBOOK.md` sind angelegt, lokal geprueft und gepusht. Deploy bleibt durch `IMAGEFLOW_PRODUCTION_UPDATE=1` gesperrt.
 - Remote-Stand nach Deploy-Tooling-Block: `origin/main` bei Commit `c0b07ba` (`add controlled ImageFlow deploy tooling`).
+- Live-Deploy am 2026-05-08: Dateien zuerst ohne Aktivierung deployed, danach mit Backup aktiviert. App `imageflow` ist enabled auf Version `0.1.0`; Tabellen `oc_imageflow_*` existieren; `occ status` sauber; authentifizierter Browser-Smoke mit `albentest` erfolgreich; keine Jobs/Queue/Testdaten angelegt.
+- Relevante Backups: `/home/cloud/imageflow-backups/imageflow-pre-update-0.1.0-20260508-192141` vor Datei-Deploy, `/home/cloud/imageflow-backups/imageflow-pre-update-0.1.0-20260508-192206` vor Aktivierung.
 
 ## Wiederherstellungsprompt
 

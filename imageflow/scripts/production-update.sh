@@ -110,6 +110,10 @@ db_name() {
 	php -r '$CONFIG = []; include $argv[1]; echo (string)($CONFIG["dbname"] ?? "");' "$NEXTCLOUD_ROOT/config/config.php"
 }
 
+db_prefix() {
+	php -r '$CONFIG = []; include $argv[1]; echo (string)($CONFIG["dbtableprefix"] ?? "oc_");' "$NEXTCLOUD_ROOT/config/config.php"
+}
+
 backup_database_tables() {
 	local backup_dir="$1"
 	local dbtype
@@ -128,7 +132,9 @@ backup_database_tables() {
 	write_mysql_defaults "$defaults"
 
 	local tables
-	tables="$(mysql --defaults-extra-file="$defaults" --batch --skip-column-names -e "SHOW TABLES LIKE 'imageflow\\_%';" 2>/dev/null || true)"
+	local prefix
+	prefix="$(db_prefix)"
+	tables="$(mysql --defaults-extra-file="$defaults" --batch --skip-column-names -e "SHOW TABLES LIKE '${prefix}imageflow\\_%';" 2>/dev/null || true)"
 	if [[ -z "$tables" ]]; then
 		echo "No imageflow_* tables existed before this operation." >"$backup_dir/db-imageflow-tables-missing.txt"
 		rm -f "$defaults"
@@ -163,7 +169,7 @@ Restore ImageFlow from backup:
 3. Restore ImageFlow database tables only if needed.
    If '$backup_dir/db-imageflow.sql' exists, import it with the Nextcloud DB credentials.
    If '$backup_dir/db-imageflow-tables-missing.txt' exists and rollback must remove bootstrap tables,
-   drop only tables named imageflow_% after confirming no other app uses them.
+   drop only tables named <Nextcloud table prefix>imageflow_% after confirming no other app uses them.
 
 4. Leave maintenance mode and verify:
    sudo -u www-data php $NEXTCLOUD_ROOT/occ maintenance:mode --off

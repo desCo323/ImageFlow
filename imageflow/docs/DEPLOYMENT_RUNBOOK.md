@@ -59,7 +59,7 @@ cd /home/cloud/ImageFlow-work/imageflow
 IMAGEFLOW_RESTORE=1 scripts/production-update.sh --restore /home/cloud/imageflow-backups/<backup-dir>
 ```
 
-For database rollback, follow the generated `RESTORE_PROMPT.txt` in the backup directory. Only `imageflow_%` tables are in scope.
+For database rollback, follow the generated `RESTORE_PROMPT.txt` in the backup directory. Only ImageFlow tables are in scope, usually `oc_imageflow_%` on this server.
 
 ## Post-Test Checks
 
@@ -71,3 +71,17 @@ sudo -u www-data php /var/www/nextcloud/occ app:list | grep -A 20 imageflow || t
 ```
 
 Also check `nextcloud.log` for new errors and clean up any isolated test folders used by `albentest`.
+
+## Authenticated Browser Smoke
+
+Authenticated tests are opt-in and must only use `albentest`:
+
+```bash
+cd /home/cloud/ImageFlow-work/imageflow
+IMAGEFLOW_BASE_URL=https://chaosnet.me \
+IMAGEFLOW_TEST_USER=albentest \
+IMAGEFLOW_TEST_PASSWORD='<runtime-only>' \
+npm run test:browser:auth
+```
+
+Do not store the password in files, traces, screenshots or shell profiles.

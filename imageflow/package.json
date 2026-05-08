@@ -6,6 +6,7 @@
   "scripts": {
     "check": "bash scripts/self-check.sh",
     "test:browser": "playwright test",
+    "test:browser:auth": "IMAGEFLOW_AUTH_TESTS=1 playwright test tests/Browser/authenticated-app.auth.spec.js --trace=off --reporter=line",
     "test:browser:headed": "playwright test --headed"
   },
   "devDependencies": {
