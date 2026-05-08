@@ -169,6 +169,10 @@
   gap: 5px;
 }
 
+.imageflow-field[hidden] {
+  display: none;
+}
+
 .imageflow-field label,
 .imageflow-toggle {
   font-weight: 700;

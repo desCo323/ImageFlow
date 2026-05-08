@@ -45,6 +45,7 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Fortsetzen' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Von vorne' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Offen' }).first()).toBeVisible();
+  await expect(page.getByLabel('Zielordner')).toBeHidden();
 
   await page.getByLabel('Name').fill('Browser Smoke');
   await page.getByLabel('Quellordner').fill('/Photos/Smoke');
