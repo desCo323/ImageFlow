@@ -5,7 +5,7 @@ Datum: 2026-05-08
 ## Neueste operative Notiz
 
 - Benutzerauftrag: Nextcloud-App fuer schnelles Sortieren grosser Bildordner entwickeln; Projektname ImageFlow; GitHub-Repository `desCo323/ImageFlow`.
-- Aktueller Stand: Blueprint-Arbeitsordner wurde nach `/home/cloud/ImageFlow-work` umbenannt. Lokales Git-Repo auf Branch `main` wurde initialisiert und Remote `origin` zeigt auf `https://github.com/desCo323/ImageFlow.git`. Die Nextcloud-App-Struktur `imageflow/` ist angelegt und lokal geprueft. Es wurden keine produktiven Nextcloud-Dateien veraendert.
+- Aktueller Stand: Blueprint-Arbeitsordner wurde nach `/home/cloud/ImageFlow-work` umbenannt. Lokales Git-Repo auf Branch `main` wurde initialisiert und Remote `origin` zeigt auf `https://github.com/desCo323/ImageFlow.git`. Die Nextcloud-App-Struktur `imageflow/` ist angelegt, lokal geprueft und nach GitHub gepusht. Es wurden keine produktiven Nextcloud-Dateien veraendert.
 - Geaenderte Dateien: `README.md`, `.gitignore`, `docs/SESSION_STATE.md`, `docs/UI_REFERENCE.md`, `docs/SECURITY_MODEL.md`, `docs/TEST_BACKLOG.md`, `docs/UPDATE_POLICY.md`, `docs/BROWSER_TESTING.md`, `docs/STORE_RELEASE_CHECKLIST.md`, `imageflow/**`.
 - Noch nicht deployed: Alles. Es gab keinen Deploy nach `/var/www/nextcloud/apps/`.
 - Naechste Schritte: Kontrollierten Deploy vorbereiten, Backup-/Restore-Prompt schreiben, danach erst authentifizierte Browser-Tests mit `albentest`.
@@ -35,8 +35,9 @@ Datum: 2026-05-08
 - GitHub-Push-Strategie ohne gespeicherte Tokens klaeren.
 - SakuraAlbum lokal inspizieren, bevor UI-Komponenten fuer ImageFlow festgelegt werden.
 - UI-Referenz aus SakuraAlbum in `docs/UI_REFERENCE.md` festgehalten.
-- GitHub-Repo `desCo323/ImageFlow` ist privat und ueber den GitHub-Connector mit Schreibrechten sichtbar. Lokales `gh` ist auf dem Server nicht installiert; ein CLI-Push wurde daher nicht mit Token erzwungen.
+- GitHub-Repo `desCo323/ImageFlow` ist privat und ueber den GitHub-Connector mit Schreibrechten sichtbar. Lokales `gh` ist auf dem Server nicht installiert; der Push wurde temporaer per `GIT_ASKPASS` durchgefuehrt, ohne Token in Git-Remote oder Projektdateien zu speichern.
 - App-Skeleton `imageflow/` ist installierbar angelegt: Navigation, Routen, Controller, Migration, Services, UI, Self-Check und Browser-Smokes.
+- Remote-Stand nach Bootstrap-Push: `origin/main` bei Commit `6838eba` (`merge GitHub initial state`).
 
 ## Wiederherstellungsprompt
 
