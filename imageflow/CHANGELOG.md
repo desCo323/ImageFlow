@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add production deploy PHP-FPM reload to avoid stale Nextcloud route/controller cache after file sync.
+- Document the next high-speed filmstrip, preload buffer, idempotent worklist, and cron execution architecture block.
+
 ## 0.1.0 - 2026-05-08
 
 - Initial installable ImageFlow skeleton.

@@ -33,6 +33,7 @@ IMAGEFLOW_PRODUCTION_UPDATE=1 scripts/production-update.sh --deploy
 ```
 
 The script creates a backup under `/home/cloud/imageflow-backups/` before touching the live app directory.
+After file sync it reloads active `php*-fpm.service` units by default, so Nextcloud does not keep stale route or controller code in PHP runtime cache. Set `IMAGEFLOW_RELOAD_PHP_FPM=0` only when the deployment window explicitly handles PHP runtime reload another way.
 
 ## Deploy And Enable
 
@@ -60,6 +61,7 @@ IMAGEFLOW_RESTORE=1 scripts/production-update.sh --restore /home/cloud/imageflow
 ```
 
 For database rollback, follow the generated `RESTORE_PROMPT.txt` in the backup directory. Only ImageFlow tables are in scope, usually `oc_imageflow_%` on this server.
+The restore path also reloads active PHP-FPM services by default after replacing app files.
 
 ## Post-Test Checks
 

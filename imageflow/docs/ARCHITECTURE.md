@@ -42,3 +42,16 @@ The current `QueueExecutionJob` does not copy, move, delete or write album membe
 - ownership and permission checks,
 - detailed logs,
 - rollback-tested deployment.
+
+## Next Performance Block
+
+The next sorting workspace block is the high-speed filmstrip and worklist execution model:
+
+- ArrowLeft and ArrowRight move through the filmstrip immediately; number hotkeys still assign the currently focused photo.
+- The frontend keeps a bounded image buffer around the current position: decoded current image, several full-size neighbors, and a wider thumbnail window. Stale loads must be aborted, and memory must be released with an LRU-style cap.
+- Large albums are read through cursor-based pages. The app must never load an entire huge folder or album into browser memory just to start sorting.
+- A job can resume at the last open position, start from the beginning, or jump to another safe cursor such as first unsorted image.
+- Animations should use `transform` and `opacity` only, respect `prefers-reduced-motion`, and avoid layout shifts during rapid key navigation.
+- Queue creation must be idempotent. Album and copy operations need a stable operation key and a pre-execution duplicate check so repeated processing runs do not create duplicate album memberships or duplicate copied files.
+- The dashboard remains the execution gate: users can process the current worklist now, leave it queued for later, or allow a cron-controlled low-load execution window.
+- Background execution must process small batches with detailed logs, retry metadata, and explicit `skipped_duplicate` outcomes when the desired target state already exists.

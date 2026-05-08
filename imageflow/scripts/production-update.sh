@@ -22,6 +22,7 @@ Environment:
   LIVE_APP_DIR              Defaults to $NEXTCLOUD_ROOT/apps/imageflow
   BACKUP_ROOT               Defaults to /home/cloud/imageflow-backups
   IMAGEFLOW_ENABLE_APP=1    Enable the app after deploy. This can run migrations.
+  IMAGEFLOW_RELOAD_PHP_FPM=0 Skip the default active PHP-FPM reload after file sync.
   IMAGEFLOW_ALLOW_DIRTY=1   Allow preflight/deploy with a dirty worktree.
 USAGE
 }
@@ -65,6 +66,31 @@ require_clean_worktree() {
 
 occ() {
 	sudo -n -u www-data php "$NEXTCLOUD_ROOT/occ" "$@"
+}
+
+reload_php_runtime() {
+	if [[ "${IMAGEFLOW_RELOAD_PHP_FPM:-1}" == "0" ]]; then
+		echo "PHP-FPM reload skipped because IMAGEFLOW_RELOAD_PHP_FPM=0."
+		return
+	fi
+	if ! command -v systemctl >/dev/null 2>&1; then
+		echo "PHP-FPM reload skipped: systemctl is not available."
+		return
+	fi
+
+	local services
+	services="$(systemctl list-units --type=service --state=active 'php*-fpm.service' --no-legend --no-pager | awk '{print $1}')"
+	if [[ -z "$services" ]]; then
+		echo "PHP-FPM reload skipped: no active php*-fpm.service found."
+		return
+	fi
+
+	local service
+	while IFS= read -r service; do
+		[[ -z "$service" ]] && continue
+		echo "Reloading $service to clear PHP opcode/app route cache."
+		sudo systemctl reload "$service"
+	done <<<"$services"
 }
 
 write_mysql_defaults() {
@@ -172,6 +198,7 @@ Restore ImageFlow from backup:
 
 4. Leave maintenance mode and verify:
    sudo -u www-data php $NEXTCLOUD_ROOT/occ maintenance:mode --off
+   sudo systemctl reload php8.3-fpm || true
    sudo -u www-data php $NEXTCLOUD_ROOT/occ status
 
 Expected after restore: maintenance false and needsDbUpgrade false.
@@ -274,6 +301,7 @@ deploy() {
 		echo "App copied but not enabled. Set IMAGEFLOW_ENABLE_APP=1 during deploy to enable and run migrations."
 	fi
 
+	reload_php_runtime
 	occ status
 }
 
@@ -299,6 +327,7 @@ restore() {
 		exit 1
 	fi
 
+	reload_php_runtime
 	occ status
 	echo "File-level restore completed. Review '$RESTORE_SOURCE/RESTORE_PROMPT.txt' for DB rollback instructions."
 }
