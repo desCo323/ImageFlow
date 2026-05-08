@@ -92,7 +92,6 @@ write_mysql_defaults() {
 		echo "[client]\n";
 		echo "user=" . (string)($CONFIG["dbuser"] ?? "") . "\n";
 		echo "password=" . (string)($CONFIG["dbpassword"] ?? "") . "\n";
-		echo "database=" . (string)($CONFIG["dbname"] ?? "") . "\n";
 		if ($host !== "") {
 			echo "host=" . $host . "\n";
 		}
@@ -133,16 +132,16 @@ backup_database_tables() {
 
 	local tables
 	local prefix
+	local db
 	prefix="$(db_prefix)"
-	tables="$(mysql --defaults-extra-file="$defaults" --batch --skip-column-names -e "SHOW TABLES LIKE '${prefix}imageflow\\_%';" 2>/dev/null || true)"
+	db="$(db_name)"
+	tables="$(mysql --defaults-extra-file="$defaults" --batch --skip-column-names "$db" -e "SHOW TABLES LIKE '${prefix}imageflow\\_%';" 2>/dev/null || true)"
 	if [[ -z "$tables" ]]; then
 		echo "No imageflow_* tables existed before this operation." >"$backup_dir/db-imageflow-tables-missing.txt"
 		rm -f "$defaults"
 		return
 	fi
 
-	local db
-	db="$(db_name)"
 	local -a table_array
 	mapfile -t table_array <<<"$tables"
 	mysqldump --defaults-extra-file="$defaults" --single-transaction --skip-lock-tables "$db" "${table_array[@]}" >"$backup_dir/db-imageflow.sql"
