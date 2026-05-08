@@ -5,16 +5,16 @@ Datum: 2026-05-08
 ## Neueste operative Notiz
 
 - Benutzerauftrag: Nextcloud-App fuer schnelles Sortieren grosser Bildordner entwickeln; Projektname ImageFlow; GitHub-Repository `desCo323/ImageFlow`.
-- Aktueller Stand: Blueprint-Arbeitsordner wurde nach `/home/cloud/ImageFlow-work` umbenannt. Lokales Git-Repo auf Branch `main` wurde initialisiert und Remote `origin` zeigt auf `https://github.com/desCo323/ImageFlow.git`. Es wurden keine produktiven Nextcloud-Dateien veraendert.
-- Geaenderte Dateien: `README.md`, `.gitignore`, `docs/SESSION_STATE.md`, `docs/UI_REFERENCE.md`.
+- Aktueller Stand: Blueprint-Arbeitsordner wurde nach `/home/cloud/ImageFlow-work` umbenannt. Lokales Git-Repo auf Branch `main` wurde initialisiert und Remote `origin` zeigt auf `https://github.com/desCo323/ImageFlow.git`. Die Nextcloud-App-Struktur `imageflow/` ist angelegt und lokal geprueft. Es wurden keine produktiven Nextcloud-Dateien veraendert.
+- Geaenderte Dateien: `README.md`, `.gitignore`, `docs/SESSION_STATE.md`, `docs/UI_REFERENCE.md`, `docs/SECURITY_MODEL.md`, `docs/TEST_BACKLOG.md`, `docs/UPDATE_POLICY.md`, `docs/BROWSER_TESTING.md`, `docs/STORE_RELEASE_CHECKLIST.md`, `imageflow/**`.
 - Noch nicht deployed: Alles. Es gab keinen Deploy nach `/var/www/nextcloud/apps/`.
-- Naechste Schritte: App-Skeleton im Unterordner `imageflow/` anlegen, Datenmodell fuer Jobs/Queue entwerfen, Sicherheits- und Rollback-Konzept konkretisieren.
+- Naechste Schritte: Kontrollierten Deploy vorbereiten, Backup-/Restore-Prompt schreiben, danach erst authentifizierte Browser-Tests mit `albentest`.
 
 ## Letzter Teststand
 
-- Lokale Checks: Noch keine App-Checks vorhanden.
-- Browser-Tests: Noch nicht moeglich, da noch keine App-Oberflaeche existiert.
-- Self-check: Noch nicht vorhanden.
+- Lokale Checks: `bash imageflow/scripts/self-check.sh` erfolgreich.
+- Browser-Tests: `npm run test:browser` im Ordner `imageflow/` erfolgreich, 2 statische UI-Smokes.
+- Self-check: PHP-Syntax, XML, Routen, JS-Syntax und Secret-Scan erfolgreich.
 - Live-Test: Nicht durchgefuehrt.
 - Backup: Nicht erforderlich, da keine produktive Installation beruehrt wurde.
 - Restore-Prompt: Noch nicht erforderlich.
@@ -29,14 +29,14 @@ Datum: 2026-05-08
 ## Offene Punkte
 
 - Nextcloud-Zielversion und vorhandene Entwicklungswerkzeuge pruefen.
-- App-Struktur `imageflow/` gemaess Nextcloud-Konventionen anlegen.
-- Datenbanktabellen fuer Sortierjobs, Zielzuordnungen, Queue und Debug-Logs planen.
-- Dry-Run, sichere Ausfuehrung und Checksummenmodus technisch festlegen.
-- Browser-Teststrategie fuer Hauptseite und Sortieransicht erstellen.
+- Echte Ausfuehrung fuer Album-Zuordnung, Kopieren und Verschieben bewusst noch nicht implementiert.
+- Dry-Run, sichere Ausfuehrung und Checksummenmodus technisch weiter ausarbeiten.
+- Authentifizierte Browser-Teststrategie fuer Hauptseite und Sortieransicht umsetzen.
 - GitHub-Push-Strategie ohne gespeicherte Tokens klaeren.
 - SakuraAlbum lokal inspizieren, bevor UI-Komponenten fuer ImageFlow festgelegt werden.
 - UI-Referenz aus SakuraAlbum in `docs/UI_REFERENCE.md` festgehalten.
 - GitHub-Repo `desCo323/ImageFlow` ist privat und ueber den GitHub-Connector mit Schreibrechten sichtbar. Lokales `gh` ist auf dem Server nicht installiert; ein CLI-Push wurde daher nicht mit Token erzwungen.
+- App-Skeleton `imageflow/` ist installierbar angelegt: Navigation, Routen, Controller, Migration, Services, UI, Self-Check und Browser-Smokes.
 
 ## Wiederherstellungsprompt
 

@@ -1,0 +1,17 @@
+{
+  "name": "desco323/imageflow",
+  "description": "Nextcloud app for fast and safe photo sorting workflows.",
+  "type": "project",
+  "license": "AGPL-3.0-or-later",
+  "autoload": {
+    "psr-4": {
+      "OCA\\ImageFlow\\": "lib/"
+    }
+  },
+  "require": {
+    "php": ">=8.3"
+  },
+  "scripts": {
+    "check": "scripts/self-check.sh"
+  }
+}

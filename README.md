@@ -36,11 +36,12 @@ Die App soll Sortierjobs anlegen, pausieren, fortsetzen und erst nach expliziter
 
 ## Aktueller Status
 
-Bootstrap-Phase. Der Projektname steht fest und der Arbeitsordner wurde aus dem Blueprint heraus angelegt. Die eigentliche Nextcloud-App-Struktur wird als naechster Schritt im Unterordner `imageflow/` erstellt.
+Bootstrap-Phase. Der Projektname steht fest und die Nextcloud-App-Struktur wurde im Unterordner `imageflow/` angelegt. Die App ist lokal pruefbar und bewusst noch nicht produktiv deployed. Echte Datei-Schreiboperationen sind im ersten Skeleton deaktiviert.
 
 ## Arbeitsdokumentation
 
 - Einstieg: [`CODEX_START_HERE.md`](CODEX_START_HERE.md)
+- App: [`imageflow/README.md`](imageflow/README.md)
 - Laufender Zustand: [`docs/SESSION_STATE.md`](docs/SESSION_STATE.md)
 - UI-Referenz: [`docs/UI_REFERENCE.md`](docs/UI_REFERENCE.md)
 - Sicherheitsmodell: [`docs/PRODUCTION_SAFETY_RULES.md`](docs/PRODUCTION_SAFETY_RULES.md)

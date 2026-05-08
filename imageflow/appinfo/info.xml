@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>imageflow</id>
+    <name>ImageFlow</name>
+    <summary>Fast and safe photo triage for large folders</summary>
+    <description><![CDATA[
+ImageFlow helps users sort large image folders in Nextcloud with job-based workflows, fast keyboard-driven triage, background queues, and explicit execution control.
+
+The first implementation is intentionally conservative: sorting decisions are recorded as planned operations, while file writes are reserved for the controlled execution queue and safe-mode validation.
+]]></description>
+    <version>0.1.0</version>
+    <licence>AGPL-3.0-or-later</licence>
+    <author mail="desco323@users.noreply.github.com">desCo323</author>
+    <namespace>ImageFlow</namespace>
+    <documentation>
+        <user>https://github.com/desCo323/ImageFlow/blob/main/imageflow/docs/USER_GUIDE.md</user>
+        <admin>https://github.com/desCo323/ImageFlow/blob/main/imageflow/docs/ADMIN_GUIDE.md</admin>
+        <developer>https://github.com/desCo323/ImageFlow/blob/main/imageflow/docs/ARCHITECTURE.md</developer>
+    </documentation>
+    <category>multimedia</category>
+    <category>files</category>
+    <website>https://github.com/desCo323/ImageFlow</website>
+    <bugs>https://github.com/desCo323/ImageFlow/issues</bugs>
+    <repository>https://github.com/desCo323/ImageFlow.git</repository>
+    <dependencies>
+        <php min-version="8.3" />
+        <nextcloud min-version="33" max-version="33" />
+    </dependencies>
+    <background-jobs>
+        <job>OCA\ImageFlow\BackgroundJob\QueueExecutionJob</job>
+    </background-jobs>
+    <navigations>
+        <navigation>
+            <id>imageflow</id>
+            <name>ImageFlow</name>
+            <route>imageflow.page.index</route>
+            <icon>app.svg</icon>
+            <order>12</order>
+        </navigation>
+    </navigations>
+</info>

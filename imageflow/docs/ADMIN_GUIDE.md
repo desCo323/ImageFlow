@@ -1,0 +1,27 @@
+# ImageFlow Admin Guide
+
+## Installation Status
+
+ImageFlow is in bootstrap development. Do not deploy it to a productive Nextcloud instance without a controlled backup and rollback window.
+
+## Live Test Rules
+
+- Use only the dedicated test user `albentest`.
+- Do not use real user accounts.
+- Use isolated test folders and test albums.
+- Backup before every live test.
+- Verify `occ status` before and after tests.
+- Check `nextcloud.log` after every test.
+
+## Current Write Behavior
+
+The app stores jobs, assignments, queue rows and logs. The background worker does not perform destructive writes yet.
+
+Before enabling real writes, implement and verify:
+
+- exact dry-run plans,
+- checksum validation,
+- conflict handling,
+- permission checks,
+- resumable queue execution,
+- rollback documentation.
