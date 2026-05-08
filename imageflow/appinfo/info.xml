@@ -5,7 +5,7 @@
     <name>ImageFlow</name>
     <summary>Fast and safe photo triage for large folders</summary>
     <description><![CDATA[
-ImageFlow helps users sort large image folders in Nextcloud with job-based workflows, fast keyboard-driven triage, background queues, and explicit execution control.
+ImageFlow helps users sort large image folders in Nextcloud with Flow-based workflows, fast keyboard-driven triage, background queues, and explicit execution control.
 
 The first implementation is intentionally conservative: sorting decisions are recorded as planned operations, while file writes are reserved for the controlled execution queue and safe-mode validation.
 ]]></description>

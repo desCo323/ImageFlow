@@ -17,9 +17,9 @@ Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controll
 
 ## Current Write Behavior
 
-The app stores jobs, assignments, queue rows, favorites and logs. The Worklist preview validates planned operations before queueing.
+The app stores Flows, assignments, queue rows, quick targets and logs. The Worklist preview validates planned operations before queueing.
 
-Real execution code exists for album membership, copy and move operations, but it is disabled by default. Without explicit server-side enablement, queued rows are marked `blocked` by the execution guard and logged.
+Real execution code exists for album membership, copy and move operations, but it is disabled by default. Queued rows wait safely unless real execution is explicitly enabled and the user starts a manual batch or server-side background processing is enabled.
 
 To enable the real execution path for a controlled test window:
 
@@ -33,6 +33,18 @@ To disable it again:
 sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow real_execution_enabled --value=0
 ```
 
+Background processing is also off by default. Enable it only for a controlled window after real execution has been reviewed:
+
+```bash
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_processing_enabled --value=1
+```
+
+Disable it again:
+
+```bash
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_processing_enabled --value=0
+```
+
 Only enable real execution after a fresh backup and only with isolated test folders/albums. Current execution safeguards:
 
 - exact dry-run plans before queueing,
@@ -41,3 +53,4 @@ Only enable real execution after a fresh backup and only with isolated test fold
 - idempotent duplicate skip for matching copy targets and existing album memberships,
 - move operations never delete the source when a different target file already exists,
 - per-item queue status, attempts, checksums, error text and debug logs.
+- automatic cron processing requires both `real_execution_enabled=1` and `background_processing_enabled=1`, and only picks queued Flows whose `autoProcess` option is enabled.

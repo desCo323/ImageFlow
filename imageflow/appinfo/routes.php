@@ -17,6 +17,7 @@ return [
 		['name' => 'job#markReady', 'url' => '/api/v1/jobs/{jobId}/ready', 'verb' => 'POST'],
 		['name' => 'job#worklistPreview', 'url' => '/api/v1/jobs/{jobId}/worklist-preview', 'verb' => 'GET'],
 		['name' => 'job#queueExecution', 'url' => '/api/v1/jobs/{jobId}/queue-execution', 'verb' => 'POST'],
+		['name' => 'job#processNow', 'url' => '/api/v1/jobs/{jobId}/process-now', 'verb' => 'POST'],
 		['name' => 'sort#state', 'url' => '/api/v1/jobs/{jobId}/sort-state', 'verb' => 'GET'],
 		['name' => 'sort#assign', 'url' => '/api/v1/jobs/{jobId}/assign', 'verb' => 'POST'],
 		['name' => 'sort#skip', 'url' => '/api/v1/jobs/{jobId}/skip', 'verb' => 'POST'],

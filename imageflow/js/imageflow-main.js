@@ -8,11 +8,7 @@
 
   const mount = root.querySelector(".imageflow-shell");
   const hasNextcloud = typeof window.OC !== "undefined" && typeof window.OC.generateUrl === "function";
-  const appIcon =
-    hasNextcloud && typeof window.OC.imagePath === "function"
-      ? window.OC.imagePath("imageflow", "app.svg")
-      : "./img/app.svg";
-  const PRELOAD_RADIUS = 4;
+  const DEFAULT_PRELOAD_RADIUS = 4;
   const THUMB_WINDOW = 16;
   const MAX_BUFFERED_IMAGES = 32;
   const PAGE_LIMIT = 48;
@@ -37,6 +33,13 @@
     sessionStartedAt: Date.now(),
     loading: false,
     startMode: null,
+    logs: {
+      loading: false,
+      items: [],
+      level: "",
+      jobId: null,
+      error: null,
+    },
     mockFavorites: null,
     dragFavoriteId: null,
     jobDraft: {
@@ -45,6 +48,8 @@
       targetMode: "album",
       targetPath: "/Photos/Sortiert",
       safeMode: true,
+      autoProcess: false,
+      preloadMode: "balanced",
     },
     folderPicker: {
       open: false,
@@ -62,6 +67,7 @@
       loading: false,
       preview: null,
       error: null,
+      autoProcess: false,
     },
   };
 
@@ -136,6 +142,10 @@
         queuedOperations: 0,
         executedOperations: 0,
         failedOperations: 0,
+        options: {
+          autoProcess: Boolean(options.body.autoProcess),
+          preloadMode: options.body.preloadMode || "balanced",
+        },
         updatedAt: Math.floor(Date.now() / 1000),
       };
       state.jobs = [job, ...state.jobs];
@@ -154,9 +164,28 @@
     if (/\/api\/v1\/jobs\/\d+\/queue-execution$/.test(path) && options.method === "POST") {
       const jobId = Number.parseInt(path.split("/").at(-2), 10);
       const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
-      const queued = { ...job, status: "queued", queuedOperations: Math.max(1, Number(job.queuedOperations || 0)) };
+      const queued = {
+        ...job,
+        status: "queued",
+        queuedOperations: Math.max(1, Number(job.queuedOperations || 0)),
+        options: {
+          ...(job.options || {}),
+          autoProcess: Boolean(options.body?.autoProcess),
+        },
+      };
       state.jobs = state.jobs.map((item) => (item.id === jobId ? queued : item));
       return { job: queued, preview: mockWorklistPreview(queued) };
+    }
+    if (/\/api\/v1\/jobs\/\d+\/process-now$/.test(path) && options.method === "POST") {
+      const jobId = Number.parseInt(path.split("/").at(-2), 10);
+      const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
+      const processed = { ...job, status: "done", executedOperations: Number(job.queuedOperations || 0), queuedOperations: 0 };
+      state.jobs = state.jobs.map((item) => (item.id === jobId ? processed : item));
+      return {
+        result: { processed: processed.executedOperations, realExecutionEnabled: true, message: "Ablage-Batch wurde verarbeitet." },
+        job: processed,
+        preview: mockWorklistPreview(processed),
+      };
     }
     if (path.includes("/sort-state")) {
       return mockSortState(state.jobId || 1);
@@ -244,6 +273,9 @@
       }
       return { targets: mockTargets() };
     }
+    if (path.includes("/logs")) {
+      return { logs: mockLogs() };
+    }
     return {};
   }
 
@@ -264,6 +296,10 @@
         queuedOperations: 74,
         executedOperations: 0,
         failedOperations: 0,
+        options: {
+          autoProcess: false,
+          preloadMode: "turbo",
+        },
         updatedAt: Math.floor(Date.now() / 1000) - 240,
       },
       {
@@ -281,6 +317,10 @@
         queuedOperations: 118,
         executedOperations: 0,
         failedOperations: 0,
+        options: {
+          autoProcess: true,
+          preloadMode: "balanced",
+        },
         updatedAt: Math.floor(Date.now() / 1000) - 900,
       },
     ];
@@ -412,9 +452,10 @@
         id: job.id,
         name: job.name,
         targetMode: mode,
-        safeMode: job.safeMode !== false,
-        status: job.status || "sorting",
-      },
+          safeMode: job.safeMode !== false,
+          status: job.status || "sorting",
+          options: job.options || {},
+        },
       summary: {
         total: 3,
         planned: queued ? 0 : 3,
@@ -429,6 +470,8 @@
       },
       canQueue: !queued,
       executionMode: "dry-run-only",
+      backgroundMode: "manual-only",
+      autoProcess: Boolean(job.options?.autoProcess),
       message: "Dateioperationen sind weiterhin gesperrt. Diese Vorschau prueft die Worklist vor der spaeteren Freigabe realer Writes.",
       items: [
         {
@@ -468,12 +511,49 @@
     };
   }
 
+  function mockLogs() {
+    const now = Math.floor(Date.now() / 1000);
+    return [
+      {
+        id: 1003,
+        level: "debug",
+        event: "image_buffer_synced",
+        jobId: state.jobId || 1,
+        message: "Bildpuffer wurde rund um die aktuelle Position aufgebaut.",
+        context: { bufferedImages: state.bufferPlan.length || 9, preloadMode: "turbo" },
+        createdAt: now - 8,
+      },
+      {
+        id: 1002,
+        level: "info",
+        event: "job_execution_queued",
+        jobId: 1,
+        message: "Ablage wurde vorgemerkt.",
+        context: { safeMode: true, autoProcess: false },
+        createdAt: now - 80,
+      },
+      {
+        id: 1001,
+        level: "debug",
+        event: "assignment_planned",
+        jobId: 1,
+        message: "Sortierentscheidung wurde als geplante Operation gespeichert.",
+        context: { sourcePath: "/Photos/Inbox/IMG_4021.jpg", targetLabel: "Familie" },
+        createdAt: now - 160,
+      },
+    ];
+  }
+
   async function load() {
     state.loading = true;
     render();
     try {
       if (state.page === "sort" && state.jobId) {
         await loadImagePage(state.pageCursor, null, false, state.startMode);
+      } else if (state.page === "logs") {
+        const params = new URLSearchParams({ limit: "120" });
+        const payload = await request(`/api/v1/logs?${params.toString()}`);
+        state.logs.items = payload.logs || [];
       } else {
         const payload = await request("/api/v1/jobs");
         state.jobs = payload.jobs || [];
@@ -546,7 +626,7 @@
       <div class="imageflow-app">
         ${renderTopbar()}
         <main class="imageflow-content">
-          ${state.page === "sort" ? renderSortPage() : renderJobsPage()}
+          ${state.page === "sort" ? renderSortPage() : (state.page === "logs" ? renderLogsPage() : renderJobsPage())}
           ${renderToast()}
           ${renderFolderPicker()}
           ${renderWorklistPreview()}
@@ -560,7 +640,7 @@
   function renderTopbar() {
     return `
       <header class="imageflow-topbar">
-        <img class="imageflow-mark" src="${escapeAttr(appIcon)}" alt="">
+        <span class="imageflow-mark" aria-hidden="true"><span></span></span>
         <div class="imageflow-title">
           <h2>ImageFlow</h2>
           <p>Bildstapel in einen schnellen, sicheren Flow bringen.</p>
@@ -568,7 +648,7 @@
         <nav class="imageflow-tabs" aria-label="ImageFlow">
           <button class="imageflow-tab ${state.page === "jobs" ? "is-active" : ""}" data-action="go-jobs" type="button">Flows</button>
           <button class="imageflow-tab ${state.page === "sort" ? "is-active" : ""}" data-action="go-sort" type="button" ${state.jobId ? "" : "disabled"}>Sortieren</button>
-          <button class="imageflow-tab" data-action="show-log" type="button">Protokoll</button>
+          <button class="imageflow-tab ${state.page === "logs" ? "is-active" : ""}" data-action="show-log" type="button">Protokoll</button>
         </nav>
       </header>
     `;
@@ -617,6 +697,18 @@
             <input id="ifl-safe" name="safeMode" type="checkbox" ${draft.safeMode ? "checked" : ""}>
             Sicherer Modus mit Pruefsummen
           </label>
+          <label class="imageflow-toggle">
+            <input id="ifl-auto" name="autoProcess" type="checkbox" ${draft.autoProcess ? "checked" : ""}>
+            In ruhigen Serverphasen automatisch ablegen
+          </label>
+          <div class="imageflow-field">
+            <label for="ifl-preload">Bildpuffer</label>
+            <select id="ifl-preload" name="preloadMode">
+              <option value="light" ${draft.preloadMode === "light" ? "selected" : ""}>Schonend</option>
+              <option value="balanced" ${draft.preloadMode === "balanced" ? "selected" : ""}>Ausgewogen</option>
+              <option value="turbo" ${draft.preloadMode === "turbo" ? "selected" : ""}>Turbo fuer grosse Bildstapel</option>
+            </select>
+          </div>
           <div class="imageflow-actions">
             <button class="imageflow-button primary" type="submit">Flow starten</button>
           </div>
@@ -668,9 +760,14 @@
   }
 
   function renderJobRow(job) {
+    const options = job.options || {};
     return `
       <tr>
-        <td><strong>${escapeHtml(job.name)}</strong><br><span class="imageflow-badge safe">${job.safeMode ? "Sicher" : "Standard"}</span></td>
+        <td>
+          <strong>${escapeHtml(job.name)}</strong><br>
+          <span class="imageflow-badge safe">${job.safeMode ? "Sicher" : "Standard"}</span>
+          <span class="imageflow-badge ${options.autoProcess ? "ready" : ""}">${options.autoProcess ? "Auto-Ablage" : "Warten"}</span>
+        </td>
         <td>${escapeHtml(job.sourcePath || "/")}</td>
         <td>${modeLabel(job.targetMode)}</td>
         <td><span class="imageflow-badge ready">${statusLabel(job.status)}</span></td>
@@ -749,6 +846,10 @@
           <div class="imageflow-flow-chip accent-violet">
             <strong>${tempo}</strong>
             <span>Bilder/min</span>
+          </div>
+          <div class="imageflow-flow-chip accent-cool">
+            <strong>${bufferPlan.length}</strong>
+            <span>Puffer</span>
           </div>
           <div class="imageflow-flow-milestone">${escapeHtml(milestone)}</div>
         </section>
@@ -856,7 +957,7 @@
       return "";
     }
 
-    const title = feedback.type === "skip" ? "Weiter" : "+1";
+    const title = feedback.type === "skip" ? "Weiter" : (feedback.type === "duplicate" ? "Schon da" : "+1");
     const label = feedback.label ? `zu ${feedback.label}` : "gesammelt";
     return `
       <div class="imageflow-feedback-burst ${feedback.type === "skip" ? "skip" : ""}" role="status">
@@ -936,6 +1037,12 @@
     const preview = state.worklist.preview;
     const summary = preview?.summary || {};
     const items = preview?.items || [];
+    const queuedCount = Number(summary.queued || 0) + Number(summary.executing || 0);
+    const canSaveQueueSettings = queuedCount > 0 && !preview?.canQueue;
+    const queueButtonEnabled = Boolean(preview?.canQueue || canSaveQueueSettings);
+    const queueButtonLabel = canSaveQueueSettings
+      ? "Einstellung speichern"
+      : (preview?.executionMode === "real-writes-enabled" ? "Ablage freigeben" : "Ablage vormerken");
     return `
       <div class="imageflow-modal-backdrop" role="presentation">
         <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Ablage pruefen">
@@ -945,6 +1052,7 @@
               <p>${escapeHtml(preview?.job?.name || "Flow")} | ${modeLabel(preview?.job?.targetMode || "")}</p>
             </div>
             ${preview ? `<span class="imageflow-badge ${executionModeClass(preview.executionMode)}">${executionModeLabel(preview.executionMode)}</span>` : ""}
+            ${preview ? `<span class="imageflow-badge ${preview.backgroundMode === "cron-enabled" ? "ready" : "safe"}">${backgroundModeLabel(preview.backgroundMode)}</span>` : ""}
             <button class="imageflow-icon-button" data-action="close-worklist-preview" type="button">Schliessen</button>
           </header>
           ${state.worklist.loading ? '<div class="imageflow-empty">Worklist wird geprueft.</div>' : ""}
@@ -955,17 +1063,22 @@
               <div class="imageflow-stat"><strong>${Number(summary.ready || 0)}</strong><span>Bereit</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.warnings || 0)}</strong><span>Warnungen</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.errors || 0)}</strong><span>Fehler</span></div>
-              <div class="imageflow-stat"><strong>${Number(summary.queued || 0) + Number(summary.executing || 0)}</strong><span>Vorgemerkt</span></div>
+              <div class="imageflow-stat"><strong>${queuedCount}</strong><span>Vorgemerkt</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.executed || 0)}</strong><span>Erledigt</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.blocked || 0) + Number(summary.failed || 0)}</strong><span>Geblockt</span></div>
             </div>
             <div class="imageflow-worklist-note">${escapeHtml(preview.message || "")}</div>
+            <label class="imageflow-toggle imageflow-worklist-toggle">
+              <input id="ifl-worklist-auto" data-action="toggle-worklist-auto" type="checkbox" ${state.worklist.autoProcess ? "checked" : ""}>
+              Diese Ablage in ruhigen Serverphasen automatisch verarbeiten
+            </label>
             <div class="imageflow-worklist-table">
               ${items.map(renderWorklistItem).join("") || '<div class="imageflow-empty">Noch keine Ablagepunkte vorhanden.</div>'}
             </div>
             <div class="imageflow-folder-actions">
               <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Neu pruefen</button>
-              <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.canQueue ? "" : "disabled"}>${preview.executionMode === "real-writes-enabled" ? "Ablage freigeben" : "Ablage vormerken"}</button>
+              <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${queueButtonEnabled ? "" : "disabled"}>${queueButtonLabel}</button>
+              <button class="imageflow-button" data-action="process-job-now" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.executionMode === "real-writes-enabled" && queuedCount > 0 ? "" : "disabled"}>Jetzt verarbeiten</button>
             </div>
           ` : ""}
         </section>
@@ -989,6 +1102,51 @@
     `;
   }
 
+  function renderLogsPage() {
+    const logs = state.logs.items || [];
+    return `
+      <section class="imageflow-log-page" aria-label="Protokoll">
+        <div class="imageflow-panel">
+          <div class="imageflow-panel-head">
+            <div>
+              <h3>Protokoll</h3>
+              <p>Debug- und Sicherheitsereignisse fuer deine Flows.</p>
+            </div>
+            <div class="imageflow-actions">
+              <select class="imageflow-select-compact" data-action="change-log-level" aria-label="Log-Level">
+                <option value="" ${state.logs.level === "" ? "selected" : ""}>Alle Level</option>
+                <option value="debug" ${state.logs.level === "debug" ? "selected" : ""}>Debug</option>
+                <option value="info" ${state.logs.level === "info" ? "selected" : ""}>Info</option>
+                <option value="warning" ${state.logs.level === "warning" ? "selected" : ""}>Warnung</option>
+                <option value="error" ${state.logs.level === "error" ? "selected" : ""}>Fehler</option>
+              </select>
+              <button class="imageflow-button" data-action="refresh-logs" type="button">Aktualisieren</button>
+            </div>
+          </div>
+          ${state.logs.loading ? '<div class="imageflow-empty">Protokoll wird geladen.</div>' : ""}
+          ${state.logs.error ? `<div class="imageflow-empty">${escapeHtml(state.logs.error)}</div>` : ""}
+          <div class="imageflow-log-list">
+            ${logs.map(renderLogRow).join("") || '<div class="imageflow-empty">Noch keine Protokolleintraege vorhanden.</div>'}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderLogRow(log) {
+    return `
+      <article class="imageflow-log-row">
+        <span class="imageflow-badge ${log.level === "error" ? "danger" : log.level === "warning" ? "ready" : "safe"}">${escapeHtml(log.level || "info")}</span>
+        <div>
+          <strong>${escapeHtml(log.event || "event")}</strong>
+          <span>${escapeHtml(log.message || "")}</span>
+          <small>${formatTime(log.createdAt)}${log.jobId ? ` · Flow ${escapeHtml(String(log.jobId))}` : ""}</small>
+          ${log.context ? `<code>${escapeHtml(JSON.stringify(log.context))}</code>` : ""}
+        </div>
+      </article>
+    `;
+  }
+
   function renderToast() {
     if (!state.toast) {
       return "";
@@ -1008,7 +1166,8 @@
     }
 
     root.querySelectorAll("[data-action]").forEach((button) => {
-      button.addEventListener("click", handleAction);
+      const eventName = ["SELECT", "INPUT"].includes(button.tagName) ? "change" : "click";
+      button.addEventListener(eventName, handleAction);
     });
     bindFavoriteDragAndDrop();
 
@@ -1028,6 +1187,8 @@
       targetMode: state.jobDraft.targetMode,
       targetPath: state.jobDraft.targetPath.trim(),
       safeMode: state.jobDraft.safeMode,
+      autoProcess: state.jobDraft.autoProcess,
+      preloadMode: state.jobDraft.preloadMode,
     };
 
     try {
@@ -1068,6 +1229,8 @@
       targetMode: form.targetMode?.value || "album",
       targetPath: form.targetPath?.value || "/Photos/Sortiert",
       safeMode: Boolean(form.safeMode?.checked),
+      autoProcess: Boolean(form.autoProcess?.checked),
+      preloadMode: form.preloadMode?.value || "balanced",
     };
   }
 
@@ -1120,17 +1283,26 @@
       closeWorklistPreview();
     } else if (action === "refresh-worklist-preview") {
       await loadWorklistPreview(state.worklist.jobId);
+    } else if (action === "toggle-worklist-auto") {
+      state.worklist.autoProcess = Boolean(event.currentTarget.checked);
+      render();
     } else if (action === "confirm-queue-job" && jobId) {
       await confirmQueueJob(jobId);
+    } else if (action === "process-job-now" && jobId) {
+      await processJobNow(jobId);
     } else if (action === "select-image") {
       setImageIndex(numberOrNull(event.currentTarget.dataset.index) ?? state.imageIndex);
     } else if (action === "page-next") {
       await goToImagePage(pageInfo().nextCursor, 0);
     } else if (action === "page-prev") {
       await goToImagePage(pageInfo().previousCursor, PAGE_LIMIT - 1);
+    } else if (action === "refresh-logs") {
+      await loadLogs();
+    } else if (action === "change-log-level") {
+      state.logs.level = event.currentTarget.value || "";
+      await loadLogs();
     } else if (action === "show-log") {
-      state.toast = { type: "info", message: "Das Protokoll wird als eigene Ansicht ausgebaut; API und Datenmodell sind vorbereitet." };
-      render();
+      await openLogs();
     }
   }
 
@@ -1261,6 +1433,7 @@
       loading: true,
       preview: null,
       error: null,
+      autoProcess: Boolean((state.jobs.find((job) => job.id === jobId)?.options || {}).autoProcess),
     };
     render();
     await loadWorklistPreview(jobId);
@@ -1280,6 +1453,7 @@
         jobId,
         loading: false,
         preview,
+        autoProcess: Boolean(preview.autoProcess ?? preview.job?.options?.autoProcess ?? state.worklist.autoProcess),
         error: null,
       };
       render();
@@ -1300,25 +1474,92 @@
       loading: false,
       preview: null,
       error: null,
+      autoProcess: false,
     };
     render();
   }
 
+  async function openLogs() {
+    state.page = "logs";
+    state.sortState = null;
+    state.imagePage = null;
+    state.pageCursor = null;
+    await loadLogs();
+  }
+
+  async function loadLogs() {
+    state.logs.loading = true;
+    state.logs.error = null;
+    render();
+    try {
+      const params = new URLSearchParams({ limit: "120" });
+      if (state.logs.level) {
+        params.set("level", state.logs.level);
+      }
+      if (state.logs.jobId) {
+        params.set("jobId", String(state.logs.jobId));
+      }
+      const payload = await request(`/api/v1/logs?${params.toString()}`);
+      state.logs = {
+        ...state.logs,
+        loading: false,
+        items: payload.logs || [],
+        error: null,
+      };
+      render();
+    } catch (error) {
+      state.logs = {
+        ...state.logs,
+        loading: false,
+        error: error.message || "Protokoll konnte nicht geladen werden.",
+      };
+      render();
+    }
+  }
+
   async function confirmQueueJob(jobId) {
     try {
-      const payload = await request(`/api/v1/jobs/${jobId}/queue-execution`, { method: "POST", body: {} });
+      const wasQueued = Number(state.worklist.preview?.summary?.queued || 0) > 0 && !state.worklist.preview?.canQueue;
+      const payload = await request(`/api/v1/jobs/${jobId}/queue-execution`, {
+        method: "POST",
+        body: {
+          autoProcess: state.worklist.autoProcess,
+        },
+      });
       state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
       state.worklist.preview = payload.preview || state.worklist.preview;
       const realWrites = state.worklist.preview?.executionMode === "real-writes-enabled";
       state.toast = {
         type: "info",
-        message: realWrites
-          ? "Ablage wurde freigegeben. Der Worker verarbeitet sie in sicheren Batches."
+        message: wasQueued
+          ? "Ablage-Einstellung wurde gespeichert."
+          : realWrites
+          ? (state.worklist.autoProcess
+            ? "Ablage wurde fuer ruhige Serverphasen freigegeben."
+            : "Ablage wurde vorgemerkt und wartet auf manuelle Verarbeitung.")
           : "Ablage wurde vorgemerkt. Reale Dateioperationen bleiben bis zur Freigabe blockiert.",
       };
       render();
     } catch (error) {
       state.worklist.error = error.message || "Ablage konnte nicht vorgemerkt werden.";
+      render();
+    }
+  }
+
+  async function processJobNow(jobId) {
+    state.worklist.loading = true;
+    state.worklist.error = null;
+    render();
+    try {
+      const payload = await request(`/api/v1/jobs/${jobId}/process-now`, { method: "POST", body: { limit: 25 } });
+      state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
+      state.worklist.preview = payload.preview || state.worklist.preview;
+      state.worklist.loading = false;
+      state.toast = { type: "info", message: payload.result?.message || "Ablage-Batch wurde verarbeitet." };
+      render();
+    } catch (error) {
+      state.worklist.loading = false;
+      state.worklist.error = error.message || "Ablage konnte nicht verarbeitet werden.";
       render();
     }
   }
@@ -1384,7 +1625,7 @@
       path: button.dataset.targetPath || "",
     };
     try {
-      await request(`/api/v1/jobs/${state.jobId}/assign`, {
+      const payload = await request(`/api/v1/jobs/${state.jobId}/assign`, {
         method: "POST",
         body: {
           sourcePath,
@@ -1395,8 +1636,11 @@
           mimeType: button.dataset.mimeType || "",
         },
       });
-      state.toast = { type: "info", message: `Gesammelt: ${target.label}` };
-      completeCurrentDecision("assign", target.label);
+      state.toast = {
+        type: "info",
+        message: payload.duplicate ? `Schon in der Ablage: ${target.label}` : `Gesammelt: ${target.label}`,
+      };
+      completeCurrentDecision(payload.duplicate ? "duplicate" : "assign", target.label);
       render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Sortierentscheidung konnte nicht gespeichert werden." };
@@ -1646,7 +1890,7 @@
     state.imageIndex = clampIndex(state.imageIndex, images);
     if (type === "skip") {
       sortState.job.skippedFiles = Number(sortState.job.skippedFiles || 0) + 1;
-    } else {
+    } else if (type !== "duplicate") {
       sortState.job.sortedFiles = Number(sortState.job.sortedFiles || 0) + 1;
       sortState.job.queuedOperations = Number(sortState.job.queuedOperations || 0) + 1;
     }
@@ -1738,13 +1982,25 @@
   }
 
   function planImageBuffer(images, currentIndex) {
-    const first = Math.max(0, currentIndex - PRELOAD_RADIUS);
-    const last = Math.min(images.length - 1, currentIndex + PRELOAD_RADIUS);
+    const radius = activePreloadRadius();
+    const first = Math.max(0, currentIndex - radius);
+    const last = Math.min(images.length - 1, currentIndex + radius);
     state.bufferPlan = [];
     for (let index = first; index <= last; index += 1) {
       state.bufferPlan.push(index);
     }
     return state.bufferPlan;
+  }
+
+  function activePreloadRadius() {
+    const mode = state.sortState?.job?.options?.preloadMode || state.jobDraft.preloadMode || "balanced";
+    if (mode === "turbo") {
+      return 8;
+    }
+    if (mode === "light") {
+      return 2;
+    }
+    return DEFAULT_PRELOAD_RADIUS;
   }
 
   function syncImageBuffer() {
@@ -1892,6 +2148,10 @@
     return mode === "real-writes-enabled" ? "Dateioperationen aktiv" : "Dateioperationen gesperrt";
   }
 
+  function backgroundModeLabel(mode) {
+    return mode === "cron-enabled" ? "Cron-Ablage aktiv" : "Manuell";
+  }
+
   function executionModeClass(mode) {
     return mode === "real-writes-enabled" ? "danger" : "safe";
   }
@@ -1905,6 +2165,18 @@
       blocked: "Geblockt",
       failed: "Fehler",
     }[status] || status || "";
+  }
+
+  function formatTime(timestamp) {
+    const value = Number(timestamp || 0);
+    if (!value) {
+      return "";
+    }
+    try {
+      return new Date(value * 1000).toLocaleString();
+    } catch (error) {
+      return String(value);
+    }
   }
 
   function escapeHtml(value) {

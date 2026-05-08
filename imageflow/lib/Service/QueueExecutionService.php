@@ -33,8 +33,64 @@ class QueueExecutionService {
 	}
 
 	public function processDue(int $limit = 25): int {
+		if (!$this->backgroundProcessingEnabled()) {
+			$this->logService->debug('queue_background_processing_skipped', null, [
+				'backgroundProcessingEnabled' => false,
+			], null, 'ImageFlow Hintergrund-Ablage ist serverseitig deaktiviert.');
+			return 0;
+		}
+		if (!$this->realExecutionEnabled()) {
+			$this->logService->debug('queue_background_execution_skipped', null, [
+				'backgroundProcessingEnabled' => true,
+				'realExecutionEnabled' => false,
+			], null, 'ImageFlow Hintergrund-Ablage wartet, weil echte Dateioperationen deaktiviert sind.');
+			return 0;
+		}
+
+		return $this->processItems($this->queueMapper->findDue($limit * 4), $limit, false);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	public function processJobNow(string $userId, int $jobId, int $limit = 25): array {
+		if (!$this->realExecutionEnabled()) {
+			$this->logService->warning('queue_manual_processing_blocked', $userId, [
+				'jobId' => $jobId,
+				'realExecutionEnabled' => false,
+			], $jobId, 'Manuelle Ablage wurde blockiert, weil echte Dateioperationen deaktiviert sind.');
+			return [
+				'processed' => 0,
+				'realExecutionEnabled' => false,
+				'message' => 'Echte Dateioperationen sind serverseitig deaktiviert.',
+			];
+		}
+
+		$processed = $this->processItems($this->queueMapper->findDueForJob($userId, $jobId, $limit), $limit, true);
+		return [
+			'processed' => $processed,
+			'realExecutionEnabled' => true,
+			'message' => $processed > 0 ? 'Ablage-Batch wurde verarbeitet.' : 'Keine vorgemerkten Ablagepunkte gefunden.',
+		];
+	}
+
+	public function isRealExecutionEnabled(): bool {
+		return $this->realExecutionEnabled();
+	}
+
+	public function isBackgroundProcessingEnabled(): bool {
+		return $this->backgroundProcessingEnabled();
+	}
+
+	/**
+	 * @param QueueItem[] $items
+	 */
+	private function processItems(array $items, int $limit, bool $manual): int {
 		$processed = 0;
-		foreach ($this->queueMapper->findDue($limit) as $item) {
+		foreach ($items as $item) {
+			if ($processed >= max(1, $limit)) {
+				break;
+			}
 			$item->setAttempts($item->getAttempts() + 1);
 			$item->setStatus('executing');
 			$item->setLastError(null);
@@ -42,6 +98,13 @@ class QueueExecutionService {
 			$item = $this->queueMapper->update($item);
 
 			$job = $this->safeFindJob($item);
+			if (!$manual && !$this->jobAllowsAutoProcess($job)) {
+				$item->setStatus('queued');
+				$item->setAttempts(max(0, $item->getAttempts() - 1));
+				$item->setUpdatedAt(time());
+				$this->queueMapper->update($item);
+				continue;
+			}
 			$this->markJobExecuting($job);
 
 			try {
@@ -425,6 +488,22 @@ class QueueExecutionService {
 
 	private function realExecutionEnabled(): bool {
 		return $this->config->getAppValue('imageflow', 'real_execution_enabled', '0') === '1';
+	}
+
+	private function backgroundProcessingEnabled(): bool {
+		return $this->config->getAppValue('imageflow', 'background_processing_enabled', '0') === '1';
+	}
+
+	private function jobAllowsAutoProcess(?SortJob $job): bool {
+		if ($job === null) {
+			return false;
+		}
+		try {
+			$options = json_decode((string)$job->getOptionsJson(), true, 512, JSON_THROW_ON_ERROR);
+			return is_array($options) && (bool)($options['autoProcess'] ?? false);
+		} catch (\JsonException) {
+			return false;
+		}
 	}
 
 	/**

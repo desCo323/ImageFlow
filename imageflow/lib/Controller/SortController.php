@@ -35,7 +35,7 @@ class SortController extends Controller {
 				$this->stringParam('start', 32),
 			));
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		}
 	}
 
@@ -44,7 +44,7 @@ class SortController extends Controller {
 		try {
 			return new JSONResponse($this->sortService->assign($this->userId, $jobId, $this->request->getParams()));
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_assignment', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {
@@ -58,7 +58,7 @@ class SortController extends Controller {
 		try {
 			return new JSONResponse($this->sortService->skip($this->userId, $jobId, $this->request->getParams()));
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_skip', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {
@@ -72,7 +72,7 @@ class SortController extends Controller {
 		try {
 			return new JSONResponse($this->sortService->position($this->userId, $jobId, $this->request->getParams()));
 		} catch (DoesNotExistException) {
-			return $this->error('job_not_found', 'Der Sortierjob wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+			return $this->error('job_not_found', 'Der Flow wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_position', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {

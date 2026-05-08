@@ -256,7 +256,7 @@ class SortService {
 
 		$favorites[] = [
 			'id' => 'skip',
-			'label' => 'Ueberspringen',
+			'label' => 'Weiter',
 			'path' => null,
 			'targetId' => null,
 			'hotkey' => '0',

@@ -46,11 +46,16 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Von vorne' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Offen' }).first()).toBeVisible();
   await expect(page.getByLabel('Zielordner')).toBeHidden();
+  await expect(page.getByLabel('Bildpuffer')).toBeVisible();
+  await expect(page.getByLabel('In ruhigen Serverphasen automatisch ablegen')).toBeVisible();
 
   await page.getByLabel('Name').fill('Browser Smoke');
   await page.getByLabel('Quellordner').fill('/Photos/Smoke');
+  await page.getByLabel('Bildpuffer').selectOption('turbo');
+  await page.getByLabel('In ruhigen Serverphasen automatisch ablegen').check();
   await page.getByRole('button', { name: 'Flow starten' }).click();
   await expect(page.getByText('Browser Smoke')).toBeVisible();
+  await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Auto-Ablage');
 });
 
 test('selects source and target folders with the folder picker', async ({ page }) => {
@@ -81,6 +86,8 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Ablagepunkte', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Dateioperationen gesperrt')).toBeVisible();
+  await expect(dialog.getByText('Manuell')).toBeVisible();
+  await dialog.getByLabel('Diese Ablage in ruhigen Serverphasen automatisch verarbeiten').check();
   await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
   await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible();
 });
@@ -142,4 +149,15 @@ test('browses folder targets in copy mode', async ({ page }) => {
   await page.getByRole('button', { name: 'Hoeher' }).click();
   await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Inbox' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Sortiert' })).toBeVisible();
+});
+
+test('renders the debug protocol view', async ({ page }) => {
+  await mount(page);
+
+  await page.getByRole('button', { name: 'Protokoll' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Protokoll' })).toBeVisible();
+  await expect(page.getByText('assignment_planned')).toBeVisible();
+  await page.getByLabel('Log-Level').selectOption('debug');
+  await expect(page.getByText('image_buffer_synced')).toBeVisible();
 });

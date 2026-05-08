@@ -12,10 +12,11 @@
 - Add folder picker UI for source/target job setup and browsable folder targets in copy/move sorting mode.
 - Add worklist dry-run preview before execution queueing and guarded non-destructive execution blocking.
 - Add guarded real execution engine behind `real_execution_enabled` for album, copy, and move operations with checksum validation and idempotent duplicate handling.
+- Add Flow terminology, automatic processing opt-in, manual batch processing endpoint, preload mode controls, user-visible debug protocol, and final preview screenshots.
 
 ## 0.1.0 - 2026-05-08
 
 - Initial installable ImageFlow skeleton.
-- Job dashboard and sort workspace UI foundation.
+- Flow dashboard and sort workspace UI foundation.
 - Safe database schema for jobs, assignments, queue items, favorites, and debug logs.
 - Background queue worker stub that does not perform file writes yet.

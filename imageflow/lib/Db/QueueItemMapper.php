@@ -46,6 +46,22 @@ class QueueItemMapper extends QBMapper {
 		return $this->findEntities($qb);
 	}
 
+	/**
+	 * @return QueueItem[]
+	 */
+	public function findDueForJob(string $userId, int $jobId, int $limit = 25): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->in('status', $qb->createNamedParameter(['queued'], IQueryBuilder::PARAM_STR_ARRAY)))
+			->orderBy('created_at', 'ASC')
+			->setMaxResults(max(1, min(100, $limit)));
+
+		return $this->findEntities($qb);
+	}
+
 	public function countForJobByStatus(int $jobId, string $status): int {
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias($qb->func()->count('*'), 'queue_count')

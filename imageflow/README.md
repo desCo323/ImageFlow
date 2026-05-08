@@ -2,16 +2,18 @@
 
 ImageFlow is a Nextcloud app for fast, controlled sorting of large image folders.
 
-Current status: bootstrap development. The app is installable as a Nextcloud 33 app skeleton, but real file writes are intentionally disabled. Sorting decisions are stored as assignments and queue items. Queue execution currently logs that destructive writes are disabled.
+Current status: first functional preview. The app is installable as a Nextcloud 33 app and keeps real file writes disabled by default. Sorting decisions are stored as assignments and queue items first; manual or background processing must be explicitly enabled by an administrator.
 
 ## Features In This Build
 
-- Job dashboard with create, pause and queue controls.
-- Sorting workspace with favorites, targets, image stage and filmstrip.
-- Hotkey foundation for `1-9`, `0` and `Space`.
+- Flow dashboard with create, pause, worklist preview and processing controls.
+- Sorting workspace with favorites, targets, image stage, filmstrip and playful progress feedback.
+- Fast hotkeys for `1-9`, `0`, `Space` and arrow-key filmstrip navigation.
+- Bounded image preload modes for light, balanced and turbo sorting.
 - Tables for jobs, assignments, queue items, favorites and logs.
 - Folder and album target read APIs.
-- Non-destructive background queue worker.
+- Guarded manual and background queue processing with checksum-safe copy/move support behind server-side flags.
+- User-visible debug protocol for sorting, queue and safety events.
 - Local self-check and static browser smoke tests.
 
 ## Local Checks

@@ -8,6 +8,8 @@ Open ImageFlow from the Nextcloud navigation and start a Flow:
 - choose the target mode,
 - choose a target folder with the folder picker when using copy or move,
 - keep safe mode enabled,
+- choose whether the Flow may be processed automatically during quiet server phases,
+- choose the image buffer mode for large folders,
 - start sorting.
 
 Target modes:
@@ -52,6 +54,10 @@ The Flow bar shows overall progress, the current decision streak, this session's
 
 Use `Ablage pruefen` on the Flow dashboard to open the safe preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
 
-The preview shows whether file operations are currently locked or active on the server. In the default development configuration, real file writes are locked. Queueing execution records the intent and the background worker marks due items as blocked by the execution guard.
+The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt verarbeiten` runs a small manual batch. If both real writes and server-side background processing are enabled, and the Flow is marked for automatic processing, the cron worker can process queued work later.
 
 When an administrator deliberately enables real execution for a controlled test window, ImageFlow processes the queued worklist in small background batches. Safe Mode verifies copy/move operations with checksums, existing album memberships or identical copy targets are skipped as already done, and conflicting target files are not overwritten.
+
+## Protocol
+
+The `Protokoll` tab shows debug, info, warning and error events for the current user. It is meant for tracing sorting decisions, queue state, background processing, duplicate detection and safety checks without exposing passwords or tokens.

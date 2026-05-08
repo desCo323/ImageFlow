@@ -32,6 +32,7 @@ class WorklistPreviewService {
 	 */
 	public function preview(string $userId, int $jobId, int $limit = 250): array {
 		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		$options = $this->decodeOptions($job->getOptionsJson());
 		$items = $this->queueMapper->findForJob($userId, $jobId, $limit);
 		$seenKeys = [];
 		$rows = [];
@@ -81,11 +82,14 @@ class WorklistPreviewService {
 				'targetMode' => $job->getTargetMode(),
 				'safeMode' => $job->getSafeMode(),
 				'status' => $job->getStatus(),
+				'options' => $options,
 			],
 			'summary' => $summary,
 			'items' => $rows,
 			'canQueue' => $canQueue,
 			'executionMode' => $this->realExecutionEnabled() ? 'real-writes-enabled' : 'dry-run-only',
+				'backgroundMode' => ($this->backgroundProcessingEnabled() && $this->realExecutionEnabled()) ? 'cron-enabled' : 'manual-only',
+			'autoProcess' => (bool)($options['autoProcess'] ?? false),
 			'message' => $this->realExecutionEnabled()
 				? 'Echte Dateioperationen sind serverseitig freigeschaltet. Die Worklist wird vor der Ausfuehrung weiterhin idempotent und sicher geprueft.'
 				: 'Dateioperationen sind weiterhin gesperrt. Diese Vorschau prueft die Worklist vor der spaeteren Freigabe realer Writes.',
@@ -219,6 +223,25 @@ class WorklistPreviewService {
 
 	private function realExecutionEnabled(): bool {
 		return $this->config->getAppValue('imageflow', 'real_execution_enabled', '0') === '1';
+	}
+
+	private function backgroundProcessingEnabled(): bool {
+		return $this->config->getAppValue('imageflow', 'background_processing_enabled', '0') === '1';
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function decodeOptions(?string $json): array {
+		if ($json === null || $json === '') {
+			return [];
+		}
+		try {
+			$decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+			return is_array($decoded) ? $decoded : [];
+		} catch (\JsonException) {
+			return [];
+		}
 	}
 
 	private function worseReadiness(string $current, string $candidate): string {

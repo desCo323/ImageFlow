@@ -68,6 +68,8 @@ class JobService {
 		$job->setOptionsJson(json_encode([
 			'targetOrdering' => $input['targetOrdering'] ?? 'relevance',
 			'hotkeys' => $input['hotkeys'] ?? 'number-row',
+			'preloadMode' => $this->preloadMode((string)($input['preloadMode'] ?? 'balanced')),
+			'autoProcess' => (bool)($input['autoProcess'] ?? false),
 			'createdBy' => 'imageflow-ui',
 		], JSON_THROW_ON_ERROR));
 		$job->setCreatedAt($now);
@@ -80,7 +82,7 @@ class JobService {
 			'sourcePath' => $sourcePath,
 			'targetPath' => $targetPath,
 			'safeMode' => $job->getSafeMode(),
-		], $job->getId(), 'Sortierjob wurde angelegt.');
+		], $job->getId(), 'Flow wurde angelegt.');
 
 		return $this->serializeJob($job);
 	}
@@ -124,27 +126,51 @@ class JobService {
 		$this->logService->info('job_status_changed', $userId, [
 			'jobId' => $jobId,
 			'status' => $status,
-		], $jobId, 'Jobstatus wurde geaendert.');
+		], $jobId, 'Flowstatus wurde geaendert.');
 
 		return $this->serializeJob($job);
 	}
 
 	/**
+	 * @param array<string, mixed> $input
 	 * @return array<string, mixed>
 	 * @throws DoesNotExistException
 	 */
-	public function queueExecution(string $userId, int $jobId): array {
+	public function queueExecution(string $userId, int $jobId, array $input = []): array {
 		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		$options = $this->processingOptions($job, $input);
 		$queued = $this->queueMapper->markPlannedQueuedForJob($userId, $jobId);
 		$job->setStatus('queued');
 		$job->setQueuedOperations($this->queueMapper->countForJobByStatus($jobId, 'queued'));
+		$job->setOptionsJson(json_encode($options, JSON_THROW_ON_ERROR));
 		$job->setUpdatedAt(time());
 		$job = $this->jobMapper->update($job);
 		$this->logService->info('job_execution_queued', $userId, [
 			'jobId' => $jobId,
 			'queuedItems' => $queued,
 			'safeMode' => $job->getSafeMode(),
+			'autoProcess' => (bool)$options['autoProcess'],
 		], $jobId, 'Ausfuehrung wurde vom Hauptmenue aus vorgemerkt.');
+
+		return $this->serializeJob($job);
+	}
+
+	/**
+	 * @param array<string, mixed> $input
+	 * @return array<string, mixed>
+	 * @throws DoesNotExistException
+	 */
+	public function updateProcessingOptions(string $userId, int $jobId, array $input = []): array {
+		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		$options = $this->processingOptions($job, $input);
+		$job->setOptionsJson(json_encode($options, JSON_THROW_ON_ERROR));
+		$job->setUpdatedAt(time());
+		$job = $this->jobMapper->update($job);
+		$this->logService->info('job_processing_options_updated', $userId, [
+			'jobId' => $jobId,
+			'autoProcess' => (bool)$options['autoProcess'],
+			'preloadMode' => $options['preloadMode'] ?? 'balanced',
+		], $jobId, 'Ablage-Einstellungen wurden aktualisiert.');
 
 		return $this->serializeJob($job);
 	}
@@ -156,7 +182,7 @@ class JobService {
 	public function discardJob(string $userId, int $jobId): array {
 		$job = $this->jobMapper->findForUserById($userId, $jobId);
 		if ($job->getStatus() === 'executing' || $job->getExecutedOperations() > 0) {
-			throw new \InvalidArgumentException('Jobs mit laufender oder bereits ausgefuehrter Queue koennen nicht verworfen werden.');
+			throw new \InvalidArgumentException('Flows mit laufender oder bereits ausgefuehrter Ablage koennen nicht verworfen werden.');
 		}
 
 		$removedQueue = $this->queueMapper->deleteForJob($userId, $jobId);
@@ -167,7 +193,7 @@ class JobService {
 			'jobId' => $jobId,
 			'removedAssignments' => $removedAssignments,
 			'removedQueueItems' => $removedQueue,
-		], null, 'Sortierjob wurde verworfen.');
+		], null, 'Flow wurde verworfen.');
 
 		return [
 			'assignments' => $removedAssignments,
@@ -211,6 +237,27 @@ class JobService {
 		}
 
 		return $mode;
+	}
+
+	private function preloadMode(string $mode): string {
+		return in_array($mode, ['light', 'balanced', 'turbo'], true) ? $mode : 'balanced';
+	}
+
+	/**
+	 * @param array<string, mixed> $input
+	 * @return array<string, mixed>
+	 */
+	private function processingOptions(SortJob $job, array $input): array {
+		$options = $this->decodeJson($job->getOptionsJson());
+		$options['autoProcess'] = (bool)($input['autoProcess'] ?? ($options['autoProcess'] ?? false));
+		if (isset($input['preloadMode']) && is_scalar($input['preloadMode'])) {
+			$options['preloadMode'] = $this->preloadMode((string)$input['preloadMode']);
+		}
+		if (!isset($options['preloadMode']) || !is_string($options['preloadMode'])) {
+			$options['preloadMode'] = 'balanced';
+		}
+
+		return $options;
 	}
 
 	private function optionalString(mixed $value, int $length): ?string {

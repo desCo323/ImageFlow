@@ -41,3 +41,12 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 12. Decision feedback after adding an image to a quick target
    ![Decision feedback after adding an image to a quick target](screenshots/12-flow-feedback-burst.png)
+
+13. Final Flow controls with automatic processing and buffer mode
+   ![Final Flow controls with automatic processing and buffer mode](screenshots/13-final-flow-controls.png)
+
+14. Worklist processing options
+   ![Worklist processing options](screenshots/14-worklist-processing-options.png)
+
+15. Debug protocol view
+   ![Debug protocol view](screenshots/15-debug-protocol.png)
