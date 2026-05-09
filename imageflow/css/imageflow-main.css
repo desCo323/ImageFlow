@@ -1521,11 +1521,39 @@
   }
 
   .imageflow-gamebar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
 
   .imageflow-job-head .imageflow-toolbar {
     justify-content: flex-start;
+  }
+
+  .imageflow-flow-meter {
+    flex: 1 0 220px;
+  }
+
+  .imageflow-flow-chip,
+  .imageflow-flow-milestone {
+    flex: 0 0 96px;
+  }
+
+  .imageflow-filmstrip {
+    min-height: 124px;
+  }
+
+  .imageflow-thumb {
+    grid-template-rows: 60px auto;
+    min-height: 92px;
+  }
+
+  .imageflow-thumb-img {
+    height: 60px;
+  }
+
+  .imageflow-thumb span {
+    display: none;
   }
 }
 

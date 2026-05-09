@@ -245,12 +245,15 @@ test('keeps flow controls visible inside a narrow Nextcloud content area', async
 
   const titleBox = await page.getByRole('heading', { name: 'Familienfotos 2025' }).boundingBox();
   const createBox = await page.getByRole('button', { name: 'Album anlegen' }).first().boundingBox();
+  const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
   const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
 
   expect(titleBox).not.toBeNull();
   expect(titleBox.height).toBeLessThan(64);
   expect(createBox).not.toBeNull();
   expect(createBox.y).toBeLessThan(260);
+  expect(photoBox).not.toBeNull();
+  expect(photoBox.height).toBeGreaterThan(120);
   expect(footerBox).not.toBeNull();
   expect(footerBox.y).toBeLessThan(720);
 });
