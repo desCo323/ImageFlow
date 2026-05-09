@@ -208,8 +208,8 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.getByRole('heading', { name: 'Schnellziele' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Alle Ziele' })).toBeVisible();
   await expect(page.getByLabel('Flow-Fortschritt')).toContainText('Serie');
-  await expect(page.getByRole('button', { name: 'Album anlegen' })).toBeVisible();
-  await page.getByRole('button', { name: 'Album anlegen' }).click();
+  await expect(page.getByRole('button', { name: 'Album anlegen' }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Album anlegen' }).first().click();
   await expect(page.getByPlaceholder('Neues Album')).toBeFocused();
   await expect(page.getByLabel('Filmstreifen')).toBeVisible();
   await expect(page.locator('.imageflow-photo-img')).toBeVisible();
@@ -292,7 +292,7 @@ test('shows flow feedback after a sorting decision', async ({ page }) => {
 test('creates a target from the sorting rail and can undo the last decision', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1"');
 
-  await page.getByRole('button', { name: 'Album anlegen' }).click();
+  await page.getByRole('button', { name: 'Album anlegen' }).first().click();
   await page.getByPlaceholder('Neues Album').fill('Tierpark');
   await page.getByRole('button', { name: 'Erstellen' }).click();
   await expect(page.getByText('Album wurde angelegt.')).toBeVisible();

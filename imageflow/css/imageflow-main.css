@@ -585,6 +585,7 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  container-type: inline-size;
 }
 
 .imageflow-job-head {
@@ -702,7 +703,7 @@
 
 .imageflow-sort-grid {
   display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(320px, 1fr) minmax(230px, 320px);
+  grid-template-columns: minmax(132px, 220px) minmax(0, 1fr) minmax(190px, 300px);
   gap: 12px;
   min-height: 0;
   overflow: hidden;
@@ -1051,6 +1052,9 @@
 }
 
 .imageflow-filmstrip {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
   min-width: 0;
   min-height: 152px;
   overflow: hidden;
@@ -1058,6 +1062,7 @@
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-main-background) 97%, #ece8ff);
+  box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.08);
 }
 
 .imageflow-filmstrip-head {
@@ -1503,6 +1508,19 @@
   .imageflow-photo-card {
     aspect-ratio: 4 / 3;
     height: auto;
+  }
+}
+
+@container (max-width: 860px) {
+  .imageflow-sort-grid {
+    grid-template-columns: minmax(104px, 160px) minmax(0, 1fr) minmax(160px, 220px);
+  }
+
+  .imageflow-target-head-actions .imageflow-button,
+  .imageflow-target-filter small,
+  .imageflow-favorite small,
+  .imageflow-target small {
+    font-size: 12px;
   }
 }
 

@@ -1361,6 +1361,7 @@
             <span class="imageflow-badge safe">${job.safeMode ? "Extra sicher" : "Standard"}</span>
             <span class="imageflow-badge">${Number(job.sortedFiles || 0)} entschieden</span>
             <span class="imageflow-badge">${Number(job.queuedOperations || 0)} warten</span>
+            <button class="imageflow-button primary" data-action="focus-target-create" type="button">${job.targetMode === "album" ? "Album anlegen" : "Ordner anlegen"}</button>
             <button class="imageflow-button" data-action="undo-last-decision" type="button" ${hasDecisions ? "" : "disabled"}>Rückgängig</button>
             <button class="imageflow-button" data-action="start-sort" data-start-mode="resume" type="button">Weitermachen</button>
             <button class="imageflow-button" data-action="start-sort" data-start-mode="begin" type="button">Neu anfangen</button>

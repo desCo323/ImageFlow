@@ -21,6 +21,7 @@
 - Add full-worklist validation summaries and compact filters to the Ablage preview.
 - Add dashboard system diagnostics and guided self-test status.
 - Add a visible Flow creation action, fixed-height sorting workspace, visible filmstrip footer, and quick target-create button.
+- Pin the Flow filmstrip to the viewport bottom and duplicate target creation in the Flow header for narrow Nextcloud layouts.
 
 ## 0.1.0 - 2026-05-08
 
