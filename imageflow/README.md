@@ -8,6 +8,7 @@ Current status: first functional preview. The app is installable as a Nextcloud 
 
 - Round dashboard with save, edit, duplicate, pause, safe preview and processing controls.
 - Sorting workspace with favorites, targets, image stage, filmstrip and playful progress feedback.
+- Fast target search for albums and folder targets directly in the sorting rail.
 - Fast hotkeys for `1-9`, `A-I`, custom quick-target keys, `0`, `Space`, undo and arrow-key filmstrip navigation.
 - Bounded image preload modes for light, balanced and turbo sorting.
 - Tables for jobs, assignments, queue items, favorites and logs.

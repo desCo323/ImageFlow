@@ -77,3 +77,6 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 24. Background processing waits for a quiet server window
    ![Background processing waits for a quiet server window](screenshots/24-quiet-server-background-gate.png)
+
+25. Sorting workspace target search
+   ![Sorting workspace target search](screenshots/25-target-search.png)

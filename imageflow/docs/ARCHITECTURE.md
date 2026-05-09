@@ -35,6 +35,8 @@ Folder selection uses the same normalized user-relative path model as sorting. T
 
 Target creation is explicit user action from the sorting rail. Album creation writes a Photos album row for the current user; folder creation uses the current user's filesystem view and returns the refreshed folder listing.
 
+Target search is read-only. Album search runs through the target API query parameter, and folder search filters the currently opened folder before the result is returned to the rail.
+
 ## Safety Boundary
 
 The current `QueueExecutionJob` blocks queued operations unless `imageflow` app config `real_execution_enabled` is set to `1`. This default protects production installs during development.

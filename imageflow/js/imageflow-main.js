@@ -18,6 +18,7 @@
   let positionSaveTimer = null;
   let feedbackTimer = null;
   let imagePageLoadPromise = null;
+  let targetSearchTimer = null;
 
   const state = {
     page: root.dataset.page || "jobs",
@@ -30,6 +31,7 @@
     imagePage: null,
     bufferPlan: [],
     targets: [],
+    targetQuery: "",
     toast: null,
     feedback: null,
     decisionStreak: 0,
@@ -144,6 +146,14 @@
       .map((part) => part.trim())
       .filter((part) => part && part !== ".");
     return parts.length ? `/${parts.filter((part) => part !== "..").join("/")}` : "/";
+  }
+
+  function normalizeSearchTerm(value) {
+    return String(value || "")
+      .trim()
+      .toLocaleLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
   }
 
   function parentPath(path) {
@@ -409,10 +419,11 @@
     if (path.includes("/targets")) {
       const query = new URLSearchParams(path.split("?")[1] || "");
       const mode = query.get("mode") || "album";
+      const search = query.get("query") || "";
       if (mode !== "album") {
-        return { mode, ordering: "alphabetical", folders: mockFolderPage(query.get("path") || "/") };
+        return { mode, ordering: search ? "search" : "alphabetical", folders: mockFolderPage(query.get("path") || "/", search) };
       }
-      return { targets: mockTargets() };
+      return { mode, ordering: search ? "search" : "relevance", targets: filterMockTargets(mockTargets(), search) };
     }
     if (path.includes("/logs")) {
       return { logs: mockLogs() };
@@ -661,7 +672,15 @@
     ];
   }
 
-  function mockFolderPage(path) {
+  function filterMockTargets(targets, query) {
+    const needle = normalizeSearchTerm(query);
+    if (!needle) {
+      return targets;
+    }
+    return targets.filter((target) => normalizeSearchTerm(`${target.label || target.name || ""} ${target.location || target.path || ""}`).includes(needle));
+  }
+
+  function mockFolderPage(path, query = "") {
     const normalized = normalizeDisplayPath(path || "/");
     const tree = {
       "/": [
@@ -677,7 +696,7 @@
         { name: "Sortiert", path: "/Photos/Sortiert", hasChildren: false },
       ],
     };
-    const folders = state.mockFolders?.[normalized] || tree[normalized] || [];
+    const folders = filterMockTargets(state.mockFolders?.[normalized] || tree[normalized] || [], query);
     return {
       current: {
         name: normalized === "/" ? "Dateien" : normalized.split("/").filter(Boolean).at(-1),
@@ -889,6 +908,10 @@
     const targetMode = mode || "album";
     const ordering = state.sortState?.job?.options?.targetOrdering || "relevance";
     const params = new URLSearchParams({ mode: targetMode, limit: "100", ordering });
+    const query = state.targetQuery.trim();
+    if (query) {
+      params.set("query", query);
+    }
     if (targetMode !== "album") {
       if (!state.targetBrowsePath) {
         state.targetBrowsePath = state.sortState?.job?.targetPath || "/";
@@ -1161,6 +1184,12 @@
     const tempo = sessionTempo();
     const milestone = flowMilestone(progress.percent, state.decisionStreak);
     const hasDecisions = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) > 0 || (sortState.recentAssignments || []).length > 0;
+    const listedTargets = state.targets.length
+      ? state.targets
+      : (isFolderMode || state.targetQuery.trim() ? [] : mockTargets());
+    const emptyTargetMessage = state.targetQuery.trim()
+      ? `Kein Ziel passt zu "${state.targetQuery.trim()}".`
+      : "Keine Ziele in diesem Ordner.";
 
     return `
       <section class="imageflow-sort" aria-label="Sortieransicht">
@@ -1242,9 +1271,10 @@
               </div>
               ${isFolderMode ? `<button class="imageflow-button" data-action="browse-target-parent" type="button" ${targetFolder?.parent ? "" : "disabled"}>Eine Ebene hoch</button>` : ""}
             </div>
+            ${renderTargetSearch(isFolderMode)}
             ${renderTargetCreate(job, isFolderMode, targetFolder)}
             <div class="imageflow-target-list">
-              ${(state.targets.length ? state.targets : (isFolderMode ? [] : mockTargets())).map((target, index) => renderTarget(target, current, index, isFolderMode)).join("") || '<div class="imageflow-empty">Keine Ziele in diesem Ordner.</div>'}
+              ${listedTargets.map((target, index) => renderTarget(target, current, index, isFolderMode)).join("") || `<div class="imageflow-empty">${escapeHtml(emptyTargetMessage)}</div>`}
             </div>
           </aside>
         </div>
@@ -1304,6 +1334,21 @@
         </button>
         ${browse}
         <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Zu Schnellzielen: ${escapeAttr(label)}" title="Zu Schnellzielen" type="button">+</button>
+      </div>
+    `;
+  }
+
+  function renderTargetSearch(isFolderMode) {
+    const placeholder = isFolderMode ? "Ordner suchen" : "Album suchen";
+    const note = isFolderMode ? "Sucht im geöffneten Ordner." : "Sucht in deinen Nextcloud-Alben.";
+    return `
+      <div class="imageflow-target-filter">
+        <label for="ifl-target-query">Ziel finden</label>
+        <div>
+          <input id="ifl-target-query" data-target-query type="search" maxlength="120" value="${escapeAttr(state.targetQuery)}" placeholder="${escapeAttr(placeholder)}" autocomplete="off">
+          <button class="imageflow-mini-button" data-action="clear-target-search" aria-label="Zielsuche leeren" title="Zielsuche leeren" type="button" ${state.targetQuery.trim() ? "" : "disabled"}>x</button>
+        </div>
+        <small>${escapeHtml(note)}</small>
       </div>
     `;
   }
@@ -1564,6 +1609,19 @@
       const eventName = ["SELECT", "INPUT"].includes(button.tagName) ? "change" : "click";
       button.addEventListener(eventName, handleAction);
     });
+    const targetQueryInput = root.querySelector("[data-target-query]");
+    if (targetQueryInput) {
+      targetQueryInput.addEventListener("input", (event) => {
+        state.targetQuery = event.currentTarget.value || "";
+        searchTargetsSoon();
+      });
+      targetQueryInput.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          clearTargetSearch();
+        }
+      });
+    }
     const targetCreateInput = root.querySelector("[data-target-create-name]");
     if (targetCreateInput) {
       targetCreateInput.addEventListener("input", (event) => {
@@ -1735,6 +1793,8 @@
       await browseTargetFolder(state.targetFolderPage?.parent || "/");
     } else if (action === "create-target") {
       await createTargetFromInput();
+    } else if (action === "clear-target-search") {
+      await clearTargetSearch();
     } else if (action === "undo-last-decision") {
       await undoLastDecision();
     } else if (action === "close-worklist-preview") {
@@ -1927,6 +1987,33 @@
     render();
   }
 
+  function searchTargetsSoon() {
+    window.clearTimeout(targetSearchTimer);
+    targetSearchTimer = window.setTimeout(async () => {
+      if (!state.sortState?.job) {
+        return;
+      }
+      await loadTargets(state.sortState.job.targetMode);
+      render();
+      const input = root.querySelector("[data-target-query]");
+      input?.focus();
+    }, 180);
+  }
+
+  async function clearTargetSearch() {
+    if (!state.targetQuery) {
+      return;
+    }
+    window.clearTimeout(targetSearchTimer);
+    state.targetQuery = "";
+    if (state.sortState?.job) {
+      await loadTargets(state.sortState.job.targetMode);
+    }
+    render();
+    const input = root.querySelector("[data-target-query]");
+    input?.focus();
+  }
+
   async function createTargetFromInput() {
     const job = state.sortState?.job;
     if (!job) {
@@ -1960,6 +2047,7 @@
         state.targets = payload.targets || (payload.target ? [payload.target, ...state.targets] : state.targets);
       }
       state.targetCreateName = "";
+      state.targetQuery = "";
       state.toast = {
         type: "info",
         message: payload.duplicate ? "Dieses Ziel war schon vorhanden." : `${isFolderMode ? "Ordner" : "Album"} wurde angelegt.`,
@@ -2167,6 +2255,7 @@
     state.targetBrowsePath = null;
     state.targetFolderPage = null;
     state.targetCreateName = "";
+    state.targetQuery = "";
     clearImagePageCache();
     resetSessionFlow();
     await load();

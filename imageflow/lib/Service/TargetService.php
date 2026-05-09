@@ -31,8 +31,8 @@ class TargetService {
 
 		return [
 			'mode' => $mode,
-			'ordering' => 'alphabetical',
-			'folders' => $this->folderBrowserService->listFolders($userId, $path, $limit),
+			'ordering' => $query === '' ? 'alphabetical' : 'search',
+			'folders' => $this->folderBrowserService->listFolders($userId, $path, $limit, $query),
 		];
 	}
 

@@ -44,6 +44,8 @@ Targets from the right rail can be added to quick targets with `+`. Quick target
 
 In copy and move rounds, the target rail can browse folders. The main folder row assigns the current image to that folder, while the arrow button opens a child folder.
 
+Use `Ziel finden` to narrow the right rail without changing the quick targets. Album rounds search through your Photos albums, while copy and move rounds filter the currently opened folder.
+
 Use `Album anlegen` or `Ordner anlegen` in the right rail when the needed target does not exist yet. Newly created targets appear immediately in the target list and can be added to quick targets with `+`.
 
 Hotkeys:

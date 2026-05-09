@@ -271,6 +271,23 @@ test('adds and removes favorites from the target rail', async ({ page }) => {
   await expect(page.locator('.imageflow-favorite-list .imageflow-favorite', { hasText: 'Projekte' })).toHaveCount(0);
 });
 
+test('filters target lists while sorting', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1"');
+
+  await page.getByLabel('Ziel finden').fill('Reis');
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Reisen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Familie' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Zielsuche leeren' }).click();
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Familie' })).toBeVisible();
+
+  await mount(page, 'data-page="sort" data-job-id="2"');
+  await page.getByRole('button', { name: 'Eine Ebene hoch' }).click();
+  await page.getByLabel('Ziel finden').fill('Inb');
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Inbox' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Sortiert' })).toHaveCount(0);
+});
+
 test('browses folder targets in copy mode', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="2"');
 

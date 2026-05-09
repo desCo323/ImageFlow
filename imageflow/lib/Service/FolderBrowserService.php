@@ -24,9 +24,10 @@ class FolderBrowserService {
 	/**
 	 * @return array<string, mixed>
 	 */
-	public function listFolders(string $userId, string $path, int $limit = 150): array {
+	public function listFolders(string $userId, string $path, int $limit = 150, string $query = ''): array {
 		$limit = max(1, min(300, $limit));
 		$currentPath = PathHelper::normalizeUserPath($path);
+		$needle = $this->searchTerm($query);
 		$userFolder = $this->rootFolder->getUserFolder($userId);
 		$current = $currentPath === '' ? $userFolder : $userFolder->get($currentPath);
 		if (!$current instanceof Folder) {
@@ -39,6 +40,9 @@ class FolderBrowserService {
 			foreach ($current->getDirectoryListing() as $node) {
 				if ($node instanceof Folder) {
 					$childPath = trim($currentPath . '/' . $node->getName(), '/');
+					if ($needle !== '' && !str_contains($this->searchTerm($node->getName() . ' ' . PathHelper::displayPath($childPath)), $needle)) {
+						continue;
+					}
 					$folders[] = [
 						'name' => $node->getName(),
 						'path' => PathHelper::displayPath($childPath),
@@ -66,6 +70,7 @@ class FolderBrowserService {
 			'total' => $total,
 			'limit' => $limit,
 			'truncated' => $total > $limit,
+			'query' => $query,
 		];
 	}
 
@@ -171,6 +176,11 @@ class FolderBrowserService {
 		}
 
 		return $current;
+	}
+
+	private function searchTerm(string $value): string {
+		$value = trim($value);
+		return function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
 	}
 
 	private function countImagesInFolder(Folder $folder): int {

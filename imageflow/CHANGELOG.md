@@ -17,6 +17,7 @@
 - Add dashboard safety status and a deployed self-test checklist.
 - Add direct target creation, custom quick-target hotkeys, undo for recent decisions, and removable planned worklist items.
 - Add quiet-server background gate for automatic processing with server-load and optional time-window checks.
+- Add fast target search for album and folder targets in the sorting rail.
 
 ## 0.1.0 - 2026-05-08
 
