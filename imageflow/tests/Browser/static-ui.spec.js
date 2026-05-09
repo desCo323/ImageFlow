@@ -74,10 +74,12 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByLabel('Bilder vorladen')).toBeVisible();
   await expect(page.getByLabel('Ziele anzeigen')).toBeVisible();
   await expect(page.getByLabel('Tastenbelegung')).toBeVisible();
+  await expect(page.getByLabel('Unterordner mit einbeziehen')).toBeVisible();
   await expect(page.getByLabel('Automatisch ablegen, wenn der Server ruhig ist')).toBeVisible();
 
   await page.getByLabel('Name').fill('Browser Smoke');
   await page.getByLabel('Bilderordner').fill('/Photos/Smoke');
+  await page.getByLabel('Unterordner mit einbeziehen').check();
   await page.getByLabel('Bilder vorladen').selectOption('turbo');
   await page.getByLabel('Ziele anzeigen').selectOption('alphabetical');
   await page.getByLabel('Tastenbelegung').selectOption('letters');
@@ -85,6 +87,7 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await page.getByRole('button', { name: 'Flow speichern' }).click();
   await expect(page.getByText('Browser Smoke')).toBeVisible();
   await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Automatik an');
+  await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Mit Unterordnern');
   await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Alphabetisch');
 
   await page.locator('tr', { hasText: 'Browser Smoke' }).getByRole('button', { name: 'Bearbeiten' }).click();
@@ -227,7 +230,8 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.locator('.imageflow-job-head').getByRole('button', { name: 'Album anlegen' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Album anlegen' }).first().click();
   await expect(page.getByPlaceholder('Neues Album')).toBeFocused();
-  await expect(page.getByLabel('Filmstreifen')).toBeVisible();
+  await expect(page.getByLabel('Vorgeladene Bilder')).toBeVisible();
+  await expect(page.getByText('Filmstreifen')).toHaveCount(0);
   await expect(page.locator('.imageflow-photo-img')).toBeVisible();
   await expect(page.locator('.imageflow-photo-meta strong', { hasText: 'IMG_4021.jpg' })).toBeVisible();
   await expect(page.getByText('Leertaste')).toBeVisible();
@@ -243,7 +247,7 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   expect(photoBox).not.toBeNull();
   expect(photoBox.height).toBeGreaterThan(380);
   expect(footerBox).not.toBeNull();
-  expect(footerBox.height).toBeLessThan(120);
+  expect(footerBox.height).toBeLessThan(100);
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(900);
   expect(await page.locator('.imageflow-thumb strong').first().boundingBox()).toBeNull();
 });
@@ -283,7 +287,7 @@ test('keeps flow controls visible inside a narrow Nextcloud content area', async
   expect(photoBox).not.toBeNull();
   expect(photoBox.height).toBeGreaterThan(190);
   expect(footerBox).not.toBeNull();
-  expect(footerBox.height).toBeLessThan(120);
+  expect(footerBox.height).toBeLessThan(100);
   expect(footerBox.y).toBeLessThan(720);
 });
 
@@ -306,7 +310,7 @@ test('uses mobile space with the photo before target lists', async ({ page }) =>
   expect(photoBox.y).toBeLessThan(targetsBox.y);
   expect(targetsBox.y).toBeLessThan(railBox.y);
   expect(footerBox).not.toBeNull();
-  expect(footerBox.height).toBeLessThan(110);
+  expect(footerBox.height).toBeLessThan(100);
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(844);
 });
 
@@ -409,6 +413,11 @@ test('browses folder targets in copy mode', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="2"');
 
   await expect(page.getByText('/Photos/Sortiert', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Ordner anlegen' }).first().click();
+  await page.getByPlaceholder('Neuer Ordner').fill('Neue Ablage');
+  await page.getByRole('button', { name: 'Erstellen' }).click();
+  await expect(page.getByText('Ordner wurde angelegt.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Neue Ablage' })).toBeVisible();
   await page.getByRole('button', { name: 'Eine Ebene hoch' }).click();
   await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Inbox' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zu Schnellzielen: Sortiert' })).toBeVisible();

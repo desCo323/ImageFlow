@@ -33,6 +33,7 @@ class SortService {
 	public function state(string $userId, int $jobId, ?int $cursor = null, int $limit = 48, ?string $start = null): array {
 		$job = $this->jobService->touchOpened($userId, $jobId);
 		$options = $this->decodeOptions($job->getOptionsJson());
+		$recursiveSource = (bool)($options['recursiveSource'] ?? false);
 		$savedPosition = $this->savedPosition($options);
 		$startMode = $this->startMode($start);
 		$startPosition = [
@@ -56,11 +57,11 @@ class SortService {
 				'fileId' => null,
 			];
 		} elseif ($startMode === 'unsorted') {
-			$startPosition = $this->firstUnsortedPosition($userId, $jobId, $job->getSourcePath(), $limit);
+			$startPosition = $this->firstUnsortedPosition($userId, $jobId, $job->getSourcePath(), $limit, $recursiveSource);
 		}
 
 		$pageCursor = (int)$startPosition['cursor'];
-		$imagePage = $this->safeImagePage($userId, $jobId, $job->getSourcePath(), $pageCursor, $limit);
+		$imagePage = $this->safeImagePage($userId, $jobId, $job->getSourcePath(), $pageCursor, $limit, $recursiveSource);
 
 		return [
 			'job' => $this->jobService->serializeJob($job),
@@ -393,9 +394,9 @@ class SortService {
 	/**
 	 * @return array{images: array<int, array<string, mixed>>, page: array<string, mixed>}
 	 */
-	private function safeImagePage(string $userId, int $jobId, string $sourcePath, int $cursor, int $limit): array {
+	private function safeImagePage(string $userId, int $jobId, string $sourcePath, int $cursor, int $limit, bool $recursive = false): array {
 		try {
-			return $this->folderBrowserService->listImagePage($userId, $sourcePath, $cursor, $limit);
+			return $this->folderBrowserService->listImagePage($userId, $sourcePath, $cursor, $limit, $recursive);
 		} catch (\Throwable $e) {
 			$this->logService->exception('image_page_failed', $e, $userId, $jobId);
 			return [
@@ -410,6 +411,7 @@ class SortService {
 					'hasNext' => false,
 					'nextCursor' => null,
 					'mode' => 'unavailable',
+					'recursive' => $recursive,
 				],
 			];
 		}
@@ -418,13 +420,13 @@ class SortService {
 	/**
 	 * @return array{mode: string, cursor: int, index: int, fileId: ?int}
 	 */
-	private function firstUnsortedPosition(string $userId, int $jobId, string $sourcePath, int $limit): array {
+	private function firstUnsortedPosition(string $userId, int $jobId, string $sourcePath, int $limit, bool $recursive = false): array {
 		$cursor = 0;
 		$pagesScanned = 0;
 		$maxPages = null;
 
 		do {
-			$imagePage = $this->safeImagePage($userId, $jobId, $sourcePath, $cursor, $limit);
+			$imagePage = $this->safeImagePage($userId, $jobId, $sourcePath, $cursor, $limit, $recursive);
 			$images = $imagePage['images'];
 			if ($maxPages === null) {
 				$total = $this->optionalInt($imagePage['page']['total'] ?? null) ?? 0;

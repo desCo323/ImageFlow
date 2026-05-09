@@ -310,6 +310,7 @@ class JobService {
 		$options['customHotkeys'] = $this->customHotkeys($input['customHotkeys'] ?? $options['customHotkeys'] ?? []);
 		$options['preloadMode'] = $this->preloadMode((string)($input['preloadMode'] ?? $options['preloadMode'] ?? 'balanced'));
 		$options['autoProcess'] = $this->boolValue($input['autoProcess'] ?? $options['autoProcess'] ?? false);
+		$options['recursiveSource'] = $this->boolValue($input['recursiveSource'] ?? $options['recursiveSource'] ?? false);
 
 		return [
 			'name' => substr($name, 0, 160),

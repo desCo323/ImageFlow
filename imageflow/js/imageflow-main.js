@@ -59,6 +59,7 @@
       sourcePath: "/Photos",
       targetMode: "album",
       targetPath: "/Photos/Sortiert",
+      recursiveSource: false,
       safeMode: true,
       autoProcess: false,
       preloadMode: "balanced",
@@ -221,6 +222,7 @@
         failedOperations: 0,
         options: {
           autoProcess: Boolean(options.body.autoProcess),
+          recursiveSource: Boolean(options.body.recursiveSource),
           preloadMode: options.body.preloadMode || "balanced",
           targetOrdering: options.body.targetOrdering || "relevance",
           hotkeys: options.body.hotkeys || "number-row",
@@ -244,6 +246,7 @@
         options: {
           ...(current.options || {}),
           autoProcess: Boolean(options.body.autoProcess),
+          recursiveSource: Boolean(options.body.recursiveSource),
           preloadMode: options.body.preloadMode || current.options?.preloadMode || "balanced",
           targetOrdering: options.body.targetOrdering || current.options?.targetOrdering || "relevance",
           hotkeys: options.body.hotkeys || current.options?.hotkeys || "number-row",
@@ -453,6 +456,7 @@
         failedOperations: 0,
         options: {
           autoProcess: false,
+          recursiveSource: false,
           preloadMode: "turbo",
           targetOrdering: "relevance",
           hotkeys: "number-row",
@@ -477,6 +481,7 @@
         failedOperations: 0,
         options: {
           autoProcess: true,
+          recursiveSource: true,
           preloadMode: "balanced",
           targetOrdering: "alphabetical",
           hotkeys: "number-row",
@@ -749,7 +754,10 @@
         { name: "Sortiert", path: "/Photos/Sortiert", hasChildren: false },
       ],
     };
-    const folders = filterMockTargets(state.mockFolders?.[normalized] || tree[normalized] || [], query);
+    const folderSource = { ...tree, ...(state.mockFolders || {}) };
+    const folders = query
+      ? filterMockTargets(flattenMockFolders(folderSource, normalized), query)
+      : filterMockTargets(folderSource[normalized] || [], query);
     return {
       current: {
         name: normalized === "/" ? "Dateien" : normalized.split("/").filter(Boolean).at(-1),
@@ -762,6 +770,17 @@
       limit: 150,
       truncated: false,
     };
+  }
+
+  function flattenMockFolders(folderSource, rootPath) {
+    const result = [];
+    const pending = [...(folderSource[rootPath] || [])];
+    while (pending.length) {
+      const folder = pending.shift();
+      result.push(folder);
+      pending.push(...(folderSource[folder.path] || []));
+    }
+    return result;
   }
 
   function mockWorklistPreview(job) {
@@ -1039,7 +1058,6 @@
 	          </div>
 	          <button class="imageflow-button primary" data-action="focus-new-flow" type="button">Flow anlegen</button>
 	        </section>
-	        ${renderSystemCheckPanel()}
 	        <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
           <div class="imageflow-panel-head">
             <div>
@@ -1059,6 +1077,10 @@
             </div>
             <small>ImageFlow nutzt nur Ordner aus deinem Nextcloud-Dateibereich.</small>
           </div>
+          <label class="imageflow-toggle imageflow-toggle-compact">
+            <input id="ifl-recursive" name="recursiveSource" type="checkbox" ${draft.recursiveSource ? "checked" : ""}>
+            Unterordner mit einbeziehen
+          </label>
           <div class="imageflow-field">
             <label for="ifl-mode">Was soll mit passenden Bildern passieren?</label>
             <select id="ifl-mode" name="targetMode">
@@ -1112,7 +1134,7 @@
             ${isEditing ? '<button class="imageflow-button" data-action="cancel-edit-job" type="button">Bearbeiten abbrechen</button>' : '<button class="imageflow-button" data-action="clear-job-draft" type="button">Zurücksetzen</button>'}
           </div>
         </form>
-        <section class="imageflow-panel">
+        <section class="imageflow-panel imageflow-flow-list-panel">
           <div class="imageflow-panel-head">
             <div>
               <h3>Deine Flows</h3>
@@ -1128,6 +1150,7 @@
           </div>
           ${renderJobTable()}
         </section>
+        ${renderSystemCheckPanel()}
       </section>
     `;
   }
@@ -1303,6 +1326,7 @@
           <strong>${escapeHtml(job.name)}</strong><br>
           <span class="imageflow-badge safe">${job.safeMode ? "Extra sicher" : "Standard"}</span>
           <span class="imageflow-badge ${options.autoProcess ? "ready" : ""}">${options.autoProcess ? "Automatik an" : "Manuell"}</span>
+          ${options.recursiveSource ? '<span class="imageflow-badge ready">Mit Unterordnern</span>' : ""}
           <span class="imageflow-badge">${targetOrderingLabel(options.targetOrdering)}</span>
         </td>
         <td>${escapeHtml(job.sourcePath || "/")}</td>
@@ -1361,7 +1385,7 @@
         <header class="imageflow-job-head">
           <div class="imageflow-head-title">
             <h3>${escapeHtml(job.name || "Flow")}</h3>
-            <p>${escapeHtml(job.sourcePath || "/")} · ${modeLabel(job.targetMode)} · ${statusLabel(job.status)} · Bild ${images.length ? currentIndex + 1 : 0}/${images.length}</p>
+            <p>${escapeHtml(job.sourcePath || "/")} ${job.options?.recursiveSource ? "· mit Unterordnern" : ""} · ${modeLabel(job.targetMode)} · ${statusLabel(job.status)} · Bild ${images.length ? currentIndex + 1 : 0}/${images.length}</p>
           </div>
           <div class="imageflow-head-actions">
             <div class="imageflow-toolbar">
@@ -1427,7 +1451,7 @@
               <span class="imageflow-hotkey"><b>0</b> Überspringen</span>
               <span class="imageflow-hotkey"><b>Leertaste</b> Überspringen</span>
               <span class="imageflow-hotkey"><b>Strg+Z</b> Rückgängig</span>
-              <span class="imageflow-hotkey"><b>←/→</b> Filmstreifen</span>
+              <span class="imageflow-hotkey"><b>←/→</b> Vorschaubilder</span>
             </div>
           </section>
           <aside class="imageflow-targets">
@@ -1451,7 +1475,6 @@
         <footer class="imageflow-filmstrip">
           <div class="imageflow-filmstrip-head">
             <div>
-              <strong>Filmstreifen</strong>
               <span>${pageStart}-${pageEnd} von ${Number(page.total || images.length)} · ${bufferPlan.length} vorgeladen</span>
             </div>
             <div class="imageflow-page-actions">
@@ -1459,7 +1482,7 @@
               <button class="imageflow-icon-button" data-action="page-next" type="button" ${page.hasNext ? "" : "disabled"}>Weiter</button>
             </div>
           </div>
-          <div class="imageflow-strip" role="listbox" aria-label="Filmstreifen">
+          <div class="imageflow-strip" role="listbox" aria-label="Vorgeladene Bilder">
             ${filmstrip.items.map((image, offset) => renderThumb(image, filmstrip.start + offset, currentIndex, bufferPlan)).join("") || '<div class="imageflow-empty">Keine Vorschaubilder geladen.</div>'}
           </div>
         </footer>
@@ -1510,7 +1533,7 @@
 
   function renderTargetSearch(isFolderMode) {
     const placeholder = isFolderMode ? "Ordner suchen" : "Album suchen";
-    const note = isFolderMode ? "Sucht im geöffneten Ordner." : "Sucht in deinen Nextcloud-Alben.";
+    const note = isFolderMode ? "Sucht im geöffneten Ordner und seinen Unterordnern." : "Sucht in deinen Nextcloud-Alben.";
     return `
       <div class="imageflow-target-filter">
         <label for="ifl-target-query">Ziel finden</label>
@@ -1857,6 +1880,10 @@
         state.targetQuery = event.currentTarget.value || "";
         searchTargetsSoon();
       });
+      targetQueryInput.addEventListener("search", (event) => {
+        state.targetQuery = event.currentTarget.value || "";
+        searchTargetsSoon();
+      });
       targetQueryInput.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -1916,6 +1943,7 @@
       sourcePath: state.jobDraft.sourcePath.trim() || "/",
       targetMode: state.jobDraft.targetMode,
       targetPath: state.jobDraft.targetPath.trim(),
+      recursiveSource: state.jobDraft.recursiveSource,
       safeMode: state.jobDraft.safeMode,
       autoProcess: state.jobDraft.autoProcess,
       preloadMode: state.jobDraft.preloadMode,
@@ -1932,6 +1960,7 @@
       sourcePath: "/Photos",
       targetMode: "album",
       targetPath: "/Photos/Sortiert",
+      recursiveSource: false,
       safeMode: true,
       autoProcess: false,
       preloadMode: "balanced",
@@ -1970,6 +1999,7 @@
       sourcePath: form.sourcePath?.value || "/",
       targetMode: form.targetMode?.value || "album",
       targetPath: form.targetPath?.value || "/Photos/Sortiert",
+      recursiveSource: Boolean(form.recursiveSource?.checked),
       safeMode: Boolean(form.safeMode?.checked),
       autoProcess: Boolean(form.autoProcess?.checked),
       preloadMode: form.preloadMode?.value || "balanced",
@@ -2169,6 +2199,7 @@
       sourcePath: job.sourcePath || "/",
       targetMode: job.targetMode || "album",
       targetPath: job.targetPath || "/Photos/Sortiert",
+      recursiveSource: Boolean(job.options?.recursiveSource),
       safeMode: job.safeMode !== false,
       autoProcess: Boolean(job.options?.autoProcess),
       preloadMode: job.options?.preloadMode || "balanced",
@@ -2268,7 +2299,12 @@
       if (!state.sortState?.job) {
         return;
       }
+      const query = state.targetQuery;
+      const mode = state.sortState.job.targetMode;
       await loadTargets(state.sortState.job.targetMode);
+      if (query !== state.targetQuery || mode !== state.sortState?.job?.targetMode) {
+        return;
+      }
       render();
       const input = root.querySelector("[data-target-query]");
       input?.focus();
@@ -2317,9 +2353,9 @@
       if (payload.folders) {
         state.targetFolderPage = payload.folders;
         state.targetBrowsePath = payload.folders.current?.path || normalizeDisplayPath(parentPathValue);
-        state.targets = payload.folders.folders || [];
+        state.targets = mergeTargetList(payload.target, payload.folders.folders || []);
       } else {
-        state.targets = payload.targets || (payload.target ? [payload.target, ...state.targets] : state.targets);
+        state.targets = mergeTargetList(payload.target, payload.targets || state.targets);
       }
       state.targetCreateName = "";
       state.targetCreateOpen = false;
@@ -2333,6 +2369,18 @@
       state.toast = { type: "error", message: error.message || "Ziel konnte nicht angelegt werden." };
       render();
     }
+  }
+
+  function mergeTargetList(target, targets) {
+    const list = Array.isArray(targets) ? targets : [];
+    if (!target) {
+      return list;
+    }
+    const targetKey = String(target.id || target.path || target.label || target.name || "");
+    return [
+      target,
+      ...list.filter((item) => String(item.id || item.path || item.label || item.name || "") !== targetKey),
+    ];
   }
 
   async function openWorklistPreview(jobId) {

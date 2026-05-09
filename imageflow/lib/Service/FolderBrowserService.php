@@ -37,19 +37,25 @@ class FolderBrowserService {
 		$folders = [];
 		$imageCount = 0;
 		try {
-			foreach ($current->getDirectoryListing() as $node) {
-				if ($node instanceof Folder) {
-					$childPath = trim($currentPath . '/' . $node->getName(), '/');
-					if ($needle !== '' && !str_contains($this->searchTerm($node->getName() . ' ' . PathHelper::displayPath($childPath)), $needle)) {
-						continue;
+			if ($needle !== '') {
+				$folders = $this->searchFolders($current, $currentPath, $needle, $limit);
+				foreach ($current->getDirectoryListing() as $node) {
+					if ($node instanceof File && str_starts_with((string)$node->getMimeType(), 'image/')) {
+						$imageCount++;
 					}
-					$folders[] = [
-						'name' => $node->getName(),
-						'path' => PathHelper::displayPath($childPath),
-						'hasChildren' => $this->hasChildFolders($node),
-					];
-				} elseif ($node instanceof File && str_starts_with((string)$node->getMimeType(), 'image/')) {
-					$imageCount++;
+				}
+			} else {
+				foreach ($current->getDirectoryListing() as $node) {
+					if ($node instanceof Folder) {
+						$childPath = trim($currentPath . '/' . $node->getName(), '/');
+						$folders[] = [
+							'name' => $node->getName(),
+							'path' => PathHelper::displayPath($childPath),
+							'hasChildren' => $this->hasChildFolders($node),
+						];
+					} elseif ($node instanceof File && str_starts_with((string)$node->getMimeType(), 'image/')) {
+						$imageCount++;
+					}
 				}
 			}
 		} catch (StorageNotAvailableException) {
@@ -121,16 +127,16 @@ class FolderBrowserService {
 	/**
 	 * @return array{images: array<int, array<string, mixed>>, page: array<string, mixed>}
 	 */
-	public function listImagePage(string $userId, string $path, int $cursor = 0, int $limit = 48): array {
+	public function listImagePage(string $userId, string $path, int $cursor = 0, int $limit = 48, bool $recursive = false): array {
 		$limit = max(1, min(120, $limit));
 		$cursor = max(0, $cursor);
 		$currentPath = PathHelper::normalizeUserPath($path);
 		$current = $this->folderForUserPath($userId, $currentPath);
-		$total = $this->countImagesInFolder($current);
+		$total = $recursive ? $this->countImagesInFolderRecursive($current) : $this->countImagesInFolder($current);
 		if ($total === 0) {
 			return [
 				'images' => [],
-				'page' => $this->pageMeta($cursor, $limit, 0, 0),
+				'page' => $this->pageMeta($cursor, $limit, 0, 0, $recursive),
 			];
 		}
 
@@ -138,18 +144,19 @@ class FolderBrowserService {
 			$cursor = max(0, $total - $limit);
 		}
 
-		$fileIds = $this->imageIdsForFolderPage($current, $cursor, $limit);
+		$fileIds = $recursive
+			? $this->imageIdsForFolderPageRecursive($current, $cursor, $limit)
+			: $this->imageIdsForFolderPage($current, $cursor, $limit);
 		$images = [];
 		foreach ($fileIds as $fileId) {
 			$node = $this->firstReadableFileById($current, $fileId);
 			if ($node === null) {
 				continue;
 			}
-			$relativePath = trim($currentPath . '/' . $node->getName(), '/');
 			$images[] = [
 				'fileId' => $node->getId(),
 				'name' => $node->getName(),
-				'path' => PathHelper::displayPath($relativePath),
+				'path' => $recursive ? $this->displayPathForNode($userId, $node) : PathHelper::displayPath(trim($currentPath . '/' . $node->getName(), '/')),
 				'mimeType' => $node->getMimeType(),
 				'size' => $node->getSize(),
 				'mtime' => $node->getMTime(),
@@ -164,7 +171,7 @@ class FolderBrowserService {
 
 		return [
 			'images' => $images,
-			'page' => $this->pageMeta($cursor, $limit, $total, count($images)),
+			'page' => $this->pageMeta($cursor, $limit, $total, count($images), $recursive),
 		];
 	}
 
@@ -195,6 +202,24 @@ class FolderBrowserService {
 		return (int)($row['image_count'] ?? 0);
 	}
 
+	private function countImagesInFolderRecursive(Folder $folder): int {
+		$info = $this->folderCacheInfo($folder);
+		if ($info === null) {
+			return $this->countImagesInFolder($folder);
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias($qb->func()->count('*'), 'image_count')
+			->from('filecache', 'fc')
+			->innerJoin('fc', 'mimetypes', 'mt', $qb->expr()->eq('fc.mimetype', 'mt.id'))
+			->where($qb->expr()->eq('fc.storage', $qb->createNamedParameter((int)$info['storage'], IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->like('fc.path', $qb->createNamedParameter($this->recursivePathLike((string)$info['path']))))
+			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')));
+
+		$row = $qb->executeQuery()->fetch();
+		return (int)($row['image_count'] ?? 0);
+	}
+
 	/**
 	 * @return int[]
 	 */
@@ -206,6 +231,36 @@ class FolderBrowserService {
 			->where($qb->expr()->eq('fc.parent', $qb->createNamedParameter($folder->getId(), IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')))
 			->orderBy('fc.name', 'ASC')
+			->addOrderBy('fc.fileid', 'ASC')
+			->setFirstResult($cursor)
+			->setMaxResults($limit);
+
+		$result = $qb->executeQuery();
+		$fileIds = [];
+		while ($row = $result->fetch()) {
+			$fileIds[] = (int)$row['fileid'];
+		}
+
+		return $fileIds;
+	}
+
+	/**
+	 * @return int[]
+	 */
+	private function imageIdsForFolderPageRecursive(Folder $folder, int $cursor, int $limit): array {
+		$info = $this->folderCacheInfo($folder);
+		if ($info === null) {
+			return $this->imageIdsForFolderPage($folder, $cursor, $limit);
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('fc.fileid')
+			->from('filecache', 'fc')
+			->innerJoin('fc', 'mimetypes', 'mt', $qb->expr()->eq('fc.mimetype', 'mt.id'))
+			->where($qb->expr()->eq('fc.storage', $qb->createNamedParameter((int)$info['storage'], IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->like('fc.path', $qb->createNamedParameter($this->recursivePathLike((string)$info['path']))))
+			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')))
+			->orderBy('fc.path', 'ASC')
 			->addOrderBy('fc.fileid', 'ASC')
 			->setFirstResult($cursor)
 			->setMaxResults($limit);
@@ -232,7 +287,7 @@ class FolderBrowserService {
 	/**
 	 * @return array<string, mixed>
 	 */
-	private function pageMeta(int $cursor, int $limit, int $total, int $returned): array {
+	private function pageMeta(int $cursor, int $limit, int $total, int $returned, bool $recursive = false): array {
 		$nextCursor = $cursor + $limit;
 		$previousCursor = max(0, $cursor - $limit);
 
@@ -245,8 +300,84 @@ class FolderBrowserService {
 			'previousCursor' => $cursor > 0 ? $previousCursor : null,
 			'hasNext' => $nextCursor < $total,
 			'nextCursor' => $nextCursor < $total ? $nextCursor : null,
-			'mode' => 'filecache-offset',
+			'mode' => $recursive ? 'recursive-filecache-offset' : 'filecache-offset',
+			'recursive' => $recursive,
 		];
+	}
+
+	/**
+	 * @return array{storage: int, path: string}|null
+	 */
+	private function folderCacheInfo(Folder $folder): ?array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('storage', 'path')
+			->from('filecache')
+			->where($qb->expr()->eq('fileid', $qb->createNamedParameter($folder->getId(), IQueryBuilder::PARAM_INT)))
+			->setMaxResults(1);
+
+		$row = $qb->executeQuery()->fetch();
+		if (!$row) {
+			return null;
+		}
+
+		return [
+			'storage' => (int)$row['storage'],
+			'path' => (string)$row['path'],
+		];
+	}
+
+	private function recursivePathLike(string $folderPath): string {
+		return $this->db->escapeLikeParameter(rtrim($folderPath, '/')) . '/%';
+	}
+
+	private function displayPathForNode(string $userId, File $node): string {
+		$path = $node->getPath();
+		$userPrefix = '/' . $userId . '/files/';
+		if (str_starts_with($path, $userPrefix)) {
+			return PathHelper::displayPath(substr($path, strlen($userPrefix)));
+		}
+
+		$parts = explode('/files/', $path, 2);
+		if (isset($parts[1])) {
+			return PathHelper::displayPath($parts[1]);
+		}
+
+		return PathHelper::displayPath($node->getName());
+	}
+
+	/**
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function searchFolders(Folder $folder, string $basePath, string $needle, int $limit): array {
+		$matches = [];
+		$pending = [[$folder, PathHelper::normalizeUserPath($basePath)]];
+		$visited = 0;
+		$maxVisited = max(300, $limit * 12);
+
+		while ($pending !== [] && count($matches) < $limit && $visited < $maxVisited) {
+			[$current, $currentPath] = array_shift($pending);
+			$visited++;
+			foreach ($current->getDirectoryListing() as $node) {
+				if (!$node instanceof Folder) {
+					continue;
+				}
+				$childPath = trim($currentPath . '/' . $node->getName(), '/');
+				$displayPath = PathHelper::displayPath($childPath);
+				if (str_contains($this->searchTerm($node->getName() . ' ' . $displayPath), $needle)) {
+					$matches[] = [
+						'name' => $node->getName(),
+						'path' => $displayPath,
+						'hasChildren' => $this->hasChildFolders($node),
+					];
+					if (count($matches) >= $limit) {
+						break;
+					}
+				}
+				$pending[] = [$node, $childPath];
+			}
+		}
+
+		return $matches;
 	}
 
 	private function previewUrl(File $file, int $width, int $height, string $mode): string {

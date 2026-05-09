@@ -25,6 +25,7 @@
 - Make ImageFlow fill the Nextcloud content width and add mobile-first Flow ordering with compact navigation.
 - Compact the Flow header and filmstrip so thumbnails are image-only framed tiles and the main photo keeps more vertical space.
 - Move Flow progress into the header, remove the duplicate header target-create action, and rename restart wording to clarify that executed file operations are not rolled back.
+- Add optional recursive source folders, recursive folder target search, immediate target list insertion after creating folders/albums, a denser dashboard, and unlabeled preloaded-image thumbnails.
 
 ## 0.1.0 - 2026-05-08
 

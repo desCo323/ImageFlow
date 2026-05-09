@@ -87,8 +87,8 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 27. Dashboard system check and guided self-test
    ![Dashboard system check and guided self-test](screenshots/27-system-check.png)
 
-28. Dashboard with visible Flow creation action
-   ![Dashboard with visible Flow creation action](screenshots/28-dashboard-flow-create.png)
+28. Compact dashboard with visible Flow creation action and recursive source option
+   ![Compact dashboard with visible Flow creation action and recursive source option](screenshots/28-dashboard-flow-create.png)
 
 29. Stable sorting workspace with visible filmstrip footer
    ![Stable sorting workspace with visible filmstrip footer](screenshots/29-flow-stable-filmstrip.png)
@@ -96,8 +96,8 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 30. Live narrow Nextcloud layout with visible create button and filmstrip
    ![Live narrow Nextcloud layout with visible create button and filmstrip](screenshots/30-live-narrow-flow-layout.png)
 
-31. Responsive desktop Flow with integrated progress header and image-only filmstrip
-   ![Responsive desktop Flow with integrated progress header and image-only filmstrip](screenshots/31-responsive-desktop-flow.png)
+31. Responsive desktop Flow with integrated progress header and unlabeled preloaded images
+   ![Responsive desktop Flow with integrated progress header and unlabeled preloaded images](screenshots/31-responsive-desktop-flow.png)
 
-32. Responsive mobile Flow with integrated progress header and compact filmstrip
-   ![Responsive mobile Flow with integrated progress header and compact filmstrip](screenshots/32-responsive-mobile-flow.png)
+32. Responsive mobile Flow with integrated progress header and compact preloaded images
+   ![Responsive mobile Flow with integrated progress header and compact preloaded images](screenshots/32-responsive-mobile-flow.png)
