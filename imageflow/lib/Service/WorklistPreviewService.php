@@ -185,7 +185,7 @@ class WorklistPreviewService {
 			$targetNode = $targetPath !== null ? $this->nodeForDisplayPath($userId, $targetPath) : null;
 			if (!$targetNode instanceof Folder) {
 				$readiness = 'error';
-				$messages[] = 'Ablageordner fehlt oder ist nicht lesbar.';
+				$messages[] = 'Zielordner fehlt oder ist nicht lesbar.';
 			} elseif ($sourceNode instanceof File) {
 				$targetFilePath = rtrim($targetPath ?? '/', '/') . '/' . PathHelper::fileNameFromPath($item->getSourcePath());
 				if ($this->nodeForDisplayPath($userId, $targetFilePath) instanceof File) {
@@ -194,7 +194,7 @@ class WorklistPreviewService {
 				}
 				if (PathHelper::parentPath($item->getSourcePath()) === PathHelper::displayPath((string)$targetPath)) {
 					$readiness = $this->worseReadiness($readiness, 'warning');
-					$messages[] = 'Quelle liegt bereits im Ablageordner.';
+					$messages[] = 'Quelle liegt bereits im Zielordner.';
 				}
 			}
 		} else {

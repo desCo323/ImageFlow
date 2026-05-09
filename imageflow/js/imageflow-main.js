@@ -78,6 +78,7 @@
     targetBrowsePath: null,
     targetFolderPage: null,
     targetCreateOpen: false,
+    targetCreateBusy: false,
     worklist: {
       open: false,
       jobId: null,
@@ -263,7 +264,7 @@
       const copy = {
         ...current,
         id: Date.now(),
-        name: `${current.name} Kopie`,
+        name: `${current.name} Duplikat`,
         status: "draft",
         sortedFiles: 0,
         skippedFiles: 0,
@@ -279,6 +280,19 @@
       const jobId = Number.parseInt(path.split("/").at(-2), 10);
       state.jobs = state.jobs.filter((job) => job.id !== jobId);
       return { deleted: true, jobId };
+    }
+    if (/\/api\/v1\/jobs\/\d+\/(pause|resume)$/.test(path) && options.method === "POST") {
+      const parts = path.split("/");
+      const jobId = Number.parseInt(parts.at(-2), 10);
+      const operation = parts.at(-1);
+      const current = state.jobs.find((job) => job.id === jobId) || mockJobs().find((job) => job.id === jobId) || mockJobs()[0];
+      const updated = {
+        ...current,
+        status: operation === "pause" ? "paused" : "sorting",
+        updatedAt: Math.floor(Date.now() / 1000),
+      };
+      state.jobs = [updated, ...state.jobs.filter((job) => job.id !== jobId)];
+      return { job: updated };
     }
     if (/\/api\/v1\/jobs\/\d+\/worklist-preview/.test(path)) {
       const jobId = Number.parseInt(path.split("/").at(4), 10) || state.jobId || 1;
@@ -417,10 +431,22 @@
       const parent = normalizeDisplayPath(options.body.path || "/");
       const folder = { name, path: normalizeDisplayPath(`${parent}/${name}`), hasChildren: false };
       const folders = state.mockFolders || {};
-      folders[parent] = [...(folders[parent] || mockFolderPage(parent).folders || []), folder];
+      const currentFolders = folders[parent] || mockFolderPage(parent).folders || [];
+      const duplicate = currentFolders.find((item) => normalizeDisplayPath(item.path || "") === folder.path);
+      folders[parent] = duplicate ? currentFolders : [...currentFolders, folder];
       folders[folder.path] = [];
       state.mockFolders = folders;
-      return { mode, target: { id: folder.path, label: folder.name, path: folder.path, hasChildren: false }, folders: mockFolderPage(parent), duplicate: false };
+      return {
+        mode,
+        target: {
+          id: duplicate?.path || folder.path,
+          label: duplicate?.name || folder.name,
+          path: duplicate?.path || folder.path,
+          hasChildren: Boolean(duplicate?.hasChildren),
+        },
+        folders: mockFolderPage(parent),
+        duplicate: Boolean(duplicate),
+      };
     }
     if (path.includes("/targets")) {
       const query = new URLSearchParams(path.split("?")[1] || "");
@@ -884,7 +910,7 @@
         level: "info",
         event: "job_execution_queued",
         jobId: 1,
-        message: "Ablage wurde für später gemerkt.",
+        message: "Ablage wurde vorgemerkt.",
         context: { safeMode: true, autoProcess: false },
         createdAt: now - 80,
       },
@@ -1082,7 +1108,7 @@
             Unterordner mit einbeziehen
           </label>
           <div class="imageflow-field">
-            <label for="ifl-mode">Was soll mit passenden Bildern passieren?</label>
+            <label for="ifl-mode">Wie sollen sortierte Bilder abgelegt werden?</label>
             <select id="ifl-mode" name="targetMode">
               <option value="album" ${draft.targetMode === "album" ? "selected" : ""}>Zu einem Album hinzufügen</option>
               <option value="move" ${draft.targetMode === "move" ? "selected" : ""}>In einen Ordner verschieben</option>
@@ -1090,7 +1116,7 @@
             </select>
           </div>
           <div class="imageflow-field" data-target-path-field hidden>
-            <label for="ifl-target">Ablageordner</label>
+            <label for="ifl-target">Zielordner</label>
             <div class="imageflow-path-picker">
               <input id="ifl-target" name="targetPath" type="text" value="${escapeAttr(draft.targetPath)}" autocomplete="off">
               <button class="imageflow-button" data-action="open-folder-picker" data-picker-field="targetPath" type="button">Auswählen</button>
@@ -1105,7 +1131,7 @@
             Automatisch ablegen, wenn der Server ruhig ist
           </label>
           <div class="imageflow-field">
-            <label for="ifl-preload">Bilder vorladen</label>
+            <label for="ifl-preload">Vorschau laden</label>
             <select id="ifl-preload" name="preloadMode">
               <option value="light" ${draft.preloadMode === "light" ? "selected" : ""}>Schonend</option>
               <option value="balanced" ${draft.preloadMode === "balanced" ? "selected" : ""}>Ausgewogen</option>
@@ -1113,9 +1139,9 @@
             </select>
           </div>
           <div class="imageflow-field">
-            <label for="ifl-target-ordering">Ziele anzeigen</label>
+            <label for="ifl-target-ordering">Ziel-Reihenfolge</label>
             <select id="ifl-target-ordering" name="targetOrdering">
-              <option value="relevance" ${draft.targetOrdering === "relevance" ? "selected" : ""}>Lieblingsziele zuerst</option>
+              <option value="relevance" ${draft.targetOrdering === "relevance" ? "selected" : ""}>Passende Ziele zuerst</option>
               <option value="alphabetical" ${draft.targetOrdering === "alphabetical" ? "selected" : ""}>Alphabetisch</option>
             </select>
           </div>
@@ -1140,7 +1166,7 @@
               <h3>Deine Flows</h3>
               <p>Fortschritt, Tempo und Ablage bleiben hier im Blick.</p>
             </div>
-            <button class="imageflow-button" data-action="refresh" type="button">Aktualisieren</button>
+            <button class="imageflow-button" data-action="refresh" type="button">Neu laden</button>
           </div>
           <div class="imageflow-status-grid">
             <div class="imageflow-stat"><strong>${totals.jobs}</strong><span>Flows</span></div>
@@ -1234,7 +1260,7 @@
             <small>${Number(queue.total || 0)} Ablagepunkte, ${Number(queue.issues || 0)} auffällig</small>
           </div>
           <div class="imageflow-system-card">
-            <strong>Self-Test</strong>
+            <strong>Geführter Test</strong>
             <span>${diagnostics.testUserAllowed ? "Testkonto aktiv" : "Nur mit albentest"}</span>
             <small>${diagnostics.testUserAllowed ? "Geführter Test ist erlaubt." : "Produktive Konten nicht für Testläufe nutzen."}</small>
           </div>
@@ -1301,10 +1327,10 @@
             <tr>
               <th>Flow</th>
               <th>Bilderordner</th>
-              <th>Wohin</th>
+              <th>Ablage</th>
               <th>Status</th>
               <th>Fortschritt</th>
-              <th>Was jetzt?</th>
+              <th>Aktionen</th>
             </tr>
           </thead>
           <tbody>
@@ -1339,7 +1365,7 @@
             <button class="imageflow-button" data-action="open-sort" data-start-mode="begin" data-job-id="${job.id}" title="${escapeAttr(beginStartHint(job))}" type="button">Von vorn ansehen</button>
             <button class="imageflow-button" data-action="open-sort" data-start-mode="unsorted" data-job-id="${job.id}" type="button">Offene Bilder</button>
             <button class="imageflow-button" data-action="edit-job" data-job-id="${job.id}" type="button">Bearbeiten</button>
-            <button class="imageflow-button" data-action="duplicate-job" data-job-id="${job.id}" type="button">Kopie</button>
+            <button class="imageflow-button" data-action="duplicate-job" data-job-id="${job.id}" type="button">Duplizieren</button>
             <button class="imageflow-button" data-action="${paused ? "resume-job" : "pause-job"}" data-job-id="${job.id}" type="button">${paused ? "Fortsetzen" : "Pausieren"}</button>
             <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ablage prüfen</button>
             <button class="imageflow-button" data-action="show-job-log" data-job-id="${job.id}" type="button">Ereignisse</button>
@@ -1526,7 +1552,7 @@
           <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(target.location || target.path || "")}</small></span>
         </button>
         ${browse}
-        <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Zu Schnellzielen: ${escapeAttr(label)}" title="Zu Schnellzielen" type="button">+</button>
+        <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Als Schnellziel merken: ${escapeAttr(label)}" title="Als Schnellziel merken" type="button">+</button>
       </div>
     `;
   }
@@ -1536,10 +1562,10 @@
     const note = isFolderMode ? "Sucht im geöffneten Ordner und seinen Unterordnern." : "Sucht in deinen Nextcloud-Alben.";
     return `
       <div class="imageflow-target-filter">
-        <label for="ifl-target-query">Ziel finden</label>
+        <label for="ifl-target-query">Ziel suchen</label>
         <div>
           <input id="ifl-target-query" data-target-query type="search" maxlength="120" value="${escapeAttr(state.targetQuery)}" placeholder="${escapeAttr(placeholder)}" autocomplete="off">
-          <button class="imageflow-mini-button" data-action="clear-target-search" aria-label="Zielsuche leeren" title="Zielsuche leeren" type="button" ${state.targetQuery.trim() ? "" : "disabled"}>x</button>
+          <button class="imageflow-mini-button" data-action="clear-target-search" aria-label="Suche leeren" title="Suche leeren" type="button" ${state.targetQuery.trim() ? "" : "disabled"}>x</button>
         </div>
         <small>${escapeHtml(note)}</small>
       </div>
@@ -1560,8 +1586,8 @@
       <div class="imageflow-target-create">
         <label for="ifl-target-create">${escapeHtml(title)}</label>
         <div>
-          <input id="ifl-target-create" data-target-create-name type="text" maxlength="255" value="${escapeAttr(state.targetCreateName || "")}" placeholder="${escapeAttr(placeholder)}">
-          <button class="imageflow-button primary" data-action="create-target" type="button">Erstellen</button>
+          <input id="ifl-target-create" data-target-create-name type="text" maxlength="255" value="${escapeAttr(state.targetCreateName || "")}" placeholder="${escapeAttr(placeholder)}" ${state.targetCreateBusy ? "disabled" : ""}>
+          <button class="imageflow-button primary" data-action="create-target" type="button" ${state.targetCreateBusy ? "disabled" : ""}>${state.targetCreateBusy ? "Wird angelegt" : "Anlegen"}</button>
         </div>
         <small>${escapeHtml(note)}</small>
       </div>
@@ -1611,7 +1637,7 @@
     };
     const data = picker.data || (hasNextcloud ? fallback : mockFolderPage(picker.path || "/"));
     const currentPath = data.current?.path || picker.path || "/";
-    const title = picker.field === "targetPath" ? "Ablageordner wählen" : "Bilderordner wählen";
+    const title = picker.field === "targetPath" ? "Zielordner wählen" : "Bilderordner wählen";
     return `
       <div class="imageflow-modal-backdrop" role="presentation">
         <section class="imageflow-modal" role="dialog" aria-modal="true" aria-label="${escapeAttr(title)}">
@@ -1624,7 +1650,7 @@
           </header>
           <div class="imageflow-folder-actions">
             <button class="imageflow-button" data-action="folder-picker-parent" type="button" ${data.parent ? "" : "disabled"}>Eine Ebene hoch</button>
-            <button class="imageflow-button primary" data-action="choose-folder" data-folder-path="${escapeAttr(currentPath)}" type="button" ${picker.loading ? "disabled" : ""}>Ordner übernehmen</button>
+            <button class="imageflow-button primary" data-action="choose-folder" data-folder-path="${escapeAttr(currentPath)}" type="button" ${picker.loading ? "disabled" : ""}>Diesen Ordner wählen</button>
           </div>
           ${picker.error ? `<div class="imageflow-empty">${escapeHtml(picker.error)}</div>` : ""}
           <div class="imageflow-folder-list">
@@ -1642,7 +1668,7 @@
           <strong>${escapeHtml(folder.name)}</strong>
           <span>${escapeHtml(folder.path)}${folder.hasChildren ? " · Unterordner" : ""}</span>
         </button>
-        <button class="imageflow-button" data-action="choose-folder" data-folder-path="${escapeAttr(folder.path)}" type="button">Übernehmen</button>
+        <button class="imageflow-button" data-action="choose-folder" data-folder-path="${escapeAttr(folder.path)}" type="button">Wählen</button>
       </div>
     `;
   }
@@ -1661,7 +1687,7 @@
     const queueButtonEnabled = Boolean(preview?.canQueue || canSaveQueueSettings);
     const queueButtonLabel = canSaveQueueSettings
       ? "Einstellung merken"
-      : (preview?.executionMode === "real-writes-enabled" ? "Jetzt ablegen" : "Für später merken");
+      : (preview?.executionMode === "real-writes-enabled" ? "Jetzt ablegen" : "Ablage vormerken");
     return `
       <div class="imageflow-modal-backdrop" role="presentation">
         <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Ablage prüfen">
@@ -1701,7 +1727,7 @@
               ${filteredItems.map(renderWorklistItem).join("") || `<div class="imageflow-empty">${escapeHtml(worklistEmptyLabel(state.worklist.filter, items.length))}</div>`}
             </div>
             <div class="imageflow-folder-actions">
-              <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Noch mal prüfen</button>
+              <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Erneut prüfen</button>
               <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${queueButtonEnabled ? "" : "disabled"}>${queueButtonLabel}</button>
               <button class="imageflow-button" data-action="process-job-now" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.executionMode === "real-writes-enabled" && queuedCount > 0 ? "" : "disabled"}>Jetzt ablegen</button>
             </div>
@@ -1825,7 +1851,7 @@
                 <option value="error" ${state.logs.level === "error" ? "selected" : ""}>Fehler</option>
               </select>
               ${state.logs.jobId ? '<button class="imageflow-button" data-action="show-log" type="button">Alle Flows</button>' : ""}
-              <button class="imageflow-button" data-action="refresh-logs" type="button">Aktualisieren</button>
+              <button class="imageflow-button" data-action="refresh-logs" type="button">Neu laden</button>
             </div>
           </div>
           ${state.logs.loading ? '<div class="imageflow-empty">Protokoll wird geladen.</div>' : ""}
@@ -2122,6 +2148,7 @@
 
   function focusTargetCreate() {
     state.targetCreateOpen = true;
+    state.targetCreateBusy = false;
     render();
     focusAfterRender(".imageflow-target-create", "[data-target-create-name]");
   }
@@ -2215,7 +2242,7 @@
     try {
       const payload = await request(`/api/v1/jobs/${jobId}/duplicate`, { method: "POST", body: {} });
       state.jobs = [payload.job, ...state.jobs.filter((job) => job.id !== payload.job.id)];
-      state.toast = { type: "info", message: "Kopie wurde angelegt." };
+      state.toast = { type: "info", message: "Flow wurde dupliziert." };
       render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Flow konnte nicht kopiert werden." };
@@ -2327,7 +2354,7 @@
 
   async function createTargetFromInput() {
     const job = state.sortState?.job;
-    if (!job) {
+    if (!job || state.targetCreateBusy) {
       return;
     }
 
@@ -2341,6 +2368,9 @@
 
     const isFolderMode = job.targetMode === "move" || job.targetMode === "copy";
     const parentPathValue = state.targetFolderPage?.current?.path || state.targetBrowsePath || job.targetPath || "/";
+    state.targetCreateName = name;
+    state.targetCreateBusy = true;
+    render();
     try {
       const payload = await request("/api/v1/targets", {
         method: "POST",
@@ -2359,6 +2389,7 @@
       }
       state.targetCreateName = "";
       state.targetCreateOpen = false;
+      state.targetCreateBusy = false;
       state.targetQuery = "";
       state.toast = {
         type: "info",
@@ -2366,6 +2397,7 @@
       };
       render();
     } catch (error) {
+      state.targetCreateBusy = false;
       state.toast = { type: "error", message: error.message || "Ziel konnte nicht angelegt werden." };
       render();
     }
@@ -2496,7 +2528,7 @@
           ? (state.worklist.autoProcess
             ? "Ablage darf automatisch laufen, wenn der Server ruhig ist."
             : "Ablage wartet, bis du sie manuell startest.")
-          : "Ablage wurde für später gemerkt. Reale Dateiänderungen bleiben gesperrt.",
+          : "Ablage wurde vorgemerkt. Reale Dateiänderungen bleiben gesperrt.",
       };
       render();
     } catch (error) {
@@ -2589,6 +2621,7 @@
     state.targetFolderPage = null;
     state.targetCreateName = "";
     state.targetCreateOpen = false;
+    state.targetCreateBusy = false;
     state.targetQuery = "";
     clearImagePageCache();
     resetSessionFlow();
@@ -3366,7 +3399,7 @@
   }
 
   function targetOrderingLabel(ordering) {
-    return ordering === "alphabetical" ? "Alphabetisch" : "Lieblingsziele zuerst";
+    return ordering === "alphabetical" ? "Alphabetisch" : "Passende Ziele zuerst";
   }
 
   function readinessLabel(readiness) {

@@ -192,7 +192,7 @@ class QueueExecutionService {
 			return $this->failedResult('Quelle fehlt oder ist keine Datei.');
 		}
 		if (!$targetFolder instanceof Folder) {
-			return $this->failedResult('Ablageordner fehlt oder ist nicht lesbar.');
+			return $this->failedResult('Zielordner fehlt oder ist nicht lesbar.');
 		}
 
 		$fileName = PathHelper::fileNameFromPath($item->getSourcePath());
@@ -234,7 +234,7 @@ class QueueExecutionService {
 			return $this->failedResult('Quelle fehlt oder ist keine Datei.');
 		}
 		if (!$targetFolder instanceof Folder) {
-			return $this->failedResult('Ablageordner fehlt oder ist nicht lesbar.');
+			return $this->failedResult('Zielordner fehlt oder ist nicht lesbar.');
 		}
 
 		$fileName = PathHelper::fileNameFromPath($item->getSourcePath());
@@ -246,7 +246,7 @@ class QueueExecutionService {
 		$existingTarget = $this->existingTargetFile($targetFolder, $fileName);
 		if ($existingTarget !== null) {
 			if ($existingTarget->getPath() === $source->getPath()) {
-				return $this->executedResult('Quelle liegt bereits im Ablageordner; Verschieben wurde als erledigt markiert.', $sourceChecksum, $sourceChecksum, [
+				return $this->executedResult('Quelle liegt bereits im Zielordner; Verschieben wurde als erledigt markiert.', $sourceChecksum, $sourceChecksum, [
 					'idempotent' => true,
 				]);
 			}
@@ -279,7 +279,7 @@ class QueueExecutionService {
 	 */
 	private function handleExistingCopyTarget(QueueItem $item, File $source, File $target, ?string $sourceChecksum): array {
 		if ($target->getPath() === $source->getPath()) {
-			return $this->executedResult('Quelle liegt bereits im Ablageordner; Kopieren wurde als erledigt markiert.', $sourceChecksum, $sourceChecksum, [
+			return $this->executedResult('Quelle liegt bereits im Zielordner; Kopieren wurde als erledigt markiert.', $sourceChecksum, $sourceChecksum, [
 				'idempotent' => true,
 			]);
 		}

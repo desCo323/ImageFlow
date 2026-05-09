@@ -228,7 +228,7 @@ class FavoriteService {
 			return null;
 		}
 		if (!is_scalar($value) || trim((string)$value) === '') {
-			throw new \InvalidArgumentException('Für Ordner-Schnellziele wird ein Ablageordner benötigt.');
+			throw new \InvalidArgumentException('Für Ordner-Schnellziele wird ein Zielordner benötigt.');
 		}
 
 		return PathHelper::displayPath((string)$value);

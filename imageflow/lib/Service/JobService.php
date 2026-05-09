@@ -86,7 +86,7 @@ class JobService {
 		$settings = $this->jobSettings($input, $job);
 
 		if ($this->hasSavedDecisions($job) && $this->hasStructuralChanges($job, $settings)) {
-			throw new \InvalidArgumentException('Diese Runde hat schon Entscheidungen. Quelle, Zielart und Sicherheitsmodus bleiben deshalb gesperrt. Erstelle dafür eine Kopie.');
+			throw new \InvalidArgumentException('Diese Runde hat schon Entscheidungen. Quelle, Zielart und Sicherheitsmodus bleiben deshalb gesperrt. Erstelle dafür ein Duplikat.');
 		}
 		if ($job->getStatus() === 'executing' || $job->getStatus() === 'done') {
 			throw new \InvalidArgumentException('Laufende oder erledigte Runden können nicht mehr bearbeitet werden.');
@@ -121,7 +121,7 @@ class JobService {
 		$source = $this->jobMapper->findForUserById($userId, $jobId);
 		$options = $this->decodeJson($source->getOptionsJson());
 		$copy = $this->createJob($userId, [
-			'name' => substr($source->getName() . ' Kopie', 0, 160),
+			'name' => substr($source->getName() . ' Duplikat', 0, 160),
 			'sourcePath' => $source->getSourcePath(),
 			'targetMode' => $source->getTargetMode(),
 			'targetPath' => $source->getTargetPath(),
@@ -137,7 +137,7 @@ class JobService {
 		$this->logService->info('job_duplicated', $userId, [
 			'sourceJobId' => $jobId,
 			'copyJobId' => $copy['id'] ?? null,
-		], (int)($copy['id'] ?? $jobId), 'Runde wurde kopiert.');
+		], (int)($copy['id'] ?? $jobId), 'Runde wurde dupliziert.');
 
 		return $copy;
 	}

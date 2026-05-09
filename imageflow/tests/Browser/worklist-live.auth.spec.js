@@ -32,8 +32,8 @@ test('previews and queues a worklist without file writes as albentest', async ({
     const jobName = `${smokePrefix} ${Date.now()}`;
     await page.getByLabel('Name').fill(jobName);
     await page.getByLabel('Bilderordner').fill('/Photos');
-    await page.getByLabel('Was soll mit passenden Bildern passieren?').selectOption('copy');
-    await page.getByLabel('Ablageordner').fill('/Photos');
+    await page.getByLabel('Wie sollen sortierte Bilder abgelegt werden?').selectOption('copy');
+    await page.getByLabel('Zielordner').fill('/Photos');
     await page.getByRole('button', { name: 'Flow speichern' }).click();
     await expect(page.getByText(jobName)).toBeVisible({ timeout: 10000 });
 
@@ -69,8 +69,8 @@ test('previews and queues a worklist without file writes as albentest', async ({
     const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
     await expect(dialog).toBeVisible({ timeout: 10000 });
     await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Für später merken' }).click();
-    await expect(page.getByText('Ablage wurde für später gemerkt')).toBeVisible({ timeout: 10000 });
+    await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
+    await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible({ timeout: 10000 });
 
     const afterQueue = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=10`);
     expect(afterQueue.summary.queued).toBeGreaterThan(0);
