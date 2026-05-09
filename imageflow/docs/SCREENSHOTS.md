@@ -101,3 +101,9 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 32. Responsive mobile Flow with integrated progress header and compact preloaded images
    ![Responsive mobile Flow with integrated progress header and compact preloaded images](screenshots/32-responsive-mobile-flow.png)
+
+33. Dashboard with clearer labels for target mode, target folder, preview loading and target ordering
+   ![Dashboard with clearer labels](screenshots/33-clear-labels-dashboard.png)
+
+34. Folder target creation regression: new folder is visible immediately and the create field is closed
+   ![Folder target creation regression](screenshots/34-folder-target-create-regression.png)
