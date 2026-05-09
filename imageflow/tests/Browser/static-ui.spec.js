@@ -43,6 +43,10 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByLabel('Schutzstatus')).toContainText('Geschützter Testbetrieb');
   await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen gesperrt');
   await expect(page.getByLabel('Schutzstatus')).toContainText('Automatik aus');
+  await expect(page.getByLabel('Systemprüfung')).toContainText('Die App ist im geschützten Testbetrieb');
+  await expect(page.getByLabel('Systemprüfung')).toContainText('Datenbank erreichbar');
+  await expect(page.getByLabel('Systemprüfung')).toContainText('Nur mit albentest');
+  await expect(page.getByLabel('Systemprüfung')).toContainText('Geführter Testlauf');
   await expect(page.getByRole('heading', { name: 'Neue Runde vorbereiten' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Runde speichern' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speichern & sortieren' })).toBeVisible();
@@ -74,6 +78,16 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
 
   await page.locator('tr', { hasText: 'Browser Smoke Bearbeitet' }).getByRole('button', { name: 'Kopie' }).click();
   await expect(page.getByText('Browser Smoke Bearbeitet Kopie')).toBeVisible();
+});
+
+test('shows the guided self-test as allowed for albentest', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-user="albentest"');
+
+  const system = page.getByLabel('Systemprüfung');
+  await expect(system).toContainText('Testkonto aktiv');
+  await expect(system).toContainText('Der geführte Test darf mit diesem Konto durchgeführt werden.');
+  await expect(system.locator('.imageflow-selftest-step.safe', { hasText: 'Mit albentest anmelden' })).toBeVisible();
+  await expect(system).toContainText('Dateiänderungen gesperrt');
 });
 
 test('saves and opens a letter-hotkey round from the dashboard', async ({ page }) => {

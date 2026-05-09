@@ -226,6 +226,10 @@
   background: color-mix(in srgb, var(--color-main-background) 97%, #ece8ff);
 }
 
+.imageflow-system-panel {
+  grid-column: 1 / -1;
+}
+
 .imageflow-panel-head {
   display: flex;
   justify-content: space-between;
@@ -352,13 +356,131 @@
   font-size: 13px;
 }
 
+.imageflow-system-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.imageflow-system-card {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-main-background);
+}
+
+.imageflow-system-card strong,
+.imageflow-system-card span,
+.imageflow-system-card small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.imageflow-system-card span {
+  margin-top: 5px;
+  font-weight: 900;
+}
+
+.imageflow-system-card small {
+  margin-top: 3px;
+  color: var(--color-text-maxcontrast);
+  line-height: 1.35;
+}
+
+.imageflow-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.imageflow-check-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-main-background) 97%, var(--color-background-darker));
+}
+
+.imageflow-check-row strong,
+.imageflow-check-row span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.imageflow-check-row div span {
+  color: var(--color-text-maxcontrast);
+}
+
+.imageflow-selftest {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-main-background) 95%, #ffe8a3);
+}
+
+.imageflow-selftest strong,
+.imageflow-selftest span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.imageflow-selftest > div > span {
+  margin-top: 3px;
+  color: var(--color-text-maxcontrast);
+}
+
+.imageflow-selftest-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.imageflow-selftest-step {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-main-background);
+  font-weight: 800;
+}
+
+.imageflow-selftest-step b {
+  color: var(--color-text-maxcontrast);
+}
+
+.imageflow-selftest-step.safe {
+  border-color: #2f7d72;
+  background: color-mix(in srgb, var(--color-main-background) 86%, #b7eadf);
+}
+
+.imageflow-selftest-step.warning {
+  border-color: #b7791f;
+  background: color-mix(in srgb, var(--color-main-background) 84%, #ffe8a3);
+}
+
+.imageflow-selftest-step.danger {
+  border-color: #b42318;
+  background: color-mix(in srgb, var(--color-main-background) 88%, #ffd4d4);
+}
+
 .imageflow-table-wrap {
   overflow-x: auto;
 }
 
 .imageflow-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 980px;
   border-collapse: collapse;
 }
 
@@ -369,6 +491,10 @@
   text-align: left;
   vertical-align: top;
   overflow-wrap: anywhere;
+}
+
+.imageflow-table th {
+  white-space: nowrap;
 }
 
 .imageflow-badge {
@@ -1285,6 +1411,8 @@
   .imageflow-topbar,
   .imageflow-job-head,
   .imageflow-dashboard,
+  .imageflow-system-grid,
+  .imageflow-check-grid,
   .imageflow-sort-grid,
   .imageflow-gamebar {
     grid-template-columns: 1fr;

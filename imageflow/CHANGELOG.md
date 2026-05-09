@@ -19,6 +19,7 @@
 - Add quiet-server background gate for automatic processing with server-load and optional time-window checks.
 - Add fast target search for album and folder targets in the sorting rail.
 - Add full-worklist validation summaries and compact filters to the Ablage preview.
+- Add dashboard system diagnostics and guided self-test status.
 
 ## 0.1.0 - 2026-05-08
 

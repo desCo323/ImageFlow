@@ -489,10 +489,11 @@
     const realExecutionEnabled = root.dataset.mockRealExecution === "1";
     const backgroundMode = root.dataset.mockBackgroundMode || "manual-only";
     const backgroundProcessingEnabled = backgroundMode !== "manual-only";
+    const diagnostics = mockDiagnostics(realExecutionEnabled, backgroundProcessingEnabled, backgroundMode);
     return {
       app: "imageflow",
       version: "0.1.0",
-      status: realExecutionEnabled ? "execution-enabled" : "safe-testing",
+      status: diagnostics.status,
       processingMode: realExecutionEnabled
         ? (backgroundProcessingEnabled ? "manual-and-background" : "manual-only")
         : "locked",
@@ -501,6 +502,55 @@
       backgroundProcessingEnabled,
       backgroundGate: mockBackgroundGate(backgroundMode === "cron-ready" || backgroundMode === "cron-enabled"),
       safeModeDefault: true,
+      diagnostics,
+    };
+  }
+
+  function mockDiagnostics(realExecutionEnabled, backgroundProcessingEnabled, backgroundMode) {
+    const jobs = state.jobs.length ? state.jobs : mockJobs();
+    const queue = {
+      total: jobs.reduce((count, job) => count + Number(job.queuedOperations || 0), 0),
+      planned: jobs.reduce((count, job) => count + (job.status === "queued" ? 0 : Number(job.queuedOperations || 0)), 0),
+      queued: jobs.reduce((count, job) => count + (job.status === "queued" ? Number(job.queuedOperations || 0) : 0), 0),
+      executed: jobs.reduce((count, job) => count + Number(job.executedOperations || 0), 0),
+      issues: jobs.reduce((count, job) => count + Number(job.failedOperations || 0), 0),
+    };
+    const testUserAllowed = root.dataset.mockUser === "albentest";
+    const gate = mockBackgroundGate(backgroundMode === "cron-ready" || backgroundMode === "cron-enabled");
+    const checks = [
+      {
+        id: "file-writes",
+        level: realExecutionEnabled ? "warning" : "ok",
+        label: realExecutionEnabled ? "Dateiänderungen aktiv" : "Dateiänderungen gesperrt",
+        message: realExecutionEnabled ? "Echte Dateiänderungen sind freigeschaltet." : "Sicherer Testbetrieb: Dateien bleiben unverändert.",
+      },
+      {
+        id: "background",
+        level: backgroundProcessingEnabled && !gate.canRun ? "warning" : "ok",
+        label: backgroundProcessingEnabled ? "Automatik konfiguriert" : "Automatik aus",
+        message: backgroundProcessingEnabled ? gate.message : "Cron verarbeitet keine ImageFlow Ablagen.",
+      },
+      {
+        id: "database",
+        level: "ok",
+        label: "Datenbank erreichbar",
+        message: "ImageFlow Tabellen sind erreichbar.",
+      },
+      {
+        id: "self-test-user",
+        level: testUserAllowed ? "ok" : "warning",
+        label: testUserAllowed ? "Testkonto aktiv" : "Kein Testkonto",
+        message: testUserAllowed ? "Der geführte Test darf mit diesem Konto durchgeführt werden." : "Geführte Tests laufen mit albentest.",
+      },
+    ];
+    return {
+      status: realExecutionEnabled ? "execution-enabled" : "safe-testing",
+      userId: testUserAllowed ? "albentest" : "mock-user",
+      testUserAllowed,
+      databaseOk: true,
+      jobCount: jobs.length,
+      queue,
+      checks,
     };
   }
 
@@ -974,9 +1024,10 @@
     const draft = state.jobDraft;
     const isEditing = Boolean(draft.editingJobId);
     return `
-      <section class="imageflow-dashboard" aria-label="Sortierrunden">
-        ${renderSafetyStrip()}
-        <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
+	      <section class="imageflow-dashboard" aria-label="Sortierrunden">
+	        ${renderSafetyStrip()}
+	        ${renderSystemCheckPanel()}
+	        <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
           <div class="imageflow-panel-head">
             <div>
               <h3>${isEditing ? "Runde bearbeiten" : "Neue Runde vorbereiten"}</h3>
@@ -1111,6 +1162,95 @@
         </div>
       </section>
     `;
+  }
+
+  function renderSystemCheckPanel() {
+    const health = state.health || mockHealth();
+    const diagnostics = health.diagnostics || {};
+    const checks = Array.isArray(diagnostics.checks) ? diagnostics.checks : [];
+    const queue = diagnostics.queue || {};
+    const ready = checks.every((check) => check.level === "ok");
+    const selfTestSteps = [
+      { label: "Mit albentest anmelden", state: diagnostics.testUserAllowed ? "ok" : "warning" },
+      { label: "Dateiänderungen gesperrt", state: health.realExecutionEnabled ? "danger" : "ok" },
+      { label: "Runde speichern und öffnen", state: "pending" },
+      { label: "Entscheidung, Rückgängig und Ablage prüfen", state: "pending" },
+      { label: "Ablage nur vormerken, nichts ausführen", state: health.backgroundProcessingEnabled || health.realExecutionEnabled ? "warning" : "ok" },
+    ];
+    return `
+      <section class="imageflow-panel imageflow-system-panel ${ready ? "" : "accent-violet"}" aria-label="Systemprüfung">
+        <div class="imageflow-panel-head">
+          <div>
+            <h3>Systemprüfung</h3>
+            <p>${systemStatusMessage(health, diagnostics)}</p>
+          </div>
+          <button class="imageflow-button" data-action="refresh" type="button">Neu prüfen</button>
+        </div>
+        <div class="imageflow-system-grid">
+          <div class="imageflow-system-card">
+            <strong>Schutz</strong>
+            <span>${health.realExecutionEnabled ? "Dateiänderungen aktiv" : "Dateiänderungen gesperrt"}</span>
+            <small>${health.backgroundProcessingEnabled ? backgroundModeLabel(health.backgroundGate?.canRun ? "cron-ready" : "cron-waiting") : "Automatik aus"}</small>
+          </div>
+          <div class="imageflow-system-card">
+            <strong>Daten</strong>
+            <span>${Number(diagnostics.jobCount || 0)} Runden</span>
+            <small>${Number(queue.total || 0)} Ablagepunkte, ${Number(queue.issues || 0)} auffällig</small>
+          </div>
+          <div class="imageflow-system-card">
+            <strong>Self-Test</strong>
+            <span>${diagnostics.testUserAllowed ? "Testkonto aktiv" : "Nur mit albentest"}</span>
+            <small>${diagnostics.testUserAllowed ? "Geführter Test ist erlaubt." : "Produktive Konten nicht für Testläufe nutzen."}</small>
+          </div>
+        </div>
+        <div class="imageflow-check-grid">
+          ${checks.map(renderSystemCheck).join("")}
+        </div>
+        <div class="imageflow-selftest">
+          <div>
+            <strong>Geführter Testlauf</strong>
+            <span>Diese Schritte prüfen die App-Funktionen ohne echte Dateiänderungen.</span>
+          </div>
+          <div class="imageflow-selftest-steps">
+            ${selfTestSteps.map(renderSelfTestStep).join("")}
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderSystemCheck(check) {
+    const level = check.level === "error" ? "danger" : check.level === "warning" ? "warning" : "safe";
+    return `
+      <article class="imageflow-check-row">
+        <span class="imageflow-badge ${level}">${check.level === "ok" ? "OK" : check.level === "warning" ? "Prüfen" : "Stopp"}</span>
+        <div>
+          <strong>${escapeHtml(check.label || "Prüfung")}</strong>
+          <span>${escapeHtml(check.message || "")}</span>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderSelfTestStep(step) {
+    const level = step.state === "danger" ? "danger" : step.state === "warning" ? "warning" : step.state === "ok" ? "safe" : "";
+    const label = step.state === "ok" ? "OK" : step.state === "warning" ? "Prüfen" : step.state === "danger" ? "Stopp" : "Offen";
+    return `
+      <span class="imageflow-selftest-step ${level}">
+        <b>${label}</b>
+        ${escapeHtml(step.label)}
+      </span>
+    `;
+  }
+
+  function systemStatusMessage(health, diagnostics) {
+    if (health.realExecutionEnabled) {
+      return "Echte Dateiänderungen sind aktiv. Nur mit bewusstem Testfenster und Backup verwenden.";
+    }
+    if (diagnostics.databaseOk === false) {
+      return "Die App läuft, aber die Datenbankprüfung braucht Aufmerksamkeit.";
+    }
+    return "Die App ist im geschützten Testbetrieb und bereit für sichere Funktionsprüfungen.";
   }
 
   function renderJobTable() {

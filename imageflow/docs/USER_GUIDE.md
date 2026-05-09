@@ -4,7 +4,7 @@
 
 Open ImageFlow from the Nextcloud navigation and start a sorting round:
 
-- check `Schutzstatus` before working on a productive server,
+- check `Schutzstatus` and `Systemprüfung` before working on a productive server,
 - choose a `Bilderordner` with the folder picker,
 - choose what should happen with matching images,
 - choose an `Ablageordner` when using copy or move,
@@ -72,6 +72,8 @@ Planned or queued items can be removed from the preview before execution. This a
 The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt ablegen` runs a small manual batch. If both real writes and server-side background processing are enabled, and the round is marked for automatic processing, the cron worker can process queued work later when the quiet-server gate allows it.
 
 The overview also shows the current safety status. `Geschützter Testbetrieb` means real file operations and cron processing are locked on the server.
+
+`Systemprüfung` summarizes whether file writes are locked, whether background processing can run, whether ImageFlow tables are reachable, and whether the current account is the dedicated test user. The guided test steps are a checklist for safe smoke testing; they do not execute file operations while real writes are locked.
 
 When an administrator deliberately enables real execution for a controlled test window, ImageFlow processes the queued worklist in small background batches. Safe Mode verifies copy/move operations with checksums, existing album memberships or identical copy targets are skipped as already done, and conflicting target files are not overwritten.
 

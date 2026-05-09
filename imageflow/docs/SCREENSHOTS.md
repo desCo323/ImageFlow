@@ -83,3 +83,6 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 26. Large Ablage preview with compact filters
    ![Large Ablage preview with compact filters](screenshots/26-large-worklist-filters.png)
+
+27. Dashboard system check and guided self-test
+   ![Dashboard system check and guided self-test](screenshots/27-system-check.png)

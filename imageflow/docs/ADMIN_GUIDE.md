@@ -14,6 +14,7 @@ Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controll
 - Backup before every live test.
 - Verify `occ status` before and after tests.
 - Check `nextcloud.log` after every test.
+- Confirm the ImageFlow dashboard `Systemprüfung` shows locked file writes before running smoke tests.
 
 ## Current Write Behavior
 
