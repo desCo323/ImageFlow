@@ -19,6 +19,7 @@
   let feedbackTimer = null;
   let imagePageLoadPromise = null;
   let targetSearchTimer = null;
+  let scrollToTopOnRender = false;
 
   const state = {
     page: root.dataset.page || "jobs",
@@ -1001,6 +1002,10 @@
     `;
     bindActions();
     syncImageBuffer();
+    if (scrollToTopOnRender) {
+      mount.scrollTop = 0;
+      scrollToTopOnRender = false;
+    }
   }
 
   function renderTopbar() {
@@ -2522,6 +2527,7 @@
 
   async function openSort(jobId, startMode) {
     state.page = "sort";
+    scrollToTopOnRender = true;
     state.jobId = jobId;
     state.imageIndex = 0;
     state.sortState = null;

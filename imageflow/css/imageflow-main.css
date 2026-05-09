@@ -599,7 +599,7 @@
 
 .imageflow-job-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr);
   gap: 14px;
   align-items: center;
   padding: 12px 14px;
@@ -1524,11 +1524,13 @@
   }
 }
 
-@container (max-width: 1100px) {
+@container (max-width: 1500px) {
   .imageflow-job-head {
     grid-template-columns: 1fr;
   }
+}
 
+@container (max-width: 1100px) {
   .imageflow-gamebar {
     display: flex;
     flex-wrap: nowrap;
