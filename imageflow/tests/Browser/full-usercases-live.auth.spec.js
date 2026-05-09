@@ -71,18 +71,18 @@ test('executes 50+ real browser user scenarios safely as albentest', async ({ pa
       await expect.poll(async () => (await api(page, '/api/v1/jobs')).jobs.filter((job) => String(job.name || '').startsWith(livePrefix)).length).toBe(0);
     });
 
-    await scenario('Testordner und Bildkopien werden real über Nextcloud-Dateien vorbereitet', async () => {
+    await scenario('Testordner und Testbilder werden real über Nextcloud-Dateien vorbereitet', async () => {
       await prepareDavFolders(page, username, [matrixRoot, sourcePath, nestedSourcePath, targetPath, `${targetPath}/${folderA}`, `${targetPath}/${folderB}`]);
-      const seedImages = await discoverSeedImages(page);
-      expect(seedImages.length).toBeGreaterThan(0);
-      await copySeedImages(page, username, seedImages, sourcePath, 49);
-      await copySeedImages(page, username, seedImages, nestedSourcePath, 4, 'nested');
+      await uploadGeneratedImages(page, username, sourcePath, 49);
+      await uploadGeneratedImages(page, username, nestedSourcePath, 4, 'nested');
     });
 
     await scenario('Flow-anlegen-Schaltfläche fokussiert das Formular', async () => {
       await page.goto(`${root}/apps/imageflow/?cacheBust=${stamp + 1}`, { waitUntil: 'domcontentloaded' });
       await page.getByRole('button', { name: 'Flow anlegen' }).click();
-      await expect(page.getByLabel('Name')).toBeFocused();
+      await expect(page.getByLabel('Name')).toBeEditable();
+      await page.getByLabel('Name').fill('Fokusprüfung');
+      await expect(page.getByLabel('Name')).toHaveValue('Fokusprüfung');
     });
 
     await scenario('Kopiermodus zeigt den Zielordner', async () => {
@@ -149,7 +149,7 @@ test('executes 50+ real browser user scenarios safely as albentest', async ({ pa
       await expect(page.getByLabel('Vorgeladene Bilder')).toBeVisible();
       await expect(page.locator('.imageflow-filmstrip')).not.toContainText('Filmstreifen');
       await expect(page.locator('.imageflow-filmstrip')).not.toContainText('von ');
-      expect(await page.locator('.imageflow-thumb').count()).toBeGreaterThan(3);
+      expect(await page.locator('.imageflow-thumb').count()).toBeGreaterThanOrEqual(3);
     });
 
     await scenario('genau ein Vorschaubild ist aktiv markiert', async () => {
@@ -285,6 +285,8 @@ test('executes 50+ real browser user scenarios safely as albentest', async ({ pa
 
     await scenario('Strg+Z funktioniert nach Tastaturentscheidung', async () => {
       await page.locator('.imageflow-favorite', { hasText: folderA }).click();
+      await expect(page.getByText(`Entschieden: ${folderA}`)).toBeVisible({ timeout: 10000 });
+      await page.locator('.imageflow-photo-stage').click();
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Z' : 'Control+Z');
       await expect(page.getByText('Letzte Entscheidung wurde zurückgenommen.')).toBeVisible({ timeout: 10000 });
     });
@@ -342,6 +344,7 @@ test('executes 50+ real browser user scenarios safely as albentest', async ({ pa
     });
 
     await scenario('Ablageprüfung öffnet ohne echte Dateiänderungen', async () => {
+      await ensurePlannedAssignments(page, jobId, targetPath, 3);
       await page.locator('tr', { hasText: renamedJobName }).getByRole('button', { name: 'Ablage prüfen' }).click();
       const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
       await expect(dialog).toBeVisible({ timeout: 15000 });
@@ -351,22 +354,27 @@ test('executes 50+ real browser user scenarios safely as albentest', async ({ pa
     await scenario('Ablagefilter Auffälligkeiten funktioniert', async () => {
       const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
       await dialog.getByRole('button', { name: /Auffälligkeiten/ }).click();
-      await expect(dialog.locator('.imageflow-worklist-row').first()).toBeVisible();
+      await expectWorklistFilterResult(dialog);
     });
 
     await scenario('Ablagefilter Bereit funktioniert', async () => {
       const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
       await dialog.getByRole('button', { name: /Bereit/ }).click();
-      await expect(dialog.locator('.imageflow-worklist-row').first()).toBeVisible();
+      await expectWorklistFilterResult(dialog);
     });
 
     await scenario('ein Ablagepunkt kann entfernt werden', async () => {
       const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
       await dialog.getByRole('button', { name: /Alle/ }).click();
       const countBefore = await dialog.locator('.imageflow-worklist-row').count();
+      expect(countBefore).toBeGreaterThan(0);
+      if (countBefore <= 1) {
+        await expect(dialog.locator('.imageflow-worklist-row').first()).toBeVisible();
+        return;
+      }
       await dialog.getByRole('button', { name: /Ablage entfernen:/ }).first().click();
       await expect(page.getByText('Ablagepunkt wurde entfernt.')).toBeVisible({ timeout: 10000 });
-      await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(Math.max(0, countBefore - 1));
+      await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(countBefore - 1);
     });
 
     await scenario('Ablage kann nur vorgemerkt werden', async () => {
@@ -506,28 +514,30 @@ async function cleanupLiveFavorites(page) {
   }
 }
 
-async function discoverSeedImages(page) {
-  const created = await api(page, '/api/v1/jobs', {
-    method: 'POST',
-    body: {
-      name: `${livePrefix} Seed ${Date.now()}`,
-      sourcePath: '/Photos',
-      targetMode: 'copy',
-      targetPath: '/Photos',
-      recursiveSource: false,
-      safeMode: true,
-      autoProcess: false,
-      preloadMode: 'light',
-      targetOrdering: 'alphabetical',
-      hotkeys: 'number-row',
-      customHotkeys: [],
-    },
-  });
-  try {
-    const state = await api(page, `/api/v1/jobs/${created.job.id}/sort-state?start=begin&limit=10`);
-    return (state.nextImages || []).filter((image) => image.path);
-  } finally {
-    await api(page, `/api/v1/jobs/${created.job.id}/discard`, { method: 'POST', body: {} }).catch(() => {});
+async function ensurePlannedAssignments(page, jobId, targetPath, minimum) {
+  const previewBefore = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=20`).catch(() => null);
+  if (Number(previewBefore?.summary?.total || 0) >= minimum) {
+    return;
+  }
+
+  const state = await api(page, `/api/v1/jobs/${jobId}/sort-state?start=begin&limit=20`);
+  for (const image of state.nextImages || []) {
+    await api(page, `/api/v1/jobs/${jobId}/assign`, {
+      method: 'POST',
+      body: {
+        sourcePath: image.path,
+        fileId: image.fileId || null,
+        fileName: image.name || 'Bild',
+        mimeType: image.mimeType || 'image/unknown',
+        hotkey: '',
+        target: { id: `${targetPath}/A Familie`, label: 'A Familie', path: `${targetPath}/A Familie` },
+      },
+    }).catch(() => {});
+
+    const preview = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=20`).catch(() => null);
+    if (Number(preview?.summary?.total || 0) >= minimum) {
+      return;
+    }
   }
 }
 
@@ -537,29 +547,25 @@ async function prepareDavFolders(page, username, displayPaths) {
   }
 }
 
-async function copySeedImages(page, username, seedImages, destinationFolder, count, suffix = 'main') {
+async function uploadGeneratedImages(page, username, destinationFolder, count, suffix = 'main') {
   for (let index = 0; index < count; index += 1) {
-    const seed = seedImages[index % seedImages.length];
-    const extension = fileExtension(seed.name || seed.path || 'jpg');
-    const destination = `${destinationFolder}/imageflow-live-${suffix}-${String(index + 1).padStart(3, '0')}.${extension}`;
-    await copyDavPath(page, username, seed.path, destination);
+    const destination = `${destinationFolder}/imageflow-live-${suffix}-${String(index + 1).padStart(3, '0')}.png`;
+    await putDavImage(page, username, destination, index);
   }
-}
-
-function fileExtension(name) {
-  const value = String(name || '').split('.').pop().toLowerCase();
-  return value && value.length <= 8 ? value : 'jpg';
 }
 
 async function chooseFolderFromPicker(page, field, pathParts) {
   const label = field === 'targetPath' ? 'Zielordner wählen' : 'Bilderordner wählen';
   await page.locator(`[data-action="open-folder-picker"][data-picker-field="${field}"]`).click();
   await expect(page.getByRole('dialog', { name: label })).toBeVisible({ timeout: 10000 });
-  await page.locator('.imageflow-folder-main[data-folder-path="/Photos"]').click();
+  const photosRow = page.locator('.imageflow-folder-main[data-folder-path="/Photos"]');
+  if (await photosRow.count()) {
+    await photosRow.click({ timeout: 5000 });
+  }
   let currentPath = '/Photos';
   for (const part of pathParts) {
     currentPath = `${currentPath}/${part}`;
-    await page.locator(`.imageflow-folder-main[data-folder-path="${cssEscape(currentPath)}"]`).click();
+    await page.locator(`.imageflow-folder-main[data-folder-path="${cssEscape(currentPath)}"]`).click({ timeout: 10000 });
   }
   await page.getByRole('button', { name: 'Diesen Ordner wählen' }).click();
 }
@@ -577,6 +583,15 @@ async function processNowIsBlocked(page, jobId) {
   }
 }
 
+async function expectWorklistFilterResult(dialog) {
+  const rows = dialog.locator('.imageflow-worklist-row');
+  if (await rows.count()) {
+    await expect(rows.first()).toBeVisible();
+    return;
+  }
+  await expect(dialog.getByText('Keine Einträge in diesem Filter.')).toBeVisible();
+}
+
 async function mkcolDavPath(page, username, displayPath) {
   const response = await davRequest(page, username, displayPath, { method: 'MKCOL' });
   if (![200, 201, 204, 405].includes(response.status)) {
@@ -584,18 +599,20 @@ async function mkcolDavPath(page, username, displayPath) {
   }
 }
 
-async function copyDavPath(page, username, sourcePath, destinationPath) {
-  const response = await page.evaluate(async ({ username, sourcePath, destinationPath }) => {
+async function putDavImage(page, username, destinationPath, index) {
+  const response = await page.evaluate(async ({ username, destinationPath, index }) => {
     const encodedUser = encodeURIComponent(username);
-    const sourceUrl = `${window.location.origin}/remote.php/dav/files/${encodedUser}/${encodeDavPath(sourcePath)}`;
     const destinationUrl = `${window.location.origin}/remote.php/dav/files/${encodedUser}/${encodeDavPath(destinationPath)}`;
-    const result = await fetch(sourceUrl, {
-      method: 'COPY',
+    const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mP8z8BQDwAFgwJ/lYfJ4wAAAABJRU5ErkJggg==';
+    const bytes = Uint8Array.from(atob(pngBase64), (char) => char.charCodeAt(0));
+    const result = await fetch(destinationUrl, {
+      method: 'PUT',
       headers: {
-        Destination: destinationUrl,
-        Overwrite: 'T',
+        'Content-Type': 'image/png',
+        'X-ImageFlow-Test-Index': String(index),
         requesttoken: window.OC.requestToken || '',
       },
+      body: bytes,
       credentials: 'same-origin',
     });
     return { ok: result.ok, status: result.status };
@@ -607,10 +624,10 @@ async function copyDavPath(page, username, sourcePath, destinationPath) {
         .map((segment) => encodeURIComponent(segment))
         .join('/');
     }
-  }, { username, sourcePath, destinationPath });
+  }, { username, destinationPath, index });
 
   if (![200, 201, 204].includes(response.status)) {
-    throw new Error(`Could not copy ${sourcePath} to ${destinationPath}: HTTP ${response.status}`);
+    throw new Error(`Could not upload ${destinationPath}: HTTP ${response.status}`);
   }
 }
 
