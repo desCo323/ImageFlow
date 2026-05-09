@@ -1312,7 +1312,7 @@
         <td>
           <div class="imageflow-actions">
             <button class="imageflow-button primary" data-action="open-sort" data-start-mode="resume" data-job-id="${job.id}" type="button">${primaryStartLabel}</button>
-            <button class="imageflow-button" data-action="open-sort" data-start-mode="begin" data-job-id="${job.id}" type="button">Neu anfangen</button>
+            <button class="imageflow-button" data-action="open-sort" data-start-mode="begin" data-job-id="${job.id}" title="${escapeAttr(beginStartHint(job))}" type="button">Von vorn ansehen</button>
             <button class="imageflow-button" data-action="open-sort" data-start-mode="unsorted" data-job-id="${job.id}" type="button">Offene Bilder</button>
             <button class="imageflow-button" data-action="edit-job" data-job-id="${job.id}" type="button">Bearbeiten</button>
             <button class="imageflow-button" data-action="duplicate-job" data-job-id="${job.id}" type="button">Kopie</button>
@@ -1347,6 +1347,7 @@
     const progress = progressStats(job, page, images);
     const tempo = sessionTempo();
     const milestone = flowMilestone(progress.percent, state.decisionStreak);
+    const beginHint = beginStartHint(job);
     const hasDecisions = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) > 0 || (sortState.recentAssignments || []).length > 0;
     const listedTargets = state.targets.length
       ? state.targets
@@ -1358,50 +1359,51 @@
     return `
       <section class="imageflow-sort" aria-label="Sortieransicht">
         <header class="imageflow-job-head">
-          <div>
+          <div class="imageflow-head-title">
             <h3>${escapeHtml(job.name || "Flow")}</h3>
             <p>${escapeHtml(job.sourcePath || "/")} · ${modeLabel(job.targetMode)} · ${statusLabel(job.status)} · Bild ${images.length ? currentIndex + 1 : 0}/${images.length}</p>
           </div>
-          <div class="imageflow-toolbar">
-            <span class="imageflow-badge safe">${job.safeMode ? "Extra sicher" : "Standard"}</span>
-            <button class="imageflow-button primary" data-action="focus-target-create" type="button">${job.targetMode === "album" ? "Album anlegen" : "Ordner anlegen"}</button>
-            <span class="imageflow-badge">${Number(job.sortedFiles || 0)} entschieden</span>
-            <span class="imageflow-badge">${Number(job.queuedOperations || 0)} warten</span>
-            <button class="imageflow-button" data-action="undo-last-decision" type="button" ${hasDecisions ? "" : "disabled"}>Rückgängig</button>
-            <button class="imageflow-button" data-action="start-sort" data-start-mode="resume" type="button">Weitermachen</button>
-            <button class="imageflow-button" data-action="start-sort" data-start-mode="begin" type="button">Neu anfangen</button>
-            <button class="imageflow-button" data-action="start-sort" data-start-mode="unsorted" type="button">Offene Bilder</button>
-            <button class="imageflow-button" data-action="go-jobs" type="button">Zurück</button>
+          <div class="imageflow-head-actions">
+            <div class="imageflow-toolbar">
+              <span class="imageflow-badge safe">${job.safeMode ? "Extra sicher" : "Standard"}</span>
+              <span class="imageflow-badge">${Number(job.sortedFiles || 0)} entschieden</span>
+              <span class="imageflow-badge">${Number(job.queuedOperations || 0)} warten</span>
+              <button class="imageflow-button" data-action="undo-last-decision" type="button" ${hasDecisions ? "" : "disabled"}>Rückgängig</button>
+              <button class="imageflow-button" data-action="start-sort" data-start-mode="resume" type="button">Weitermachen</button>
+              <button class="imageflow-button" data-action="start-sort" data-start-mode="begin" title="${escapeAttr(beginHint)}" type="button">Von vorn ansehen</button>
+              <button class="imageflow-button" data-action="start-sort" data-start-mode="unsorted" type="button">Offene Bilder</button>
+              <button class="imageflow-button" data-action="go-jobs" type="button">Zurück</button>
+            </div>
+            <section class="imageflow-gamebar" aria-label="Flow-Fortschritt">
+              <div class="imageflow-flow-meter">
+                <div class="imageflow-flow-meter-head">
+                  <strong>${progress.done}/${progress.total} entschieden</strong>
+                  <span>${progress.percent}%</span>
+                </div>
+                <div class="imageflow-progress-track" aria-hidden="true">
+                  <span class="imageflow-progress-fill" style="width: ${progress.percent}%"></span>
+                </div>
+              </div>
+              <div class="imageflow-flow-chip accent-warm">
+                <strong>${state.decisionStreak}</strong>
+                <span>Serie</span>
+              </div>
+              <div class="imageflow-flow-chip accent-cool">
+                <strong>${state.decisionsThisSession}</strong>
+                <span>Dieser Flow</span>
+              </div>
+              <div class="imageflow-flow-chip accent-violet">
+                <strong>${tempo}</strong>
+                <span>Bilder/min</span>
+              </div>
+              <div class="imageflow-flow-chip accent-cool">
+                <strong>${bufferPlan.length}</strong>
+                <span>Vorgeladen</span>
+              </div>
+              <div class="imageflow-flow-milestone">${escapeHtml(milestone)}</div>
+            </section>
           </div>
         </header>
-        <section class="imageflow-gamebar" aria-label="Flow-Fortschritt">
-          <div class="imageflow-flow-meter">
-            <div class="imageflow-flow-meter-head">
-              <strong>${progress.done}/${progress.total} entschieden</strong>
-              <span>${progress.percent}%</span>
-            </div>
-            <div class="imageflow-progress-track" aria-hidden="true">
-              <span class="imageflow-progress-fill" style="width: ${progress.percent}%"></span>
-            </div>
-          </div>
-          <div class="imageflow-flow-chip accent-warm">
-            <strong>${state.decisionStreak}</strong>
-            <span>Serie</span>
-          </div>
-          <div class="imageflow-flow-chip accent-cool">
-            <strong>${state.decisionsThisSession}</strong>
-            <span>Dieser Flow</span>
-          </div>
-          <div class="imageflow-flow-chip accent-violet">
-            <strong>${tempo}</strong>
-            <span>Bilder/min</span>
-          </div>
-          <div class="imageflow-flow-chip accent-cool">
-            <strong>${bufferPlan.length}</strong>
-            <span>Vorgeladen</span>
-          </div>
-          <div class="imageflow-flow-milestone">${escapeHtml(milestone)}</div>
-        </section>
         <div class="imageflow-sort-grid">
           <aside class="imageflow-rail">
             <h4>Schnellziele</h4>
@@ -2526,6 +2528,7 @@
   }
 
   async function openSort(jobId, startMode) {
+    rememberBeginStartNotice(jobId, startMode);
     state.page = "sort";
     scrollToTopOnRender = true;
     state.jobId = jobId;
@@ -2545,6 +2548,7 @@
   }
 
   async function restartSort(startMode) {
+    rememberBeginStartNotice(state.jobId, startMode);
     state.imageIndex = 0;
     state.imagePage = null;
     state.pageCursor = null;
@@ -2552,6 +2556,21 @@
     clearImagePageCache();
     resetSessionFlow();
     await loadImagePage(null, null, true, startMode);
+  }
+
+  function rememberBeginStartNotice(jobId, startMode) {
+    if (startMode !== "begin") {
+      return;
+    }
+    const job = state.sortState?.job?.id === jobId
+      ? state.sortState.job
+      : state.jobs.find((item) => String(item.id) === String(jobId));
+    if (Number(job?.executedOperations || 0) > 0) {
+      state.toast = {
+        type: "info",
+        message: "Du siehst den Flow nur wieder von vorn. Bereits abgelegte Dateien werden nicht automatisch zurückgeholt.",
+      };
+    }
   }
 
   async function changeJobStatus(jobId, operation) {
@@ -3335,6 +3354,13 @@
       return "warning";
     }
     return "safe";
+  }
+
+  function beginStartHint(job) {
+    if (Number(job?.executedOperations || 0) > 0) {
+      return "Startet nur die Ansicht beim ersten Bild. Bereits abgelegte Dateien werden nicht zurückgeholt.";
+    }
+    return "Startet die Ansicht beim ersten Bild. Vorgemerkte Ablagen bleiben erhalten.";
   }
 
   function queueStatusLabel(status) {

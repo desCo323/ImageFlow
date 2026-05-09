@@ -96,8 +96,8 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 30. Live narrow Nextcloud layout with visible create button and filmstrip
    ![Live narrow Nextcloud layout with visible create button and filmstrip](screenshots/30-live-narrow-flow-layout.png)
 
-31. Responsive desktop Flow with compact header and image-only filmstrip
-   ![Responsive desktop Flow with compact header and image-only filmstrip](screenshots/31-responsive-desktop-flow.png)
+31. Responsive desktop Flow with integrated progress header and image-only filmstrip
+   ![Responsive desktop Flow with integrated progress header and image-only filmstrip](screenshots/31-responsive-desktop-flow.png)
 
-32. Responsive mobile Flow with photo-first sorting layout and compact filmstrip
-   ![Responsive mobile Flow with photo-first sorting layout and compact filmstrip](screenshots/32-responsive-mobile-flow.png)
+32. Responsive mobile Flow with integrated progress header and compact filmstrip
+   ![Responsive mobile Flow with integrated progress header and compact filmstrip](screenshots/32-responsive-mobile-flow.png)

@@ -24,6 +24,7 @@
 - Pin the Flow filmstrip to the viewport bottom and duplicate target creation in the Flow header for narrow Nextcloud layouts.
 - Make ImageFlow fill the Nextcloud content width and add mobile-first Flow ordering with compact navigation.
 - Compact the Flow header and filmstrip so thumbnails are image-only framed tiles and the main photo keeps more vertical space.
+- Move Flow progress into the header, remove the duplicate header target-create action, and rename restart wording to clarify that executed file operations are not rolled back.
 
 ## 0.1.0 - 2026-05-08
 

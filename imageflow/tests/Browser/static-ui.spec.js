@@ -68,7 +68,7 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Flow speichern' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speichern & loslegen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Weitermachen' }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Neu anfangen' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Von vorn ansehen' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Offene Bilder' }).first()).toBeVisible();
   await expect(page.getByLabel('Ablageordner')).toBeHidden();
   await expect(page.getByLabel('Bilder vorladen')).toBeVisible();
@@ -224,6 +224,7 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.getByRole('heading', { name: 'Alle Ziele' })).toBeVisible();
   await expect(page.getByLabel('Flow-Fortschritt')).toContainText('Serie');
   await expect(page.getByRole('button', { name: 'Album anlegen' }).first()).toBeVisible();
+  await expect(page.locator('.imageflow-job-head').getByRole('button', { name: 'Album anlegen' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Album anlegen' }).first().click();
   await expect(page.getByPlaceholder('Neues Album')).toBeFocused();
   await expect(page.getByLabel('Filmstreifen')).toBeVisible();
@@ -231,13 +232,16 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.locator('.imageflow-photo-meta strong', { hasText: 'IMG_4021.jpg' })).toBeVisible();
   await expect(page.getByText('Leertaste')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Weitermachen' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Neu anfangen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Von vorn ansehen' })).toHaveAttribute('title', /Vorgemerkte Ablagen bleiben erhalten/);
   await expect(page.getByRole('button', { name: 'Offene Bilder' })).toBeVisible();
 
+  const headBox = await page.locator('.imageflow-job-head').boundingBox();
   const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
   const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
+  expect(headBox).not.toBeNull();
+  expect(headBox.height).toBeLessThan(90);
   expect(photoBox).not.toBeNull();
-  expect(photoBox.height).toBeGreaterThan(300);
+  expect(photoBox.height).toBeGreaterThan(380);
   expect(footerBox).not.toBeNull();
   expect(footerBox.height).toBeLessThan(120);
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(900);
