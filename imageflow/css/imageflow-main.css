@@ -1524,10 +1524,21 @@
     display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
+    padding: 6px;
   }
 
   .imageflow-job-head .imageflow-toolbar {
     justify-content: flex-start;
+  }
+
+  .imageflow-flow-meter,
+  .imageflow-flow-chip,
+  .imageflow-flow-milestone {
+    padding: 6px 8px;
+  }
+
+  .imageflow-flow-chip strong {
+    font-size: 18px;
   }
 
   .imageflow-flow-meter {
@@ -1540,16 +1551,22 @@
   }
 
   .imageflow-filmstrip {
-    min-height: 124px;
+    height: 132px;
+    min-height: 132px;
+  }
+
+  .imageflow-filmstrip-head {
+    margin-bottom: 5px;
   }
 
   .imageflow-thumb {
-    grid-template-rows: 60px auto;
-    min-height: 92px;
+    grid-template-rows: 56px auto;
+    min-height: 84px;
+    padding: 6px;
   }
 
   .imageflow-thumb-img {
-    height: 60px;
+    height: 56px;
   }
 
   .imageflow-thumb span {
