@@ -1507,6 +1507,56 @@
   gap: 12px;
 }
 
+.imageflow-settings-page {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 1100px);
+  margin: 0 auto;
+}
+
+.imageflow-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.imageflow-settings-danger {
+  border-color: #d94f70;
+  background: color-mix(in srgb, var(--color-main-background) 92%, #fff0f4);
+}
+
+.imageflow-settings-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.imageflow-settings-gate,
+.imageflow-diagnostics-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-main-background) 94%, #ffe8a3);
+}
+
+.imageflow-settings-gate strong,
+.imageflow-settings-gate span,
+.imageflow-diagnostics-strip span {
+  overflow-wrap: anywhere;
+}
+
+.imageflow-settings-gate span,
+.imageflow-diagnostics-strip span {
+  color: var(--color-text-maxcontrast);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .imageflow-select-compact {
   min-height: 34px;
   max-width: 100%;
@@ -1556,6 +1606,8 @@
   .imageflow-dashboard,
   .imageflow-system-grid,
   .imageflow-check-grid,
+  .imageflow-settings-grid,
+  .imageflow-settings-times,
   .imageflow-sort-grid {
     grid-template-columns: 1fr;
   }

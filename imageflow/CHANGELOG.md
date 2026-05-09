@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add v1 admin operation settings in the browser for real-write and cron gates.
+- Add user-visible JSON diagnosis export with redacted logs and background diagnostics.
+- Add opt-in real-write live browser coverage for copy, move, album execution and cron processing.
+- Bump app version to 1.0.0 and update v1 documentation.
 - Add production deploy PHP-FPM reload to avoid stale Nextcloud route/controller cache after file sync.
 - Document the next high-speed filmstrip, preload buffer, idempotent worklist, and cron execution architecture block.
 - Add keyboard filmstrip navigation, bounded image preload planning, active thumbnail selection, and duplicate queue protection for planned sort operations.

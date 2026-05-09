@@ -1,6 +1,6 @@
 {
   "name": "imageflow",
-  "version": "0.1.4",
+  "version": "1.0.0",
   "private": true,
   "description": "Nextcloud app for fast and safe photo sorting workflows.",
   "scripts": {

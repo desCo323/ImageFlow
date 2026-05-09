@@ -12,6 +12,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IConfig;
+use OCP\IGroupManager;
 use OCP\IRequest;
 
 class HealthController extends Controller {
@@ -19,6 +20,7 @@ class HealthController extends Controller {
 		IRequest $request,
 		private readonly string $userId,
 		private readonly IConfig $config,
+		private readonly IGroupManager $groupManager,
 		private readonly BackgroundGateService $backgroundGateService,
 		private readonly SortJobMapper $jobMapper,
 		private readonly QueueItemMapper $queueMapper,
@@ -127,6 +129,7 @@ class HealthController extends Controller {
 		return [
 			'status' => $status,
 			'userId' => $this->userId,
+			'isAdmin' => $this->groupManager->isAdmin($this->userId),
 			'testUserAllowed' => $this->userId === 'albentest',
 			'databaseOk' => $databaseOk,
 			'jobCount' => $jobCount,

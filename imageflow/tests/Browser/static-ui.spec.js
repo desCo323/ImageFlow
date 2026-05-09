@@ -80,6 +80,16 @@ async function measuredBoxes(page, selectors) {
   return boxes;
 }
 
+async function pressArrowRightSteps(page, steps, startNumber = 1) {
+  const currentName = page.locator('.imageflow-photo-meta strong');
+  await page.locator('.imageflow-photo-stage').click();
+  for (let index = 0; index < steps; index += 1) {
+    const expectedNumber = String(startNumber + index + 1).padStart(4, '0');
+    await page.keyboard.press('ArrowRight');
+    await expect(currentName).toHaveText(`IMG_${expectedNumber}.jpg`);
+  }
+}
+
 test('renders the job dashboard and creates a local mock job', async ({ page }) => {
   await mount(page);
 
@@ -348,27 +358,18 @@ test('keeps a large filmstrip bounded and responsive', async ({ page }) => {
   await expect(app).toHaveAttribute('data-buffer-plan', '9');
 
   const startedAt = Date.now();
-  for (let index = 0; index < 20; index += 1) {
-    await page.keyboard.press('ArrowRight');
-  }
+  await pressArrowRightSteps(page, 20, 1);
   expect(Date.now() - startedAt).toBeLessThan(5000);
-  await expect(currentName).toHaveText('IMG_0021.jpg');
   await expect(app).toHaveAttribute('data-buffer-plan', '17');
   await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
 
   const buffered = Number(await app.getAttribute('data-buffered-images'));
   expect(buffered).toBeLessThanOrEqual(32);
 
-  for (let index = 0; index < 21; index += 1) {
-    await page.keyboard.press('ArrowRight');
-  }
-  await expect(currentName).toHaveText('IMG_0042.jpg');
+  await pressArrowRightSteps(page, 21, 21);
   await expect.poll(async () => Number(await app.getAttribute('data-page-cache-size'))).toBeGreaterThan(1);
 
-  for (let index = 0; index < 7; index += 1) {
-    await page.keyboard.press('ArrowRight');
-  }
-  await expect(currentName).toHaveText('IMG_0049.jpg');
+  await pressArrowRightSteps(page, 7, 42);
   await expect(filmstrip).not.toContainText('49-96 von 1200');
   await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
   await expect(app).toHaveAttribute('data-page-cache-hit', '1');
@@ -463,6 +464,31 @@ test('renders the debug protocol view', async ({ page }) => {
   await expect(page.getByText('assignment_planned')).toBeVisible();
   await page.getByLabel('Log-Level').selectOption('debug');
   await expect(page.getByText('image_buffer_synced')).toBeVisible();
+});
+
+test('opens admin operation settings and exports diagnostics', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-user="albentest"');
+
+  await page.getByRole('button', { name: 'Betrieb' }).click();
+  await expect(page.getByRole('heading', { name: 'Betrieb' })).toBeVisible();
+  await page.getByLabel('Echte Dateiänderungen erlauben').check();
+  await page.getByLabel('Automatisch im Hintergrund ablegen').check();
+  await page.getByLabel('Maximale Serverlast').fill('4.5');
+  await page.getByRole('button', { name: 'Speichern' }).click();
+  await expect(page.getByText('Betriebseinstellungen wurden gespeichert.')).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Diagnose exportieren' }).click();
+  const download = await downloadPromise;
+  expect(await download.suggestedFilename()).toMatch(/imageflow-diagnostics-.*\.json/);
+  await expect(page.getByText('Diagnoseexport wurde erstellt.')).toBeVisible();
+});
+
+test('keeps operation settings hidden from non-admin users', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-admin="0"');
+
+  await expect(page.getByRole('button', { name: 'Betrieb' })).toHaveCount(0);
+  await expect(page.getByLabel('Diagnose exportieren')).toBeVisible();
 });
 
 test('covers 50 typical image sorting user scenarios', async ({ page }) => {
@@ -803,10 +829,7 @@ test('covers 50 typical image sorting user scenarios', async ({ page }) => {
 
   await scenario('large stacks keep the image buffer bounded', async () => {
     await mount(page, 'data-page="sort" data-job-id="1" data-mock-image-count="1200"');
-    for (let index = 0; index < 20; index += 1) {
-      await page.keyboard.press('ArrowRight');
-    }
-    await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_0021.jpg');
+    await pressArrowRightSteps(page, 20, 1);
     expect(Number(await page.locator('#imageflow-app').getAttribute('data-buffered-images'))).toBeLessThanOrEqual(32);
   });
 

@@ -2,7 +2,7 @@
 
 ## Installation Status
 
-ImageFlow is in bootstrap development. Do not deploy it to a productive Nextcloud instance without a controlled backup and rollback window.
+ImageFlow v1 is designed to run conservatively on Nextcloud 33. Do not enable real file operations on a productive server without a controlled backup and rollback window.
 
 Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controlled preflight, backup, deploy and file-level rollback.
 
@@ -16,13 +16,17 @@ Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controll
 - Check `nextcloud.log` after every test.
 - Confirm the ImageFlow dashboard `Systemprüfung` shows locked file writes before running smoke tests.
 
-## Current Write Behavior
+## Operation Settings
 
-The app stores rounds, assignments, queue rows, quick targets and logs. The Ablage preview validates planned operations before queueing.
+Administrators can open the `Betrieb` tab inside ImageFlow. It controls:
 
-Real execution code exists for album membership, copy and move operations, but it is disabled by default. Queued rows wait safely unless real execution is explicitly enabled and the user starts a manual batch or server-side background processing is enabled.
+- `Echte Dateiänderungen erlauben`
+- `Automatisch im Hintergrund ablegen`
+- `Nur bei ruhigem Server laufen lassen`
+- maximum one-minute server load
+- optional quiet-hour start/end window
 
-To enable the real execution path for a controlled test window:
+The shell equivalents are:
 
 ```bash
 sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow real_execution_enabled --value=1
@@ -70,3 +74,29 @@ Only enable real execution after a fresh backup and only with isolated test fold
 - move operations never delete the source when a different target file already exists,
 - per-item queue status, attempts, checksums, error text and debug logs.
 - automatic cron processing requires `real_execution_enabled=1`, `background_processing_enabled=1`, a passing quiet-server gate, and only picks queued rounds whose `autoProcess` option is enabled.
+
+## Diagnosis Export
+
+Every user can create a diagnosis export from the visible `Diagnose` action. The export contains:
+
+- ImageFlow and Nextcloud version metadata,
+- real-write/background settings,
+- current background gate decision,
+- job and queue counts for the current user,
+- recent ImageFlow logs, including system cron events with `userId=null`.
+
+Secrets are redacted before log storage. The export intentionally does not include Nextcloud config secrets, database passwords or user credentials.
+
+## Real Write Test
+
+The opt-in Playwright test `tests/Browser/real-execution-live.auth.spec.js` covers:
+
+- manual copy with checksum-safe duplicate handling,
+- manual move without source deletion on conflicts,
+- album membership execution,
+- queued automatic background execution through the registered Nextcloud background job,
+- diagnosis export after real processing,
+- cleanup of test jobs, test folders and test albums,
+- forced reset of `real_execution_enabled=0` and `background_processing_enabled=0`.
+
+Run it only after a fresh backup and only with `albentest`.

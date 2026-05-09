@@ -2,7 +2,7 @@
 
 ## Current State
 
-ImageFlow is still in bootstrap mode. The app may be copied to the Nextcloud app directory for controlled testing, but real file operations are disabled in the queue worker.
+ImageFlow v1 is safe by default: the app may be deployed to the Nextcloud app directory, but real file operations stay disabled until an administrator explicitly enables them.
 
 ## Preflight
 
@@ -87,3 +87,27 @@ npm run test:browser:auth
 ```
 
 Do not store the password in files, traces, screenshots or shell profiles.
+
+## Real Write Browser Test
+
+Before running this test, create a backup. The test itself uses only isolated folders and albums named `ImageFlow V1 Real ...`, restores the safety flags, and deletes its own data.
+
+```bash
+cd /home/cloud/ImageFlow-work/imageflow
+IMAGEFLOW_AUTH_TESTS=1 \
+IMAGEFLOW_REAL_WRITE_TESTS=1 \
+IMAGEFLOW_BASE_URL=https://chaosnet.me \
+IMAGEFLOW_TEST_USER=albentest \
+IMAGEFLOW_TEST_PASSWORD='<runtime-only>' \
+npx playwright test tests/Browser/real-execution-live.auth.spec.js --workers=1 --trace=off --reporter=line
+```
+
+Mandatory post-test checks:
+
+```bash
+sudo -u www-data php /var/www/nextcloud/occ status
+sudo -u www-data php /var/www/nextcloud/occ config:app:get imageflow real_execution_enabled
+sudo -u www-data php /var/www/nextcloud/occ config:app:get imageflow background_processing_enabled
+```
+
+Expected app-config output is `0` for both flags.

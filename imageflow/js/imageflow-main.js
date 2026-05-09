@@ -50,6 +50,12 @@
       jobId: null,
       error: null,
     },
+    adminSettings: {
+      loading: false,
+      saving: false,
+      data: null,
+      error: null,
+    },
     mockFavorites: null,
     mockTargets: null,
     mockFolders: null,
@@ -203,6 +209,32 @@
     await new Promise((resolve) => setTimeout(resolve, 20));
     if (path === "/api/v1/health") {
       return mockHealth();
+    }
+    if (path === "/api/v1/admin/settings" && (!options.method || options.method === "GET")) {
+      return mockAdminSettings();
+    }
+    if (path === "/api/v1/admin/settings" && options.method === "PUT") {
+      const current = mockAdminSettings();
+      const settings = {
+        ...current.settings,
+        ...options.body,
+        backgroundMaxLoad1m: Number(options.body.backgroundMaxLoad1m || current.settings.backgroundMaxLoad1m),
+      };
+      root.dataset.mockRealExecution = settings.realExecutionEnabled ? "1" : "0";
+      root.dataset.mockBackgroundMode = settings.backgroundProcessingEnabled ? "cron-enabled" : "manual-only";
+      return { isAdmin: true, settings, backgroundGate: mockBackgroundGate(settings.backgroundProcessingEnabled) };
+    }
+    if (path === "/api/v1/support/export") {
+      return {
+        app: "imageflow",
+        version: "1.0.0",
+        generatedAt: Math.floor(Date.now() / 1000),
+        userId: root.dataset.mockUser || "albentest",
+        settings: mockAdminSettings().settings,
+        backgroundGate: mockBackgroundGate(false),
+        counts: mockDiagnostics(false, false, "manual-only"),
+        logs: mockLogs(),
+      };
     }
     if (path === "/api/v1/jobs" && (!options.method || options.method === "GET")) {
       return { jobs: state.jobs.length ? state.jobs : mockJobs() };
@@ -460,7 +492,7 @@
       return { mode, ordering: search ? "search" : "relevance", targets: filterMockTargets(mockTargets(), search) };
     }
     if (path.includes("/logs")) {
-      return { logs: mockLogs() };
+      return { diagnostics: mockDiagnostics(false, false, "manual-only"), logs: mockLogs() };
     }
     return {};
   }
@@ -527,7 +559,7 @@
     const diagnostics = mockDiagnostics(realExecutionEnabled, backgroundProcessingEnabled, backgroundMode);
     return {
       app: "imageflow",
-      version: "0.1.0",
+      version: "1.0.0",
       status: diagnostics.status,
       processingMode: realExecutionEnabled
         ? (backgroundProcessingEnabled ? "manual-and-background" : "manual-only")
@@ -581,11 +613,30 @@
     return {
       status: realExecutionEnabled ? "execution-enabled" : "safe-testing",
       userId: testUserAllowed ? "albentest" : "mock-user",
+      isAdmin: root.dataset.mockAdmin !== "0",
       testUserAllowed,
       databaseOk: true,
       jobCount: jobs.length,
       queue,
       checks,
+    };
+  }
+
+  function mockAdminSettings() {
+    const realExecutionEnabled = root.dataset.mockRealExecution === "1";
+    const backgroundProcessingEnabled = (root.dataset.mockBackgroundMode || "manual-only") !== "manual-only";
+    return {
+      isAdmin: true,
+      settings: {
+        realExecutionEnabled,
+        backgroundProcessingEnabled,
+        backgroundLowLoadOnly: true,
+        backgroundMaxLoad1m: 2,
+        quietHoursEnabled: false,
+        quietHoursStart: "22:00",
+        quietHoursEnd: "06:00",
+      },
+      backgroundGate: mockBackgroundGate(backgroundProcessingEnabled),
     };
   }
 
@@ -934,10 +985,14 @@
     try {
       if (state.page === "sort" && state.jobId) {
         await loadImagePage(state.pageCursor, null, false, state.startMode);
+      } else if (state.page === "settings") {
+        await loadHealth();
+        await loadAdminSettings();
       } else if (state.page === "logs") {
         const params = new URLSearchParams({ limit: "120" });
         const payload = await request(`/api/v1/logs?${params.toString()}`);
         state.logs.items = payload.logs || [];
+        state.logs.diagnostics = payload.diagnostics || null;
       } else {
         const payload = await request("/api/v1/jobs");
         state.jobs = payload.jobs || [];
@@ -1083,7 +1138,7 @@
       <div class="imageflow-app">
         ${renderTopbar()}
         <main class="imageflow-content ${state.page === "sort" ? "imageflow-content-sort" : ""}">
-          ${state.page === "sort" ? renderSortPage() : (state.page === "logs" ? renderLogsPage() : renderJobsPage())}
+          ${state.page === "sort" ? renderSortPage() : (state.page === "logs" ? renderLogsPage() : (state.page === "settings" ? renderSettingsPage() : renderJobsPage()))}
           ${renderToast()}
           ${renderFolderPicker()}
           ${renderWorklistPreview()}
@@ -1110,6 +1165,7 @@
         <nav class="imageflow-tabs" aria-label="ImageFlow">
           <button class="imageflow-tab ${state.page === "jobs" ? "is-active" : ""}" data-action="go-jobs" type="button">Übersicht</button>
           <button class="imageflow-tab ${state.page === "sort" ? "is-active" : ""}" data-action="go-sort" type="button" ${state.jobId ? "" : "disabled"}>Sortieren</button>
+          ${isAdminUser() ? `<button class="imageflow-tab ${state.page === "settings" ? "is-active" : ""}" data-action="show-settings" type="button">Betrieb</button>` : ""}
           ${debugUi ? `<button class="imageflow-tab ${state.page === "logs" ? "is-active" : ""}" data-action="show-log" type="button">Protokoll</button>` : ""}
         </nav>
       </header>
@@ -1118,6 +1174,10 @@
 
   function debugUiEnabled() {
     return root.dataset.debugUi === "1";
+  }
+
+  function isAdminUser() {
+    return Boolean(state.health?.diagnostics?.isAdmin || state.adminSettings.data?.isAdmin);
   }
 
   function renderJobsPage() {
@@ -1271,6 +1331,7 @@
           <span class="imageflow-badge ${realWrites ? "warning" : "safe"}">${realWrites ? "Dateien können geändert werden" : "Dateiänderungen gesperrt"}</span>
           <span class="imageflow-badge ${background ? ((gate.canRun || gate.reason === "ready") ? "ready" : "warning") : ""}">${escapeHtml(automationLabel)}</span>
           <span class="imageflow-badge safe">Prüfsummen an</span>
+          <button class="imageflow-mini-button" data-action="export-diagnostics" aria-label="Diagnose exportieren" title="Diagnose exportieren" type="button">i</button>
         </div>
       </section>
     `;
@@ -1876,6 +1937,7 @@
   function renderLogsPage() {
     const logs = state.logs.items || [];
     const filteredJob = state.logs.jobId ? state.jobs.find((job) => job.id === state.logs.jobId) : null;
+    const diagnostics = state.logs.diagnostics || {};
     return `
       <section class="imageflow-log-page" aria-label="Protokoll">
         <div class="imageflow-panel">
@@ -1894,14 +1956,84 @@
               </select>
               ${state.logs.jobId ? '<button class="imageflow-button" data-action="show-log" type="button">Alle Flows</button>' : ""}
               <button class="imageflow-button" data-action="refresh-logs" type="button">Neu laden</button>
+              <button class="imageflow-button primary" data-action="export-diagnostics" type="button">Diagnose exportieren</button>
             </div>
           </div>
+          ${diagnostics.version ? `
+            <div class="imageflow-diagnostics-strip" aria-label="Diagnoseüberblick">
+              <span>Version ${escapeHtml(diagnostics.version || "")}</span>
+              <span>${diagnostics.realExecutionEnabled ? "Dateiänderungen aktiv" : "Dateiänderungen gesperrt"}</span>
+              <span>${diagnostics.backgroundProcessingEnabled ? "Automatik vorbereitet" : "Automatik aus"}</span>
+              <span>${escapeHtml(diagnostics.backgroundGate?.reason || "ready")}</span>
+            </div>
+          ` : ""}
           ${state.logs.loading ? '<div class="imageflow-empty">Protokoll wird geladen.</div>' : ""}
           ${state.logs.error ? `<div class="imageflow-empty">${escapeHtml(state.logs.error)}</div>` : ""}
           <div class="imageflow-log-list">
             ${logs.map(renderLogRow).join("") || '<div class="imageflow-empty">Noch keine Protokolleinträge vorhanden.</div>'}
           </div>
         </div>
+      </section>
+    `;
+  }
+
+  function renderSettingsPage() {
+    const data = state.adminSettings.data || {};
+    const settings = data.settings || {};
+    const gate = data.backgroundGate || state.health?.backgroundGate || {};
+    return `
+      <section class="imageflow-settings-page" aria-label="Betrieb">
+        <form class="imageflow-panel accent-violet imageflow-settings-form" id="imageflow-settings-form">
+          <div class="imageflow-panel-head">
+            <div>
+              <h3>Betrieb</h3>
+              <p>Schalte echte Ablagen nur fuer ein vorbereitetes Testfenster ein.</p>
+            </div>
+            <div class="imageflow-actions">
+              <button class="imageflow-button" data-action="refresh-settings" type="button">Neu laden</button>
+              <button class="imageflow-button" data-action="export-diagnostics" type="button">Diagnose exportieren</button>
+              <button class="imageflow-button primary" type="submit" ${state.adminSettings.saving ? "disabled" : ""}>Speichern</button>
+            </div>
+          </div>
+          ${state.adminSettings.loading ? '<div class="imageflow-empty">Betriebseinstellungen werden geladen.</div>' : ""}
+          ${state.adminSettings.error ? `<div class="imageflow-empty">${escapeHtml(state.adminSettings.error)}</div>` : ""}
+          <div class="imageflow-settings-grid">
+            <label class="imageflow-toggle imageflow-settings-danger">
+              <input name="realExecutionEnabled" type="checkbox" ${settings.realExecutionEnabled ? "checked" : ""}>
+              Echte Dateiänderungen erlauben
+            </label>
+            <label class="imageflow-toggle">
+              <input name="backgroundProcessingEnabled" type="checkbox" ${settings.backgroundProcessingEnabled ? "checked" : ""}>
+              Automatisch im Hintergrund ablegen
+            </label>
+            <label class="imageflow-toggle">
+              <input name="backgroundLowLoadOnly" type="checkbox" ${settings.backgroundLowLoadOnly !== false ? "checked" : ""}>
+              Nur bei ruhigem Server laufen lassen
+            </label>
+            <div class="imageflow-field">
+              <label for="ifl-max-load">Maximale Serverlast</label>
+              <input id="ifl-max-load" name="backgroundMaxLoad1m" type="number" min="0.1" max="128" step="0.1" value="${escapeAttr(settings.backgroundMaxLoad1m ?? 2)}">
+            </div>
+            <label class="imageflow-toggle">
+              <input name="quietHoursEnabled" type="checkbox" ${settings.quietHoursEnabled ? "checked" : ""}>
+              Nur im Zeitfenster laufen
+            </label>
+            <div class="imageflow-settings-times">
+              <div class="imageflow-field">
+                <label for="ifl-quiet-start">Start</label>
+                <input id="ifl-quiet-start" name="quietHoursStart" type="time" value="${escapeAttr(settings.quietHoursStart || "22:00")}">
+              </div>
+              <div class="imageflow-field">
+                <label for="ifl-quiet-end">Ende</label>
+                <input id="ifl-quiet-end" name="quietHoursEnd" type="time" value="${escapeAttr(settings.quietHoursEnd || "06:00")}">
+              </div>
+            </div>
+          </div>
+          <div class="imageflow-settings-gate">
+            <strong>${escapeHtml(gate.message || "Automatikstatus wird nach dem Speichern neu geprüft.")}</strong>
+            <span>${escapeHtml(gate.reason || "ready")} · Last ${escapeHtml(String(gate.currentLoad1m ?? "-"))}/${escapeHtml(String(gate.maxLoad1m ?? "-"))}</span>
+          </div>
+        </form>
       </section>
     `;
   }
@@ -1936,6 +2068,10 @@
       const mode = document.getElementById("ifl-mode");
       mode?.addEventListener("change", toggleTargetPath);
       toggleTargetPath();
+    }
+    const settingsForm = document.getElementById("imageflow-settings-form");
+    if (settingsForm) {
+      settingsForm.addEventListener("submit", saveAdminSettings);
     }
 
     root.querySelectorAll("[data-action]").forEach((button) => {
@@ -2174,6 +2310,12 @@
     } else if (action === "show-job-log" && jobId) {
       state.logs.jobId = jobId;
       await openLogs();
+    } else if (action === "show-settings") {
+      await openSettings();
+    } else if (action === "refresh-settings") {
+      await loadAdminSettings();
+    } else if (action === "export-diagnostics") {
+      await exportDiagnostics();
     }
   }
 
@@ -2537,6 +2679,7 @@
         ...state.logs,
         loading: false,
         items: payload.logs || [],
+        diagnostics: payload.diagnostics || null,
         error: null,
       };
       render();
@@ -2546,6 +2689,105 @@
         loading: false,
         error: error.message || "Protokoll konnte nicht geladen werden.",
       };
+      render();
+    }
+  }
+
+  async function openSettings() {
+    state.page = "settings";
+    state.sortState = null;
+    state.imagePage = null;
+    state.pageCursor = null;
+    await loadAdminSettings();
+  }
+
+  async function loadAdminSettings() {
+    state.adminSettings.loading = true;
+    state.adminSettings.error = null;
+    render();
+    try {
+      const payload = await request("/api/v1/admin/settings");
+      state.adminSettings = {
+        ...state.adminSettings,
+        loading: false,
+        data: payload,
+        error: null,
+      };
+      await refreshHealthQuietly();
+      render();
+    } catch (error) {
+      state.adminSettings = {
+        ...state.adminSettings,
+        loading: false,
+        error: error.message || "Betriebseinstellungen konnten nicht geladen werden.",
+      };
+      render();
+    }
+  }
+
+  async function saveAdminSettings(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    state.adminSettings.saving = true;
+    state.adminSettings.error = null;
+    render();
+    try {
+      const payload = await request("/api/v1/admin/settings", {
+        method: "PUT",
+        body: {
+          realExecutionEnabled: Boolean(form.realExecutionEnabled?.checked),
+          backgroundProcessingEnabled: Boolean(form.backgroundProcessingEnabled?.checked),
+          backgroundLowLoadOnly: Boolean(form.backgroundLowLoadOnly?.checked),
+          backgroundMaxLoad1m: Number(form.backgroundMaxLoad1m?.value || 2),
+          quietHoursEnabled: Boolean(form.quietHoursEnabled?.checked),
+          quietHoursStart: form.quietHoursStart?.value || "22:00",
+          quietHoursEnd: form.quietHoursEnd?.value || "06:00",
+        },
+      });
+      state.adminSettings = {
+        ...state.adminSettings,
+        saving: false,
+        data: payload,
+        error: null,
+      };
+      await refreshHealthQuietly();
+      state.toast = { type: "info", message: "Betriebseinstellungen wurden gespeichert." };
+      render();
+    } catch (error) {
+      state.adminSettings = {
+        ...state.adminSettings,
+        saving: false,
+        error: error.message || "Betriebseinstellungen konnten nicht gespeichert werden.",
+      };
+      render();
+    }
+  }
+
+  async function refreshHealthQuietly() {
+    try {
+      state.health = await request("/api/v1/health");
+    } catch (error) {
+      state.health = state.health || null;
+    }
+  }
+
+  async function exportDiagnostics() {
+    try {
+      const payload = await request("/api/v1/support/export");
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `imageflow-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      state.toast = { type: "info", message: "Diagnoseexport wurde erstellt." };
+      render();
+    } catch (error) {
+      state.logs.error = error.message || "Diagnoseexport konnte nicht erstellt werden.";
       render();
     }
   }

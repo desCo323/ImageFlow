@@ -28,6 +28,8 @@ sudo -u www-data php /var/www/nextcloud/occ config:app:get imageflow background_
 
 Expected output for both commands is `0`.
 
+Administrators can also open `Betrieb` in ImageFlow. The page must show the real-write and background switches, current background-gate status and the diagnosis export button.
+
 ## Manual Round Check
 
 1. Open ImageFlow and create a round from a harmless folder owned by `albentest`.
@@ -41,6 +43,7 @@ Expected output for both commands is `0`.
 9. Open `Ablage prüfen`, remove one planned item, and confirm the count drops.
 10. Confirm that file operations are locked and `Jetzt ablegen` is disabled or blocked.
 11. Open `Protokoll` and confirm that recent sorting and queue events appear.
-12. Discard the test round from the overview.
+12. Use `Diagnose exportieren` and confirm a JSON file is offered.
+13. Discard the test round from the overview.
 
 No source files or target files should be changed while both server flags are `0`. Creating a new album or folder from the right rail is an immediate user-triggered change; test that only with a disposable name and clean it up afterwards.

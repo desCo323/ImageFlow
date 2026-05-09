@@ -34,5 +34,8 @@ return [
 		['name' => 'favorite#delete', 'url' => '/api/v1/favorites/{favoriteId}', 'verb' => 'DELETE'],
 		['name' => 'folder#index', 'url' => '/api/v1/folders', 'verb' => 'GET'],
 		['name' => 'log#index', 'url' => '/api/v1/logs', 'verb' => 'GET'],
+		['name' => 'settings#index', 'url' => '/api/v1/admin/settings', 'verb' => 'GET'],
+		['name' => 'settings#update', 'url' => '/api/v1/admin/settings', 'verb' => 'PUT'],
+		['name' => 'support#export', 'url' => '/api/v1/support/export', 'verb' => 'GET'],
 	],
 ];
