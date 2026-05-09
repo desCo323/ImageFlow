@@ -1516,9 +1516,12 @@
 }
 
 @container (max-width: 1100px) {
-  .imageflow-job-head,
-  .imageflow-gamebar {
+  .imageflow-job-head {
     grid-template-columns: 1fr;
+  }
+
+  .imageflow-gamebar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .imageflow-job-head .imageflow-toolbar {
@@ -1536,6 +1539,12 @@
   .imageflow-favorite small,
   .imageflow-target small {
     font-size: 12px;
+  }
+}
+
+@container (max-width: 620px) {
+  .imageflow-gamebar {
+    grid-template-columns: 1fr;
   }
 }
 
