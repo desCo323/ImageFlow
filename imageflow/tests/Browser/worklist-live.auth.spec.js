@@ -34,7 +34,7 @@ test('previews and queues a worklist without file writes as albentest', async ({
     await page.getByLabel('Bilderordner').fill('/Photos');
     await page.getByLabel('Was soll mit passenden Bildern passieren?').selectOption('copy');
     await page.getByLabel('Ablageordner').fill('/Photos');
-    await page.getByRole('button', { name: 'Runde speichern' }).click();
+    await page.getByRole('button', { name: 'Flow speichern' }).click();
     await expect(page.getByText(jobName)).toBeVisible({ timeout: 10000 });
 
     const job = await findJob(page, jobName);

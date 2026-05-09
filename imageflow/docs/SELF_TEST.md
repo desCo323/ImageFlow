@@ -31,7 +31,7 @@ Expected output for both commands is `0`.
 ## Manual Round Check
 
 1. Open ImageFlow and create a round from a harmless folder owned by `albentest`.
-2. Save it with `Runde speichern`, edit it with `Bearbeiten`, then create a duplicate with `Kopie`.
+2. Save it with `Flow speichern`, edit it with `Bearbeiten`, then create a duplicate with `Kopie`.
 3. Open the round with `Weitermachen`, `Neu anfangen` and `Offene Bilder`.
 4. Use ArrowLeft and ArrowRight in the filmstrip.
 5. In a larger folder, hold ArrowRight near the end of the visible strip and confirm that the next page appears without a visible pause.

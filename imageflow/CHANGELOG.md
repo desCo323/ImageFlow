@@ -20,6 +20,7 @@
 - Add fast target search for album and folder targets in the sorting rail.
 - Add full-worklist validation summaries and compact filters to the Ablage preview.
 - Add dashboard system diagnostics and guided self-test status.
+- Add a visible Flow creation action, fixed-height sorting workspace, visible filmstrip footer, and quick target-create button.
 
 ## 0.1.0 - 2026-05-08
 

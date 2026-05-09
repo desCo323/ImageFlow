@@ -75,6 +75,7 @@
     },
     targetBrowsePath: null,
     targetFolderPage: null,
+    targetCreateOpen: false,
     worklist: {
       open: false,
       jobId: null,
@@ -204,7 +205,7 @@
     if (path === "/api/v1/jobs" && options.method === "POST") {
       const job = {
         id: Date.now(),
-        name: options.body.name || "Neue Runde",
+        name: options.body.name || "Neuer Flow",
         sourcePath: options.body.sourcePath || "/Photos",
         targetMode: options.body.targetMode || "album",
         targetPath: options.body.targetPath || null,
@@ -990,7 +991,7 @@
     mount.innerHTML = `
       <div class="imageflow-app">
         ${renderTopbar()}
-        <main class="imageflow-content">
+        <main class="imageflow-content ${state.page === "sort" ? "imageflow-content-sort" : ""}">
           ${state.page === "sort" ? renderSortPage() : (state.page === "logs" ? renderLogsPage() : renderJobsPage())}
           ${renderToast()}
           ${renderFolderPicker()}
@@ -1024,14 +1025,21 @@
     const draft = state.jobDraft;
     const isEditing = Boolean(draft.editingJobId);
     return `
-	      <section class="imageflow-dashboard" aria-label="Sortierrunden">
+	      <section class="imageflow-dashboard" aria-label="Foto-Flows">
 	        ${renderSafetyStrip()}
+	        <section class="imageflow-flow-start" aria-label="Flow anlegen">
+	          <div>
+	            <strong>Bereit für die nächste Bilderrunde?</strong>
+	            <span>Lege einen Flow an, wähle Ordner und Zielart, und sortiere danach Bild für Bild.</span>
+	          </div>
+	          <button class="imageflow-button primary" data-action="focus-new-flow" type="button">Flow anlegen</button>
+	        </section>
 	        ${renderSystemCheckPanel()}
 	        <form class="imageflow-panel accent-pink imageflow-form" id="imageflow-job-form">
           <div class="imageflow-panel-head">
             <div>
-              <h3>${isEditing ? "Runde bearbeiten" : "Neue Runde vorbereiten"}</h3>
-              <p>${isEditing ? "Passe Name und Einstellungen an. Quelle und Ziel bleiben gesperrt, sobald Entscheidungen vorhanden sind." : "Speichere die Runde zuerst oder spring direkt in den Sortiermodus."}</p>
+              <h3>${isEditing ? "Flow bearbeiten" : "Neuen Flow vorbereiten"}</h3>
+              <p>${isEditing ? "Passe Name und Einstellungen an. Quelle und Ziel bleiben gesperrt, sobald Entscheidungen vorhanden sind." : "Speichere den Flow zuerst oder spring direkt in den Sortiermodus."}</p>
             </div>
           </div>
           <div class="imageflow-field">
@@ -1094,21 +1102,21 @@
           </div>
           ${renderCustomHotkeyFields(draft)}
           <div class="imageflow-actions">
-            <button class="imageflow-button primary" type="submit" data-save-intent="save">${isEditing ? "Änderungen speichern" : "Runde speichern"}</button>
-            <button class="imageflow-button" type="submit" data-save-intent="open">Speichern & sortieren</button>
+            <button class="imageflow-button primary" type="submit" data-save-intent="save">${isEditing ? "Änderungen speichern" : "Flow speichern"}</button>
+            <button class="imageflow-button" type="submit" data-save-intent="open">Speichern & loslegen</button>
             ${isEditing ? '<button class="imageflow-button" data-action="cancel-edit-job" type="button">Bearbeiten abbrechen</button>' : '<button class="imageflow-button" data-action="clear-job-draft" type="button">Zurücksetzen</button>'}
           </div>
         </form>
         <section class="imageflow-panel">
           <div class="imageflow-panel-head">
             <div>
-              <h3>Deine Runden</h3>
+              <h3>Deine Flows</h3>
               <p>Fortschritt, Tempo und Ablage bleiben hier im Blick.</p>
             </div>
             <button class="imageflow-button" data-action="refresh" type="button">Aktualisieren</button>
           </div>
           <div class="imageflow-status-grid">
-            <div class="imageflow-stat"><strong>${totals.jobs}</strong><span>Runden</span></div>
+            <div class="imageflow-stat"><strong>${totals.jobs}</strong><span>Flows</span></div>
             <div class="imageflow-stat"><strong>${totals.sorted}</strong><span>Entschieden</span></div>
             <div class="imageflow-stat"><strong>${totals.queued}</strong><span>Warten auf Ablage</span></div>
             <div class="imageflow-stat"><strong>${totals.failed}</strong><span>Fehler</span></div>
@@ -1173,7 +1181,7 @@
     const selfTestSteps = [
       { label: "Mit albentest anmelden", state: diagnostics.testUserAllowed ? "ok" : "warning" },
       { label: "Dateiänderungen gesperrt", state: health.realExecutionEnabled ? "danger" : "ok" },
-      { label: "Runde speichern und öffnen", state: "pending" },
+      { label: "Flow speichern und öffnen", state: "pending" },
       { label: "Entscheidung, Rückgängig und Ablage prüfen", state: "pending" },
       { label: "Ablage nur vormerken, nichts ausführen", state: health.backgroundProcessingEnabled || health.realExecutionEnabled ? "warning" : "ok" },
     ];
@@ -1194,7 +1202,7 @@
           </div>
           <div class="imageflow-system-card">
             <strong>Daten</strong>
-            <span>${Number(diagnostics.jobCount || 0)} Runden</span>
+            <span>${Number(diagnostics.jobCount || 0)} Flows</span>
             <small>${Number(queue.total || 0)} Ablagepunkte, ${Number(queue.issues || 0)} auffällig</small>
           </div>
           <div class="imageflow-system-card">
@@ -1255,7 +1263,7 @@
 
   function renderJobTable() {
     if (state.jobs.length === 0) {
-      return `<div class="imageflow-empty">Noch keine Runden vorhanden.</div>`;
+      return `<div class="imageflow-empty">Noch keine Flows vorhanden.</div>`;
     }
 
     return `
@@ -1263,7 +1271,7 @@
         <table class="imageflow-table">
           <thead>
             <tr>
-              <th>Runde</th>
+              <th>Flow</th>
               <th>Bilderordner</th>
               <th>Wohin</th>
               <th>Status</th>
@@ -1306,7 +1314,7 @@
             <button class="imageflow-button" data-action="${paused ? "resume-job" : "pause-job"}" data-job-id="${job.id}" type="button">${paused ? "Fortsetzen" : "Pausieren"}</button>
             <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ablage prüfen</button>
             <button class="imageflow-button" data-action="show-job-log" data-job-id="${job.id}" type="button">Ereignisse</button>
-            <button class="imageflow-button danger" data-action="discard-job" data-job-id="${job.id}" type="button">Runde verwerfen</button>
+            <button class="imageflow-button danger" data-action="discard-job" data-job-id="${job.id}" type="button">Flow verwerfen</button>
           </div>
         </td>
       </tr>
@@ -1346,7 +1354,7 @@
       <section class="imageflow-sort" aria-label="Sortieransicht">
         <header class="imageflow-job-head">
           <div>
-            <h3>${escapeHtml(job.name || "Runde")}</h3>
+            <h3>${escapeHtml(job.name || "Flow")}</h3>
             <p>${escapeHtml(job.sourcePath || "/")} · ${modeLabel(job.targetMode)} · ${statusLabel(job.status)} · Bild ${images.length ? currentIndex + 1 : 0}/${images.length}</p>
           </div>
           <div class="imageflow-toolbar">
@@ -1360,7 +1368,7 @@
             <button class="imageflow-button" data-action="go-jobs" type="button">Zurück</button>
           </div>
         </header>
-        <section class="imageflow-gamebar" aria-label="Rundenfortschritt">
+        <section class="imageflow-gamebar" aria-label="Flow-Fortschritt">
           <div class="imageflow-flow-meter">
             <div class="imageflow-flow-meter-head">
               <strong>${progress.done}/${progress.total} entschieden</strong>
@@ -1376,7 +1384,7 @@
           </div>
           <div class="imageflow-flow-chip accent-cool">
             <strong>${state.decisionsThisSession}</strong>
-            <span>Diese Runde</span>
+            <span>Dieser Flow</span>
           </div>
           <div class="imageflow-flow-chip accent-violet">
             <strong>${tempo}</strong>
@@ -1420,7 +1428,10 @@
                 <h4>Alle Ziele</h4>
                 <p>${job.targetMode === "album" ? targetOrderingLabel(job.options?.targetOrdering) : escapeHtml(targetFolder?.current?.path || state.targetBrowsePath || "/")}</p>
               </div>
-              ${isFolderMode ? `<button class="imageflow-button" data-action="browse-target-parent" type="button" ${targetFolder?.parent ? "" : "disabled"}>Eine Ebene hoch</button>` : ""}
+              <div class="imageflow-target-head-actions">
+                <button class="imageflow-button primary" data-action="focus-target-create" type="button">${job.targetMode === "album" ? "Album anlegen" : "Ordner anlegen"}</button>
+                ${isFolderMode ? `<button class="imageflow-button" data-action="browse-target-parent" type="button" ${targetFolder?.parent ? "" : "disabled"}>Eine Ebene hoch</button>` : ""}
+              </div>
             </div>
             ${renderTargetSearch(isFolderMode)}
             ${renderTargetCreate(job, isFolderMode, targetFolder)}
@@ -1505,6 +1516,9 @@
   }
 
   function renderTargetCreate(job, isFolderMode, targetFolder) {
+    if (!state.targetCreateOpen) {
+      return "";
+    }
     const parentPathValue = targetFolder?.current?.path || state.targetBrowsePath || job.targetPath || "/";
     const title = job.targetMode === "album" ? "Album anlegen" : "Ordner anlegen";
     const placeholder = job.targetMode === "album" ? "Neues Album" : "Neuer Ordner";
@@ -1516,7 +1530,7 @@
         <label for="ifl-target-create">${escapeHtml(title)}</label>
         <div>
           <input id="ifl-target-create" data-target-create-name type="text" maxlength="255" value="${escapeAttr(state.targetCreateName || "")}" placeholder="${escapeAttr(placeholder)}">
-          <button class="imageflow-button primary" data-action="create-target" type="button">Anlegen</button>
+          <button class="imageflow-button primary" data-action="create-target" type="button">Erstellen</button>
         </div>
         <small>${escapeHtml(note)}</small>
       </div>
@@ -1623,7 +1637,7 @@
           <header class="imageflow-modal-head">
             <div>
               <h3>Ablage prüfen</h3>
-              <p>${escapeHtml(preview?.job?.name || "Runde")} | ${modeLabel(preview?.job?.targetMode || "")}</p>
+              <p>${escapeHtml(preview?.job?.name || "Flow")} | ${modeLabel(preview?.job?.targetMode || "")}</p>
             </div>
             ${preview ? `<span class="imageflow-badge ${executionModeClass(preview.executionMode)}">${executionModeLabel(preview.executionMode)}</span>` : ""}
             ${preview ? `<span class="imageflow-badge ${backgroundModeClass(preview.backgroundMode)}">${backgroundModeLabel(preview.backgroundMode)}</span>` : ""}
@@ -1769,7 +1783,7 @@
           <div class="imageflow-panel-head">
             <div>
               <h3>Protokoll</h3>
-              <p>${filteredJob ? `Nur ${escapeHtml(filteredJob.name || `Runde ${state.logs.jobId}`)}` : "Sicherheits- und Sortierereignisse für deine Runden."}</p>
+              <p>${filteredJob ? `Nur ${escapeHtml(filteredJob.name || `Flow ${state.logs.jobId}`)}` : "Sicherheits- und Sortierereignisse für deine Flows."}</p>
             </div>
             <div class="imageflow-actions">
               <select class="imageflow-select-compact" data-action="change-log-level" aria-label="Log-Level">
@@ -1779,7 +1793,7 @@
                 <option value="warning" ${state.logs.level === "warning" ? "selected" : ""}>Warnung</option>
                 <option value="error" ${state.logs.level === "error" ? "selected" : ""}>Fehler</option>
               </select>
-              ${state.logs.jobId ? '<button class="imageflow-button" data-action="show-log" type="button">Alle Runden</button>' : ""}
+              ${state.logs.jobId ? '<button class="imageflow-button" data-action="show-log" type="button">Alle Flows</button>' : ""}
               <button class="imageflow-button" data-action="refresh-logs" type="button">Aktualisieren</button>
             </div>
           </div>
@@ -1800,7 +1814,7 @@
         <div>
           <strong>${escapeHtml(log.event || "event")}</strong>
           <span>${escapeHtml(log.message || "")}</span>
-          <small>${formatTime(log.createdAt)}${log.jobId ? ` · Runde ${escapeHtml(String(log.jobId))}` : ""}</small>
+          <small>${formatTime(log.createdAt)}${log.jobId ? ` · Flow ${escapeHtml(String(log.jobId))}` : ""}</small>
           ${log.context ? `<code>${escapeHtml(JSON.stringify(log.context))}</code>` : ""}
         </div>
       </article>
@@ -1875,7 +1889,7 @@
         ? await request(`/api/v1/jobs/${editingJobId}`, { method: "PUT", body })
         : await request("/api/v1/jobs", { method: "POST", body });
       state.jobs = [payload.job, ...state.jobs.filter((job) => job.id !== payload.job.id)];
-      state.toast = { type: "info", message: editingJobId ? "Runde wurde gespeichert." : "Runde wurde gespeichert und ist bereit." };
+      state.toast = { type: "info", message: editingJobId ? "Flow wurde gespeichert." : "Flow wurde gespeichert und ist bereit." };
       resetJobDraft();
       if (intent === "open") {
         await openSort(payload.job.id, "resume");
@@ -1883,7 +1897,7 @@
       }
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Runde konnte nicht gespeichert werden." };
+      state.toast = { type: "error", message: error.message || "Flow konnte nicht gespeichert werden." };
       render();
     }
   }
@@ -1962,6 +1976,8 @@
     const jobId = numberOrNull(event.currentTarget.dataset.jobId);
     if (action === "refresh") {
       load();
+    } else if (action === "focus-new-flow") {
+      focusNewFlow();
     } else if (action === "go-jobs") {
       state.page = "jobs";
       state.sortState = null;
@@ -2013,6 +2029,8 @@
       await browseTargetFolder(state.targetFolderPage?.parent || "/");
     } else if (action === "create-target") {
       await createTargetFromInput();
+    } else if (action === "focus-target-create") {
+      focusTargetCreate();
     } else if (action === "clear-target-search") {
       await clearTargetSearch();
     } else if (action === "undo-last-decision") {
@@ -2051,6 +2069,32 @@
       state.logs.jobId = jobId;
       await openLogs();
     }
+  }
+
+  function focusNewFlow() {
+    state.page = "jobs";
+    state.sortState = null;
+    state.imagePage = null;
+    state.pageCursor = null;
+    state.toast = null;
+    resetJobDraft();
+    render();
+    focusAfterRender("#imageflow-job-form", "#ifl-name");
+  }
+
+  function focusTargetCreate() {
+    state.targetCreateOpen = true;
+    render();
+    focusAfterRender(".imageflow-target-create", "[data-target-create-name]");
+  }
+
+  function focusAfterRender(sectionSelector, inputSelector) {
+    window.requestAnimationFrame(() => {
+      const section = root.querySelector(sectionSelector);
+      const input = root.querySelector(inputSelector);
+      section?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      input?.focus({ preventScroll: true });
+    });
   }
 
   function bindFavoriteDragAndDrop() {
@@ -2106,7 +2150,7 @@
   function editJob(jobId) {
     const job = state.jobs.find((item) => item.id === jobId);
     if (!job) {
-      state.toast = { type: "error", message: "Diese Runde wurde nicht gefunden." };
+      state.toast = { type: "error", message: "Dieser Flow wurde nicht gefunden." };
       render();
       return;
     }
@@ -2124,7 +2168,7 @@
       hotkeys: job.options?.hotkeys || "number-row",
       customHotkeys: normalizeCustomHotkeys(job.options?.customHotkeys || []),
     };
-    state.toast = { type: "info", message: "Runde ist zum Bearbeiten geöffnet." };
+    state.toast = { type: "info", message: "Flow ist zum Bearbeiten geöffnet." };
     render();
   }
 
@@ -2135,7 +2179,7 @@
       state.toast = { type: "info", message: "Kopie wurde angelegt." };
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Runde konnte nicht kopiert werden." };
+      state.toast = { type: "error", message: error.message || "Flow konnte nicht kopiert werden." };
       render();
     }
   }
@@ -2270,6 +2314,7 @@
         state.targets = payload.targets || (payload.target ? [payload.target, ...state.targets] : state.targets);
       }
       state.targetCreateName = "";
+      state.targetCreateOpen = false;
       state.targetQuery = "";
       state.toast = {
         type: "info",
@@ -2485,6 +2530,7 @@
     state.targetBrowsePath = null;
     state.targetFolderPage = null;
     state.targetCreateName = "";
+    state.targetCreateOpen = false;
     state.targetQuery = "";
     clearImagePageCache();
     resetSessionFlow();
@@ -2505,18 +2551,18 @@
     try {
       const payload = await request(`/api/v1/jobs/${jobId}/${operation}`, { method: "POST", body: {} });
       state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
-      state.toast = { type: "info", message: "Rundenstatus wurde aktualisiert." };
+      state.toast = { type: "info", message: "Flow-Status wurde aktualisiert." };
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Rundenstatus konnte nicht aktualisiert werden." };
+      state.toast = { type: "error", message: error.message || "Flow-Status konnte nicht aktualisiert werden." };
       render();
     }
   }
 
   async function discardJob(jobId) {
     const job = state.jobs.find((item) => item.id === jobId);
-    const label = job?.name || `Runde ${jobId}`;
-    if (typeof window.confirm === "function" && !window.confirm(`Runde "${label}" verwerfen?`)) {
+    const label = job?.name || `Flow ${jobId}`;
+    if (typeof window.confirm === "function" && !window.confirm(`Flow "${label}" verwerfen?`)) {
       return;
     }
 
@@ -2526,10 +2572,10 @@
       if (state.jobDraft.editingJobId === jobId) {
         resetJobDraft();
       }
-      state.toast = { type: "info", message: "Runde wurde verworfen." };
+      state.toast = { type: "info", message: "Flow wurde verworfen." };
       render();
     } catch (error) {
-      state.toast = { type: "error", message: error.message || "Runde konnte nicht verworfen werden." };
+      state.toast = { type: "error", message: error.message || "Flow konnte nicht verworfen werden." };
       render();
     }
   }
@@ -2911,7 +2957,7 @@
 
   function flowMilestone(percent, streak) {
     if (percent >= 100) {
-      return "Runde geschafft";
+      return "Flow geschafft";
     }
     if (streak >= 25) {
       return "Sehr starke Serie";

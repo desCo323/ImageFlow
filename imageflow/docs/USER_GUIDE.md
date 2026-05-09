@@ -1,6 +1,6 @@
 # ImageFlow User Guide
 
-## Runden
+## Flows
 
 Open ImageFlow from the Nextcloud navigation and start a sorting round:
 
@@ -12,7 +12,7 @@ Open ImageFlow from the Nextcloud navigation and start a sorting round:
 - choose whether the round may be processed automatically during quiet server phases,
 - choose the image buffer mode for large folders,
 - choose `Zahlen`, `Buchstaben` or `Eigene Tasten` for quick-target hotkeys,
-- save the round with `Runde speichern`, or use `Speichern & sortieren` to open it immediately.
+- save the flow with `Flow speichern`, or use `Speichern & loslegen` to open it immediately.
 - edit a saved draft from the overview with `Bearbeiten`, or create a fresh copy with `Kopie`.
 
 Target modes:
@@ -57,7 +57,7 @@ Hotkeys:
 - `ArrowLeft` / `ArrowRight`: move through the image band.
 - `Ctrl+Z` / `Cmd+Z`: undo the last decision while it has not been executed.
 
-The round bar shows overall progress, the current decision streak, this session's collected decisions and the current pace. Each saved decision gives immediate visual feedback without changing files yet.
+The Flow bar shows overall progress, the current decision streak, this session's collected decisions and the current pace. Each saved decision gives immediate visual feedback without changing files yet.
 
 For large folders, ImageFlow keeps the visible filmstrip small, preloads nearby images and warms the next image page before you reach the end of the current page. Arrow-key navigation should therefore stay smooth even when the source folder contains far more images than the visible strip.
 
@@ -65,11 +65,11 @@ For large folders, ImageFlow keeps the visible filmstrip small, preloads nearby 
 
 Use `Ablage prüfen` on the overview to open the safe preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
 
-For large rounds, the preview checks the complete worklist but only shows a compact latest-item list. Use the filter chips to focus on `Auffälligkeiten`, ready items, waiting items or completed items.
+For large Flows, the preview checks the complete worklist but only shows a compact latest-item list. Use the filter chips to focus on `Auffälligkeiten`, ready items, waiting items or completed items.
 
 Planned or queued items can be removed from the preview before execution. This also removes the linked decision from the round, so the image can be handled again later.
 
-The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt ablegen` runs a small manual batch. If both real writes and server-side background processing are enabled, and the round is marked for automatic processing, the cron worker can process queued work later when the quiet-server gate allows it.
+The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt ablegen` runs a small manual batch. If both real writes and server-side background processing are enabled, and the Flow is marked for automatic processing, the cron worker can process queued work later when the quiet-server gate allows it.
 
 The overview also shows the current safety status. `Geschützter Testbetrieb` means real file operations and cron processing are locked on the server.
 

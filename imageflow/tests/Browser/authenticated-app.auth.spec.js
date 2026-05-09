@@ -34,21 +34,21 @@ test('creates and discards a job as the dedicated test user', async ({ page }) =
   });
   expect(health.realExecutionEnabled).toBe(false);
   expect(health.backgroundProcessingEnabled).toBe(false);
-  await expect(page.getByRole('heading', { name: 'Neue Runde vorbereiten' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Runde speichern' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Neuen Flow vorbereiten' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Flow speichern' })).toBeVisible();
   await discardSmokeJobs(page);
 
   const jobName = `ImageFlow Smoke ${Date.now()}`;
   await page.getByLabel('Name').fill(jobName);
   await page.getByLabel('Bilderordner').fill('/Photos');
-  await page.getByRole('button', { name: 'Runde speichern' }).click();
+  await page.getByRole('button', { name: 'Flow speichern' }).click();
   await expect(page.getByText(jobName)).toBeVisible();
 
   page.once('dialog', async (dialog) => {
     await dialog.accept();
   });
   const row = page.locator('tr', { hasText: jobName });
-  await row.getByRole('button', { name: 'Runde verwerfen' }).click();
+  await row.getByRole('button', { name: 'Flow verwerfen' }).click();
   await expect(page.getByText(jobName)).toHaveCount(0);
 });
 
@@ -62,7 +62,7 @@ async function discardSmokeJobs(page) {
     page.once('dialog', async (dialog) => {
       await dialog.accept();
     });
-    await row.getByRole('button', { name: 'Runde verwerfen' }).click();
+    await row.getByRole('button', { name: 'Flow verwerfen' }).click();
     await expect(row).toHaveCount(0);
   }
 

@@ -1,4 +1,5 @@
 #imageflow-app {
+  height: 100%;
   min-height: 100%;
 }
 
@@ -12,8 +13,9 @@
 
 .imageflow-app {
   display: grid;
-  grid-template-rows: auto 1fr;
-  min-height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
 }
 
 .imageflow-topbar {
@@ -135,7 +137,8 @@
 }
 
 .imageflow-button:disabled,
-.imageflow-icon-button:disabled {
+.imageflow-icon-button:disabled,
+.imageflow-mini-button:disabled {
   border-color: var(--color-border);
   color: color-mix(in srgb, var(--color-main-text) 66%, var(--color-main-background));
   background: var(--color-background-darker);
@@ -161,7 +164,14 @@
 
 .imageflow-content {
   min-width: 0;
+  min-height: 0;
   padding: 18px;
+}
+
+.imageflow-content-sort {
+  height: 100%;
+  overflow: hidden;
+  padding: 12px 16px;
 }
 
 .imageflow-dashboard {
@@ -228,6 +238,38 @@
 
 .imageflow-system-panel {
   grid-column: 1 / -1;
+}
+
+.imageflow-flow-start {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid #7357c8;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-main-background) 92%, #ece8ff), transparent 76%),
+    var(--color-main-background);
+}
+
+.imageflow-flow-start div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.imageflow-flow-start strong,
+.imageflow-flow-start span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.imageflow-flow-start span {
+  color: var(--color-text-maxcontrast);
 }
 
 .imageflow-panel-head {
@@ -540,7 +582,9 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
-  min-height: calc(100vh - 122px);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .imageflow-job-head {
@@ -661,6 +705,7 @@
   grid-template-columns: minmax(180px, 240px) minmax(320px, 1fr) minmax(230px, 320px);
   gap: 12px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .imageflow-rail,
@@ -677,6 +722,13 @@
 
 .imageflow-targets {
   grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.imageflow-target-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .imageflow-rail h4,
@@ -861,9 +913,10 @@
 .imageflow-photo {
   display: grid;
   place-items: center;
-  min-height: 360px;
-  padding: 18px;
+  min-height: 0;
+  padding: 12px;
   color: #ffffff;
+  overflow: hidden;
 }
 
 .imageflow-photo-card {
@@ -871,8 +924,10 @@
   place-items: center;
   gap: 14px;
   position: relative;
-  width: min(100%, 760px);
-  aspect-ratio: 4 / 3;
+  width: 100%;
+  max-width: 760px;
+  height: 100%;
+  min-height: 0;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   overflow: hidden;
@@ -997,6 +1052,8 @@
 
 .imageflow-filmstrip {
   min-width: 0;
+  min-height: 152px;
+  overflow: hidden;
   padding: 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -1036,6 +1093,7 @@
   grid-template-columns: none;
   gap: 8px;
   overflow-x: auto;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
   padding-bottom: 2px;
   scroll-behavior: smooth;
@@ -1419,7 +1477,14 @@
   }
 
   .imageflow-sort {
+    height: auto;
     min-height: auto;
+    overflow: visible;
+  }
+
+  .imageflow-content-sort {
+    height: auto;
+    overflow: visible;
   }
 
   .imageflow-safety-strip {
@@ -1434,6 +1499,11 @@
   .imageflow-photo {
     min-height: 300px;
   }
+
+  .imageflow-photo-card {
+    aspect-ratio: 4 / 3;
+    height: auto;
+  }
 }
 
 @media (max-width: 680px) {
@@ -1444,7 +1514,9 @@
   .imageflow-panel-head,
   .imageflow-actions,
   .imageflow-worklist-filter,
-  .imageflow-toolbar {
+  .imageflow-toolbar,
+  .imageflow-flow-start,
+  .imageflow-target-head-actions {
     align-items: stretch;
     flex-direction: column;
   }

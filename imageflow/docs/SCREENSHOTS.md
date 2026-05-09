@@ -86,3 +86,9 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 27. Dashboard system check and guided self-test
    ![Dashboard system check and guided self-test](screenshots/27-system-check.png)
+
+28. Dashboard with visible Flow creation action
+   ![Dashboard with visible Flow creation action](screenshots/28-dashboard-flow-create.png)
+
+29. Stable sorting workspace with visible filmstrip footer
+   ![Stable sorting workspace with visible filmstrip footer](screenshots/29-flow-stable-filmstrip.png)
