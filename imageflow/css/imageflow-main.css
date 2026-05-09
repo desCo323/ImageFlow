@@ -1550,6 +1550,20 @@
     flex: 0 0 96px;
   }
 
+  .imageflow-flow-milestone {
+    flex-basis: 166px;
+  }
+
+  .imageflow-hotkeys {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 6px;
+  }
+
+  .imageflow-hotkey {
+    flex: 0 0 auto;
+  }
+
   .imageflow-filmstrip {
     height: 132px;
     min-height: 132px;
