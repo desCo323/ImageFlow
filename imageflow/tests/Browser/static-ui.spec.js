@@ -238,6 +238,23 @@ test('moves through the filmstrip with arrow keys and thumbnail selection', asyn
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
 });
 
+test('keeps flow controls visible inside a narrow Nextcloud content area', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await mount(page, 'data-page="sort" data-job-id="1"');
+  await page.addStyleTag({ content: '#imageflow-app { width: 880px; }' });
+
+  const titleBox = await page.getByRole('heading', { name: 'Familienfotos 2025' }).boundingBox();
+  const createBox = await page.getByRole('button', { name: 'Album anlegen' }).first().boundingBox();
+  const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
+
+  expect(titleBox).not.toBeNull();
+  expect(titleBox.height).toBeLessThan(64);
+  expect(createBox).not.toBeNull();
+  expect(createBox.y).toBeLessThan(260);
+  expect(footerBox).not.toBeNull();
+  expect(footerBox.y).toBeLessThan(720);
+});
+
 test('keeps a large filmstrip bounded and responsive', async ({ page }) => {
   await mount(page, 'data-page="sort" data-job-id="1" data-mock-image-count="1200"');
 
