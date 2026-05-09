@@ -12,6 +12,7 @@
   const THUMB_WINDOW = 16;
   const MAX_BUFFERED_IMAGES = 32;
   const PAGE_LIMIT = 48;
+  const DEFAULT_TARGET_PATH = "/Photos";
   const imageBuffer = new Map();
   const imagePageCache = new Map();
   const imagePagePrefetches = new Map();
@@ -58,7 +59,7 @@
       name: "",
       sourcePath: "/Photos",
       targetMode: "album",
-      targetPath: "/Photos/Sortiert",
+      targetPath: DEFAULT_TARGET_PATH,
       recursiveSource: false,
       safeMode: true,
       autoProcess: false,
@@ -1015,21 +1016,59 @@
   async function loadTargets(mode) {
     const targetMode = mode || "album";
     const ordering = state.sortState?.job?.options?.targetOrdering || "relevance";
-    const params = new URLSearchParams({ mode: targetMode, limit: "100", ordering });
     const query = state.targetQuery.trim();
-    if (query) {
-      params.set("query", query);
-    }
     if (targetMode !== "album") {
       if (!state.targetBrowsePath) {
-        state.targetBrowsePath = state.sortState?.job?.targetPath || "/";
+        state.targetBrowsePath = state.sortState?.job?.targetPath || DEFAULT_TARGET_PATH;
       }
-      params.set("path", state.targetBrowsePath);
+      await loadFolderTargetsWithFallback(targetMode, ordering, query);
+      return;
     }
 
+    const params = targetParams(targetMode, ordering, query);
     const payload = await request(`/api/v1/targets?${params.toString()}`);
     state.targetFolderPage = payload.folders || null;
     state.targets = payload.targets || payload.folders?.folders || [];
+  }
+
+  async function loadFolderTargetsWithFallback(targetMode, ordering, query) {
+    const requestedPath = normalizeDisplayPath(state.targetBrowsePath || state.sortState?.job?.targetPath || DEFAULT_TARGET_PATH);
+    let currentPath = requestedPath;
+    let lastError = null;
+
+    while (true) {
+      const params = targetParams(targetMode, ordering, query);
+      params.set("path", currentPath);
+      try {
+        const payload = await request(`/api/v1/targets?${params.toString()}`);
+        state.targetFolderPage = payload.folders || null;
+        state.targetBrowsePath = payload.folders?.current?.path || currentPath;
+        state.targets = payload.targets || payload.folders?.folders || [];
+        if (currentPath !== requestedPath) {
+          state.toast = {
+            type: "info",
+            message: `Der Zielordner ${requestedPath} wurde nicht gefunden. Ich zeige ${state.targetBrowsePath}.`,
+          };
+        }
+        return;
+      } catch (error) {
+        lastError = error;
+        const fallback = parentPath(currentPath);
+        if (!fallback || fallback === currentPath) {
+          state.targetBrowsePath = currentPath;
+          throw lastError;
+        }
+        currentPath = fallback;
+      }
+    }
+  }
+
+  function targetParams(targetMode, ordering, query) {
+    const params = new URLSearchParams({ mode: targetMode, limit: "100", ordering });
+    if (query) {
+      params.set("query", query);
+    }
+    return params;
   }
 
   function render() {
@@ -1968,7 +2007,7 @@
       name: state.jobDraft.name.trim(),
       sourcePath: state.jobDraft.sourcePath.trim() || "/",
       targetMode: state.jobDraft.targetMode,
-      targetPath: state.jobDraft.targetPath.trim(),
+      targetPath: state.jobDraft.targetPath.trim() || DEFAULT_TARGET_PATH,
       recursiveSource: state.jobDraft.recursiveSource,
       safeMode: state.jobDraft.safeMode,
       autoProcess: state.jobDraft.autoProcess,
@@ -1985,7 +2024,7 @@
       name: "",
       sourcePath: "/Photos",
       targetMode: "album",
-      targetPath: "/Photos/Sortiert",
+      targetPath: DEFAULT_TARGET_PATH,
       recursiveSource: false,
       safeMode: true,
       autoProcess: false,
@@ -2024,7 +2063,7 @@
       name: form.name?.value || "",
       sourcePath: form.sourcePath?.value || "/",
       targetMode: form.targetMode?.value || "album",
-      targetPath: form.targetPath?.value || "/Photos/Sortiert",
+      targetPath: form.targetPath?.value || DEFAULT_TARGET_PATH,
       recursiveSource: Boolean(form.recursiveSource?.checked),
       safeMode: Boolean(form.safeMode?.checked),
       autoProcess: Boolean(form.autoProcess?.checked),
@@ -2225,7 +2264,7 @@
       name: job.name || "",
       sourcePath: job.sourcePath || "/",
       targetMode: job.targetMode || "album",
-      targetPath: job.targetPath || "/Photos/Sortiert",
+      targetPath: job.targetPath || DEFAULT_TARGET_PATH,
       recursiveSource: Boolean(job.options?.recursiveSource),
       safeMode: job.safeMode !== false,
       autoProcess: Boolean(job.options?.autoProcess),

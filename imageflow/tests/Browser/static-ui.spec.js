@@ -473,6 +473,7 @@ test('covers 50 typical image sorting user scenarios', async ({ page }) => {
     await page.getByLabel('Name').fill('Szenario Kopieren');
     await page.getByLabel('Wie sollen sortierte Bilder abgelegt werden?').selectOption('copy');
     await expect(page.getByLabel('Zielordner')).toBeVisible();
+    await expect(page.getByLabel('Zielordner')).toHaveValue('/Photos');
   });
 
   await scenario('recursive and automation choices are stored on a flow', async () => {

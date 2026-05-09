@@ -9,7 +9,7 @@ ImageFlow helps users sort large image folders in Nextcloud with Flow-based work
 
 The first implementation is intentionally conservative: sorting decisions are recorded as planned operations, while file writes are reserved for the controlled execution queue and safe-mode validation.
 ]]></description>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
     <licence>AGPL-3.0-or-later</licence>
     <author mail="desco323@users.noreply.github.com">desCo323</author>
     <namespace>ImageFlow</namespace>

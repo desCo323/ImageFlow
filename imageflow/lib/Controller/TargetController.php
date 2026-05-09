@@ -37,6 +37,11 @@ class TargetController extends Controller {
 				'error' => 'invalid_target_request',
 				'message' => 'Die Zielauswahl ist ungültig.',
 			], Http::STATUS_BAD_REQUEST);
+		} catch (\Throwable) {
+			return new JSONResponse([
+				'error' => 'target_list_failed',
+				'message' => 'Der Zielordner konnte nicht gelesen werden.',
+			], Http::STATUS_NOT_FOUND);
 		}
 	}
 
