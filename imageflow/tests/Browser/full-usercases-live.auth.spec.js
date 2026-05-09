@@ -395,31 +395,25 @@ test('executes 50+ real browser user scenarios safely as albentest', async ({ pa
     await scenario('mobile Ansicht ordnet Foto, Ziele und Fußleiste sinnvoll an', async () => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.locator('tr', { hasText: renamedJobName }).getByRole('button', { name: 'Weitermachen' }).click();
-      await expect(page.locator('.imageflow-photo-stage')).toBeVisible({ timeout: 15000 });
-      await expect(page.locator('.imageflow-targets')).toBeVisible();
-      await expect(page.locator('.imageflow-filmstrip')).toBeVisible();
-      const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
-      const targetsBox = await page.locator('.imageflow-targets').boundingBox();
-      const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
-      expect(photoBox).not.toBeNull();
-      expect(targetsBox).not.toBeNull();
-      expect(footerBox).not.toBeNull();
-      expect(photoBox.y).toBeLessThan(targetsBox.y);
-      expect(footerBox.height).toBeLessThan(90);
+      const boxes = await measuredBoxes(page, {
+        photo: '.imageflow-photo-stage',
+        targets: '.imageflow-targets',
+        footer: '.imageflow-filmstrip',
+      });
+      expect(boxes.photo.y).toBeLessThan(boxes.targets.y);
+      expect(boxes.footer.height).toBeLessThan(90);
     });
 
     await scenario('Desktop-Ansicht gibt dem Hauptbild stabil Platz', async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
-      await expect(page.locator('.imageflow-photo-stage')).toBeVisible({ timeout: 15000 });
-      const headBox = await page.locator('.imageflow-job-head').boundingBox();
-      const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
-      const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
-      expect(headBox).not.toBeNull();
-      expect(photoBox).not.toBeNull();
-      expect(footerBox).not.toBeNull();
-      expect(headBox.height).toBeLessThan(170);
-      expect(photoBox.height).toBeGreaterThan(300);
-      expect(footerBox.height).toBeLessThan(90);
+      const boxes = await measuredBoxes(page, {
+        head: '.imageflow-job-head',
+        photo: '.imageflow-photo-stage',
+        footer: '.imageflow-filmstrip',
+      });
+      expect(boxes.head.height).toBeLessThan(170);
+      expect(boxes.photo.height).toBeGreaterThan(300);
+      expect(boxes.footer.height).toBeLessThan(90);
     });
 
     await scenario('Screenshots dokumentieren Hauptmenü, Sortierseite und Mobilansicht', async () => {
@@ -590,6 +584,35 @@ async function expectWorklistFilterResult(dialog) {
     return;
   }
   await expect(dialog.getByText('Keine Einträge in diesem Filter.')).toBeVisible();
+}
+
+async function measuredBoxes(page, selectors) {
+  let boxes = null;
+  await expect.poll(async () => {
+    boxes = await page.evaluate((queryMap) => {
+      const result = {};
+      for (const [name, selector] of Object.entries(queryMap)) {
+        const element = document.querySelector(selector);
+        if (!element) {
+          return null;
+        }
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        if (style.display === 'none' || style.visibility === 'hidden' || rect.width <= 0 || rect.height <= 0) {
+          return null;
+        }
+        result[name] = {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        };
+      }
+      return result;
+    }, selectors);
+    return Boolean(boxes);
+  }, { message: 'Sortierlayout hat messbare Layout-Boxen' }).toBe(true);
+  return boxes;
 }
 
 async function mkcolDavPath(page, username, displayPath) {

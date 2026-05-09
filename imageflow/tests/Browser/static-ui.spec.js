@@ -51,6 +51,35 @@ function testDocument(body, extraCss = '') {
   `;
 }
 
+async function measuredBoxes(page, selectors) {
+  let boxes = null;
+  await expect.poll(async () => {
+    boxes = await page.evaluate((queryMap) => {
+      const result = {};
+      for (const [name, selector] of Object.entries(queryMap)) {
+        const element = document.querySelector(selector);
+        if (!element) {
+          return null;
+        }
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        if (style.display === 'none' || style.visibility === 'hidden' || rect.width <= 0 || rect.height <= 0) {
+          return null;
+        }
+        result[name] = {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        };
+      }
+      return result;
+    }, selectors);
+    return Boolean(boxes);
+  }, { message: 'Layout hat messbare Boxen' }).toBe(true);
+  return boxes;
+}
+
 test('renders the job dashboard and creates a local mock job', async ({ page }) => {
   await mount(page);
 
@@ -238,14 +267,14 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.getByRole('button', { name: 'Von vorn ansehen' })).toHaveAttribute('title', /Vorgemerkte Ablagen bleiben erhalten/);
   await expect(page.getByRole('button', { name: 'Offene Bilder' })).toBeVisible();
 
-  const headBox = await page.locator('.imageflow-job-head').boundingBox();
-  const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
-  const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
-  expect(headBox).not.toBeNull();
+  const boxes = await measuredBoxes(page, {
+    head: '.imageflow-job-head',
+    photo: '.imageflow-photo-stage',
+    footer: '.imageflow-filmstrip',
+  });
+  const { head: headBox, photo: photoBox, footer: footerBox } = boxes;
   expect(headBox.height).toBeLessThan(90);
-  expect(photoBox).not.toBeNull();
   expect(photoBox.height).toBeGreaterThan(380);
-  expect(footerBox).not.toBeNull();
   expect(footerBox.height).toBeLessThan(100);
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(900);
   expect(await page.locator('.imageflow-thumb strong').first().boundingBox()).toBeNull();
@@ -269,23 +298,19 @@ test('keeps flow controls visible inside a narrow Nextcloud content area', async
   await page.setViewportSize({ width: 1280, height: 720 });
   await mountInNextcloudFrame(page, 'data-page="sort" data-job-id="1"');
 
-  const rootBox = await page.locator('#imageflow-app').boundingBox();
-  const contentBox = await page.locator('#content').boundingBox();
-  const titleBox = await page.getByRole('heading', { name: 'Familienfotos 2025' }).boundingBox();
-  const createBox = await page.getByRole('button', { name: 'Album anlegen' }).first().boundingBox();
-  const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
-  const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
-
-  expect(rootBox).not.toBeNull();
-  expect(contentBox).not.toBeNull();
+  const boxes = await measuredBoxes(page, {
+    root: '#imageflow-app',
+    content: '#content',
+    title: '.imageflow-head-title h3',
+    create: '.imageflow-target-head-actions .imageflow-button.primary',
+    photo: '.imageflow-photo-stage',
+    footer: '.imageflow-filmstrip',
+  });
+  const { root: rootBox, content: contentBox, title: titleBox, create: createBox, photo: photoBox, footer: footerBox } = boxes;
   expect(rootBox.width).toBeGreaterThan(contentBox.width - 4);
-  expect(titleBox).not.toBeNull();
   expect(titleBox.height).toBeLessThan(64);
-  expect(createBox).not.toBeNull();
   expect(createBox.y).toBeLessThan(260);
-  expect(photoBox).not.toBeNull();
   expect(photoBox.height).toBeGreaterThan(190);
-  expect(footerBox).not.toBeNull();
   expect(footerBox.height).toBeLessThan(100);
   expect(footerBox.y).toBeLessThan(720);
 });
@@ -294,21 +319,18 @@ test('uses mobile space with the photo before target lists', async ({ page }) =>
   await page.setViewportSize({ width: 390, height: 844 });
   await mountInNextcloudFrame(page, 'data-page="sort" data-job-id="1"');
 
-  const topbarBox = await page.locator('.imageflow-topbar').boundingBox();
-  const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
-  const targetsBox = await page.locator('.imageflow-targets').boundingBox();
-  const railBox = await page.locator('.imageflow-rail').boundingBox();
-  const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
-
-  expect(topbarBox).not.toBeNull();
+  const boxes = await measuredBoxes(page, {
+    topbar: '.imageflow-topbar',
+    photo: '.imageflow-photo-stage',
+    targets: '.imageflow-targets',
+    rail: '.imageflow-rail',
+    footer: '.imageflow-filmstrip',
+  });
+  const { topbar: topbarBox, photo: photoBox, targets: targetsBox, rail: railBox, footer: footerBox } = boxes;
   expect(topbarBox.height).toBeLessThan(150);
-  expect(photoBox).not.toBeNull();
   expect(photoBox.height).toBeGreaterThan(260);
-  expect(targetsBox).not.toBeNull();
-  expect(railBox).not.toBeNull();
   expect(photoBox.y).toBeLessThan(targetsBox.y);
   expect(targetsBox.y).toBeLessThan(railBox.y);
-  expect(footerBox).not.toBeNull();
   expect(footerBox.height).toBeLessThan(100);
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(844);
 });
@@ -797,29 +819,24 @@ test('covers 50 typical image sorting user scenarios', async ({ page }) => {
   await scenario('desktop layout gives the main image enough stable space', async () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await mountInNextcloudFrame(page, 'data-page="sort" data-job-id="1"');
-    await expect(page.locator('.imageflow-photo-stage')).toBeVisible();
-    const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
-    const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
-    expect(photoBox).not.toBeNull();
-    expect(footerBox).not.toBeNull();
-    expect(photoBox.height).toBeGreaterThan(300);
-    expect(footerBox.height).toBeLessThan(100);
+    const boxes = await measuredBoxes(page, {
+      photo: '.imageflow-photo-stage',
+      footer: '.imageflow-filmstrip',
+    });
+    expect(boxes.photo.height).toBeGreaterThan(300);
+    expect(boxes.footer.height).toBeLessThan(100);
   });
 
   await scenario('mobile layout keeps photo, targets and footer visible', async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await mountInNextcloudFrame(page, 'data-page="sort" data-job-id="1"');
-    await expect(page.locator('.imageflow-photo-stage')).toBeVisible();
-    await expect(page.locator('.imageflow-targets')).toBeVisible();
-    await expect(page.locator('.imageflow-filmstrip')).toBeVisible();
-    const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
-    const targetsBox = await page.locator('.imageflow-targets').boundingBox();
-    const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
-    expect(photoBox).not.toBeNull();
-    expect(targetsBox).not.toBeNull();
-    expect(footerBox).not.toBeNull();
-    expect(photoBox.y).toBeLessThan(targetsBox.y);
-    expect(footerBox.height).toBeLessThan(100);
+    const boxes = await measuredBoxes(page, {
+      photo: '.imageflow-photo-stage',
+      targets: '.imageflow-targets',
+      footer: '.imageflow-filmstrip',
+    });
+    expect(boxes.photo.y).toBeLessThan(boxes.targets.y);
+    expect(boxes.footer.height).toBeLessThan(100);
   });
 
   await scenario('label audit keeps confusing old wording out of the main UI', async () => {
