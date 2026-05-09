@@ -7,10 +7,23 @@ const css = fs.readFileSync(path.join(appRoot, 'css/imageflow-main.css'), 'utf8'
 const js = fs.readFileSync(path.join(appRoot, 'js/imageflow-main.js'), 'utf8');
 
 async function mount(page, attrs = 'data-page="jobs"') {
-  await page.setContent(`
+  await page.setContent(testDocument(`<div id="imageflow-app" ${attrs}><div class="imageflow-shell"></div></div>`));
+}
+
+async function mountInNextcloudFrame(page, attrs = 'data-page="jobs"') {
+  await page.setContent(testDocument(`
+    <div id="content">
+      <div id="imageflow-app" ${attrs}><div class="imageflow-shell"></div></div>
+    </div>
+  `, '#content { display: flex; position: fixed; inset: 50px 8px 8px 8px; }'));
+}
+
+function testDocument(body, extraCss = '') {
+  return `
     <!doctype html>
     <html>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
           :root {
             --color-main-text: #222;
@@ -24,16 +37,18 @@ async function mount(page, attrs = 'data-page="jobs"') {
             --color-error: #b42318;
             --color-success: #1f7a4d;
           }
+          html, body { height: 100%; }
           body { margin: 0; font-family: Arial, sans-serif; }
+          ${extraCss}
           ${css}
         </style>
       </head>
       <body>
-        <div id="imageflow-app" ${attrs}><div class="imageflow-shell"></div></div>
+        ${body}
         <script>${js}</script>
       </body>
     </html>
-  `);
+  `;
 }
 
 test('renders the job dashboard and creates a local mock job', async ({ page }) => {
@@ -240,14 +255,18 @@ test('moves through the filmstrip with arrow keys and thumbnail selection', asyn
 
 test('keeps flow controls visible inside a narrow Nextcloud content area', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await mount(page, 'data-page="sort" data-job-id="1"');
-  await page.addStyleTag({ content: '#imageflow-app { width: 880px; }' });
+  await mountInNextcloudFrame(page, 'data-page="sort" data-job-id="1"');
 
+  const rootBox = await page.locator('#imageflow-app').boundingBox();
+  const contentBox = await page.locator('#content').boundingBox();
   const titleBox = await page.getByRole('heading', { name: 'Familienfotos 2025' }).boundingBox();
   const createBox = await page.getByRole('button', { name: 'Album anlegen' }).first().boundingBox();
   const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
   const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
 
+  expect(rootBox).not.toBeNull();
+  expect(contentBox).not.toBeNull();
+  expect(rootBox.width).toBeGreaterThan(contentBox.width - 4);
   expect(titleBox).not.toBeNull();
   expect(titleBox.height).toBeLessThan(64);
   expect(createBox).not.toBeNull();
@@ -256,6 +275,28 @@ test('keeps flow controls visible inside a narrow Nextcloud content area', async
   expect(photoBox.height).toBeGreaterThan(120);
   expect(footerBox).not.toBeNull();
   expect(footerBox.y).toBeLessThan(720);
+});
+
+test('uses mobile space with the photo before target lists', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mountInNextcloudFrame(page, 'data-page="sort" data-job-id="1"');
+
+  const topbarBox = await page.locator('.imageflow-topbar').boundingBox();
+  const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
+  const targetsBox = await page.locator('.imageflow-targets').boundingBox();
+  const railBox = await page.locator('.imageflow-rail').boundingBox();
+  const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
+
+  expect(topbarBox).not.toBeNull();
+  expect(topbarBox.height).toBeLessThan(150);
+  expect(photoBox).not.toBeNull();
+  expect(photoBox.height).toBeGreaterThan(260);
+  expect(targetsBox).not.toBeNull();
+  expect(railBox).not.toBeNull();
+  expect(photoBox.y).toBeLessThan(targetsBox.y);
+  expect(targetsBox.y).toBeLessThan(railBox.y);
+  expect(footerBox).not.toBeNull();
+  expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(844);
 });
 
 test('keeps a large filmstrip bounded and responsive', async ({ page }) => {

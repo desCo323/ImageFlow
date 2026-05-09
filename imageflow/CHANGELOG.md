@@ -22,6 +22,7 @@
 - Add dashboard system diagnostics and guided self-test status.
 - Add a visible Flow creation action, fixed-height sorting workspace, visible filmstrip footer, and quick target-create button.
 - Pin the Flow filmstrip to the viewport bottom and duplicate target creation in the Flow header for narrow Nextcloud layouts.
+- Make ImageFlow fill the Nextcloud content width and add mobile-first Flow ordering with compact navigation.
 
 ## 0.1.0 - 2026-05-08
 

@@ -1,10 +1,15 @@
 #imageflow-app {
+  flex: 1 1 auto;
+  width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 100%;
 }
 
 .imageflow-shell {
-  height: calc(100vh - var(--header-height, 50px));
+  width: 100%;
+  height: 100%;
+  max-height: calc(100vh - var(--header-height, 50px));
   min-height: 0;
   overflow-y: auto;
   color: var(--color-main-text);
@@ -171,14 +176,16 @@
 .imageflow-content-sort {
   height: 100%;
   overflow: hidden;
-  padding: 12px 16px;
+  padding: 12px clamp(12px, 1.5vw, 22px);
 }
 
 .imageflow-dashboard {
   display: grid;
-  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+  width: min(100%, 1720px);
+  margin: 0 auto;
 }
 
 .imageflow-safety-strip {
@@ -582,7 +589,9 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
+  width: min(100%, 1760px);
   height: 100%;
+  margin: 0 auto;
   min-height: 0;
   overflow: hidden;
   container-type: inline-size;
@@ -707,7 +716,7 @@
 
 .imageflow-sort-grid {
   display: grid;
-  grid-template-columns: minmax(132px, 220px) minmax(0, 1fr) minmax(190px, 300px);
+  grid-template-columns: minmax(160px, 250px) minmax(360px, 1fr) minmax(220px, 340px);
   gap: 12px;
   min-height: 0;
   overflow: hidden;
@@ -1602,14 +1611,78 @@
 }
 
 @container (max-width: 620px) {
-  .imageflow-gamebar {
+  .imageflow-sort {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .imageflow-content-sort {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .imageflow-sort-grid {
     grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .imageflow-photo-stage {
+    order: -3;
+    min-height: clamp(280px, 56vh, 520px);
+  }
+
+  .imageflow-job-head .imageflow-toolbar {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .imageflow-job-head .imageflow-button,
+  .imageflow-job-head .imageflow-badge {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .imageflow-targets {
+    order: -2;
+    max-height: none;
+  }
+
+  .imageflow-rail {
+    order: -1;
+  }
+
+  .imageflow-favorite-list,
+  .imageflow-target-list {
+    max-height: 260px;
+  }
+
+  .imageflow-filmstrip {
+    height: 126px;
+    min-height: 126px;
   }
 }
 
 @media (max-width: 680px) {
   .imageflow-content {
     padding: 12px;
+  }
+
+  .imageflow-topbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .imageflow-tabs {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
   }
 
   .imageflow-panel-head,
@@ -1622,9 +1695,14 @@
     flex-direction: column;
   }
 
-  .imageflow-button,
-  .imageflow-tab {
+  .imageflow-button {
     width: 100%;
+  }
+
+  .imageflow-tab {
+    width: auto;
+    min-width: 0;
+    padding-inline: 7px;
   }
 
   .imageflow-path-picker,
