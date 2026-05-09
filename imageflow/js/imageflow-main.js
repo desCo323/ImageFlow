@@ -41,6 +41,7 @@
     sessionStartedAt: Date.now(),
     loading: false,
     startMode: null,
+    progressBaseline: null,
     acceptDecreasedCounters: false,
     logs: {
       loading: false,
@@ -1009,6 +1010,11 @@
     const savedIndex = Number(saved.cursor || 0) === state.pageCursor ? Number(saved.index || 0) : 0;
     const startIndex = requestedStart && startCursor === state.pageCursor ? Number(start.index || 0) : null;
     state.imageIndex = clampIndex(preferredIndex ?? startIndex ?? savedIndex, sortImages(state.sortState));
+    if (requestedStart === "begin") {
+      setProgressBaseline(state.sortState.job);
+    } else if (requestedStart === "resume" || requestedStart === "unsorted") {
+      clearProgressBaseline();
+    }
     state.startMode = null;
     await loadTargets(state.sortState.job.targetMode);
   }
@@ -1093,6 +1099,7 @@
   }
 
   function renderTopbar() {
+    const debugUi = debugUiEnabled();
     return `
       <header class="imageflow-topbar">
         <span class="imageflow-mark" aria-hidden="true"><span></span></span>
@@ -1103,10 +1110,14 @@
         <nav class="imageflow-tabs" aria-label="ImageFlow">
           <button class="imageflow-tab ${state.page === "jobs" ? "is-active" : ""}" data-action="go-jobs" type="button">Übersicht</button>
           <button class="imageflow-tab ${state.page === "sort" ? "is-active" : ""}" data-action="go-sort" type="button" ${state.jobId ? "" : "disabled"}>Sortieren</button>
-          <button class="imageflow-tab ${state.page === "logs" ? "is-active" : ""}" data-action="show-log" type="button">Protokoll</button>
+          ${debugUi ? `<button class="imageflow-tab ${state.page === "logs" ? "is-active" : ""}" data-action="show-log" type="button">Protokoll</button>` : ""}
         </nav>
       </header>
     `;
+  }
+
+  function debugUiEnabled() {
+    return root.dataset.debugUi === "1";
   }
 
   function renderJobsPage() {
@@ -1215,7 +1226,7 @@
           </div>
           ${renderJobTable()}
         </section>
-        ${renderSystemCheckPanel()}
+        ${debugUiEnabled() ? renderSystemCheckPanel() : ""}
       </section>
     `;
   }
@@ -1383,6 +1394,7 @@
   function renderJobRow(job) {
     const options = job.options || {};
     const paused = job.status === "paused";
+    const debugUi = debugUiEnabled();
     const hasDecisions = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) + Number(job.queuedOperations || 0) > 0;
     const primaryStartLabel = hasDecisions ? "Weitermachen" : "Sortieren";
     return `
@@ -1407,7 +1419,7 @@
             <button class="imageflow-button" data-action="duplicate-job" data-job-id="${job.id}" type="button">Duplizieren</button>
             <button class="imageflow-button" data-action="${paused ? "resume-job" : "pause-job"}" data-job-id="${job.id}" type="button">${paused ? "Fortsetzen" : "Pausieren"}</button>
             <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ablage prüfen</button>
-            <button class="imageflow-button" data-action="show-job-log" data-job-id="${job.id}" type="button">Ereignisse</button>
+            ${debugUi ? `<button class="imageflow-button" data-action="show-job-log" data-job-id="${job.id}" type="button">Ereignisse</button>` : ""}
             <button class="imageflow-button danger" data-action="discard-job" data-job-id="${job.id}" type="button">Flow verwerfen</button>
           </div>
         </td>
@@ -1429,8 +1441,6 @@
     const filmstrip = filmstripWindow(images, currentIndex);
     const preview = imageUrl(current);
     const page = sortState.imagePage || state.imagePage || defaultImagePage(images);
-    const pageStart = page.total > 0 ? Number(page.cursor || 0) + 1 : 0;
-    const pageEnd = Math.min(Number(page.total || images.length), Number(page.cursor || 0) + images.length);
     const targetFolder = state.targetFolderPage;
     const isFolderMode = job.targetMode === "move" || job.targetMode === "copy";
     const progress = progressStats(job, page, images);
@@ -1537,19 +1547,12 @@
             </div>
           </aside>
         </div>
-        <footer class="imageflow-filmstrip">
-          <div class="imageflow-filmstrip-head">
-            <div>
-              <span>${pageStart}-${pageEnd} von ${Number(page.total || images.length)} · ${bufferPlan.length} vorgeladen</span>
-            </div>
-            <div class="imageflow-page-actions">
-              <button class="imageflow-icon-button" data-action="page-prev" type="button" ${page.hasPrevious ? "" : "disabled"}>Zurück</button>
-              <button class="imageflow-icon-button" data-action="page-next" type="button" ${page.hasNext ? "" : "disabled"}>Weiter</button>
-            </div>
-          </div>
+        <footer class="imageflow-filmstrip" aria-label="Vorschauleiste">
+          <button class="imageflow-icon-button imageflow-filmstrip-nav" data-action="page-prev" aria-label="Vorherige Vorschaubilder" title="Vorherige Vorschaubilder" type="button" ${page.hasPrevious ? "" : "disabled"}>&lsaquo;</button>
           <div class="imageflow-strip" role="listbox" aria-label="Vorgeladene Bilder">
             ${filmstrip.items.map((image, offset) => renderThumb(image, filmstrip.start + offset, currentIndex, bufferPlan)).join("") || '<div class="imageflow-empty">Keine Vorschaubilder geladen.</div>'}
           </div>
+          <button class="imageflow-icon-button imageflow-filmstrip-nav" data-action="page-next" aria-label="Nächste Vorschaubilder" title="Nächste Vorschaubilder" type="button" ${page.hasNext ? "" : "disabled"}>&rsaquo;</button>
         </footer>
       </section>
     `;
@@ -2656,6 +2659,7 @@
     state.imagePage = null;
     state.pageCursor = null;
     state.startMode = startMode;
+    clearProgressBaseline();
     state.targetBrowsePath = null;
     state.targetFolderPage = null;
     state.targetCreateName = "";
@@ -2673,6 +2677,7 @@
     state.imagePage = null;
     state.pageCursor = null;
     state.startMode = startMode;
+    clearProgressBaseline();
     clearImagePageCache();
     resetSessionFlow();
     await loadImagePage(null, null, true, startMode);
@@ -3088,12 +3093,36 @@
   }
 
   function progressStats(job, page, images) {
-    const done = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0);
+    const baseline = matchingProgressBaseline(job);
+    const rawDone = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0);
+    const done = Math.max(0, rawDone - (baseline ? Number(baseline.sorted || 0) + Number(baseline.skipped || 0) : 0));
     const visibleTotal = Number(page?.total || 0);
     const fallbackTotal = done + Math.max(0, images.length);
     const total = Math.max(visibleTotal, Number(job.totalFiles || 0), fallbackTotal, 1);
     const percent = Math.min(100, Math.round((done / total) * 100));
     return { done, total, percent };
+  }
+
+  function setProgressBaseline(job) {
+    state.progressBaseline = {
+      jobId: Number(job?.id || 0),
+      sorted: Number(job?.sortedFiles || 0),
+      skipped: Number(job?.skippedFiles || 0),
+    };
+    root.dataset.progressBaseline = String(state.progressBaseline.sorted + state.progressBaseline.skipped);
+  }
+
+  function clearProgressBaseline() {
+    state.progressBaseline = null;
+    root.dataset.progressBaseline = "0";
+  }
+
+  function matchingProgressBaseline(job) {
+    const baseline = state.progressBaseline;
+    if (!baseline || String(baseline.jobId) !== String(job?.id || "")) {
+      return null;
+    }
+    return baseline;
   }
 
   function sessionTempo() {

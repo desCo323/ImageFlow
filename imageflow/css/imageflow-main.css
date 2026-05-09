@@ -1105,11 +1105,15 @@
   position: sticky;
   bottom: 0;
   z-index: 4;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: stretch;
   min-width: 0;
-  height: 88px;
-  min-height: 88px;
+  height: 70px;
+  min-height: 70px;
   overflow: hidden;
-  padding: 6px;
+  padding: 5px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: color-mix(in srgb, var(--color-main-background) 97%, #ece8ff);
@@ -1150,30 +1154,28 @@
   font-weight: 700;
 }
 
-.imageflow-page-actions {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
-  gap: 5px;
-  justify-content: flex-end;
-}
-
-.imageflow-filmstrip .imageflow-icon-button {
-  min-height: 26px;
-  padding: 3px 7px;
-  font-size: 12px;
+.imageflow-filmstrip-nav {
+  width: 34px;
+  min-width: 34px;
+  min-height: 58px;
+  padding: 0;
+  font-size: 26px;
+  line-height: 1;
 }
 
 .imageflow-strip {
   display: grid;
-  grid-auto-columns: minmax(82px, 104px);
+  grid-auto-columns: minmax(76px, 104px);
   grid-auto-flow: column;
   grid-template-columns: none;
   gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
-  padding-bottom: 2px;
+  padding-bottom: 0;
   scroll-behavior: smooth;
 }
 
@@ -1183,8 +1185,8 @@
   grid-template-rows: 1fr;
   align-content: stretch;
   width: 100%;
-  height: 46px;
-  min-height: 46px;
+  height: 58px;
+  min-height: 58px;
   padding: 4px;
   border: 2px solid var(--color-border);
   border-radius: 6px;
@@ -1634,22 +1636,17 @@
   }
 
   .imageflow-filmstrip {
-    height: 84px;
-    min-height: 84px;
-  }
-
-  .imageflow-filmstrip-head {
-    margin-bottom: 5px;
+    height: 70px;
+    min-height: 70px;
   }
 
   .imageflow-thumb {
-    height: 44px;
-    min-height: 44px;
-    padding: 6px;
+    height: 58px;
+    min-height: 58px;
   }
 
   .imageflow-strip {
-    grid-auto-columns: minmax(72px, 94px);
+    grid-auto-columns: minmax(70px, 94px);
   }
 }
 
@@ -1718,8 +1715,8 @@
   }
 
   .imageflow-filmstrip {
-    height: 84px;
-    min-height: 84px;
+    height: 70px;
+    min-height: 70px;
   }
 }
 

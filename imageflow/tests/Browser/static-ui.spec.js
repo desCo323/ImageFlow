@@ -58,10 +58,9 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByLabel('Schutzstatus')).toContainText('Geschützter Testbetrieb');
   await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen gesperrt');
   await expect(page.getByLabel('Schutzstatus')).toContainText('Automatik aus');
-  await expect(page.getByLabel('Systemprüfung')).toContainText('Die App ist im geschützten Testbetrieb');
-  await expect(page.getByLabel('Systemprüfung')).toContainText('Datenbank erreichbar');
-  await expect(page.getByLabel('Systemprüfung')).toContainText('Nur mit albentest');
-  await expect(page.getByLabel('Systemprüfung')).toContainText('Geführter Testlauf');
+  await expect(page.getByLabel('Systemprüfung')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Protokoll' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Ereignisse' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Flow anlegen' })).toBeVisible();
   await page.getByRole('button', { name: 'Flow anlegen' }).click();
   await expect(page.getByRole('heading', { name: 'Neuen Flow vorbereiten' })).toBeVisible();
@@ -101,7 +100,7 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
 });
 
 test('shows the guided self-test as allowed for albentest', async ({ page }) => {
-  await mount(page, 'data-page="jobs" data-mock-user="albentest"');
+  await mount(page, 'data-page="jobs" data-mock-user="albentest" data-debug-ui="1"');
 
   const system = page.getByLabel('Systemprüfung');
   await expect(system).toContainText('Testkonto aktiv');
@@ -322,7 +321,7 @@ test('keeps a large filmstrip bounded and responsive', async ({ page }) => {
   const filmstrip = page.locator('.imageflow-filmstrip');
 
   await expect(currentName).toHaveText('IMG_0001.jpg');
-  await expect(filmstrip).toContainText('1-48 von 1200');
+  await expect(filmstrip).not.toContainText('von 1200');
   await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
   await expect(app).toHaveAttribute('data-buffer-plan', '9');
 
@@ -348,10 +347,20 @@ test('keeps a large filmstrip bounded and responsive', async ({ page }) => {
     await page.keyboard.press('ArrowRight');
   }
   await expect(currentName).toHaveText('IMG_0049.jpg');
-  await expect(filmstrip).toContainText('49-96 von 1200');
+  await expect(filmstrip).not.toContainText('49-96 von 1200');
   await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
   await expect(app).toHaveAttribute('data-page-cache-hit', '1');
   expect(Number(await app.getAttribute('data-buffered-images'))).toBeLessThanOrEqual(32);
+});
+
+test('starts the visible progress at zero when viewing a flow from the beginning', async ({ page }) => {
+  await mount(page);
+
+  await page.locator('tr', { hasText: 'Familienfotos 2025' }).getByRole('button', { name: 'Von vorn ansehen' }).click();
+
+  await expect(page.getByLabel('Flow-Fortschritt')).toContainText('0/320 entschieden');
+  await expect(page.getByLabel('Flow-Fortschritt')).toContainText('0%');
+  await expect(page.locator('#imageflow-app')).toHaveAttribute('data-progress-baseline', '80');
 });
 
 test('shows flow feedback after a sorting decision', async ({ page }) => {
@@ -424,7 +433,7 @@ test('browses folder targets in copy mode', async ({ page }) => {
 });
 
 test('renders the debug protocol view', async ({ page }) => {
-  await mount(page);
+  await mount(page, 'data-debug-ui="1"');
 
   await page.getByRole('button', { name: 'Protokoll' }).click();
 
@@ -764,6 +773,7 @@ test('covers 50 typical image sorting user scenarios', async ({ page }) => {
 
   await scenario('debug protocol can be filtered', async () => {
     await page.getByRole('button', { name: 'Schließen' }).click();
+    await mount(page, 'data-debug-ui="1"');
     await page.getByRole('button', { name: 'Protokoll' }).click();
     await page.getByLabel('Log-Level').selectOption('debug');
     await expect(page.getByText('image_buffer_synced')).toBeVisible();
@@ -779,9 +789,9 @@ test('covers 50 typical image sorting user scenarios', async ({ page }) => {
   });
 
   await scenario('large stacks can jump to the next page', async () => {
-    await page.getByRole('button', { name: 'Weiter', exact: true }).click();
+    await page.getByRole('button', { name: 'Nächste Vorschaubilder' }).click();
     await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_0049.jpg');
-    await expect(page.locator('.imageflow-filmstrip')).toContainText('49-96 von 1200');
+    await expect(page.locator('.imageflow-filmstrip')).not.toContainText('49-96 von 1200');
   });
 
   await scenario('desktop layout gives the main image enough stable space', async () => {
@@ -895,8 +905,8 @@ test('covers 50 typical image sorting user scenarios', async ({ page }) => {
 
   await scenario('page navigation buttons stay disabled at the first small page boundary', async () => {
     await mount(page, 'data-page="sort" data-job-id="1"');
-    await expect(page.getByRole('button', { name: 'Zurück' }).last()).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Weiter' }).last()).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Vorherige Vorschaubilder' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Nächste Vorschaubilder' })).toBeDisabled();
   });
 
   await scenario('closed worklist preview can be reopened without losing safety copy', async () => {
