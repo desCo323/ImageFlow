@@ -34,26 +34,56 @@ class QueueExecutionService {
 	}
 
 	public function processDue(int $limit = 25): int {
+		$runId = $this->runId();
 		if (!$this->backgroundProcessingEnabled()) {
 			$this->logService->debug('queue_background_processing_skipped', null, [
+				'runId' => $runId,
 				'backgroundProcessingEnabled' => false,
+				'realExecutionEnabled' => $this->realExecutionEnabled(),
+				'limit' => $limit,
+				'backgroundGate' => $this->backgroundGateService->status(),
 			], null, 'ImageFlow Hintergrund-Ablage ist serverseitig deaktiviert.');
 			return 0;
 		}
 		if (!$this->realExecutionEnabled()) {
 			$this->logService->debug('queue_background_execution_skipped', null, [
+				'runId' => $runId,
 				'backgroundProcessingEnabled' => true,
 				'realExecutionEnabled' => false,
+				'limit' => $limit,
+				'backgroundGate' => $this->backgroundGateService->status(),
 			], null, 'ImageFlow Hintergrund-Ablage wartet, weil echte Dateiänderungen deaktiviert sind.');
 			return 0;
 		}
 		$gate = $this->backgroundGateService->status();
 		if (!($gate['canRun'] ?? false)) {
-			$this->logService->debug('queue_background_gate_waiting', null, $gate, null, (string)($gate['message'] ?? 'ImageFlow Hintergrund-Ablage wartet.'));
+			$this->logService->debug('queue_background_gate_waiting', null, [
+				'runId' => $runId,
+				'limit' => $limit,
+				'backgroundProcessingEnabled' => true,
+				'realExecutionEnabled' => true,
+				'backgroundGate' => $gate,
+			], null, (string)($gate['message'] ?? 'ImageFlow Hintergrund-Ablage wartet.'));
 			return 0;
 		}
 
-		return $this->processItems($this->queueMapper->findDue($limit * 4), $limit, false);
+		$items = $this->queueMapper->findDue($limit * 4);
+		$this->logService->debug('queue_background_run_started', null, [
+			'runId' => $runId,
+			'limit' => $limit,
+			'candidateCount' => count($items),
+			'backgroundProcessingEnabled' => true,
+			'realExecutionEnabled' => true,
+			'backgroundGate' => $gate,
+		], null, 'ImageFlow Hintergrund-Ablage prüft wartende Ablagen.');
+		$processed = $this->processItems($items, $limit, false, $runId);
+		$this->logService->debug('queue_background_run_finished', null, [
+			'runId' => $runId,
+			'limit' => $limit,
+			'candidateCount' => count($items),
+			'processed' => $processed,
+		], null, 'ImageFlow Hintergrund-Ablage ist fertig.');
+		return $processed;
 	}
 
 	/**
@@ -72,7 +102,23 @@ class QueueExecutionService {
 			];
 		}
 
-		$processed = $this->processItems($this->queueMapper->findDueForJob($userId, $jobId, $limit), $limit, true);
+		$runId = $this->runId();
+		$items = $this->queueMapper->findDueForJob($userId, $jobId, $limit);
+		$this->logService->debug('queue_manual_run_started', $userId, [
+			'runId' => $runId,
+			'jobId' => $jobId,
+			'limit' => $limit,
+			'candidateCount' => count($items),
+			'realExecutionEnabled' => true,
+		], $jobId, 'Manuelle Ablage prüft wartende Ablagen.');
+		$processed = $this->processItems($items, $limit, true, $runId);
+		$this->logService->debug('queue_manual_run_finished', $userId, [
+			'runId' => $runId,
+			'jobId' => $jobId,
+			'limit' => $limit,
+			'candidateCount' => count($items),
+			'processed' => $processed,
+		], $jobId, 'Manuelle Ablage ist fertig.');
 		return [
 			'processed' => $processed,
 			'realExecutionEnabled' => true,
@@ -91,7 +137,7 @@ class QueueExecutionService {
 	/**
 	 * @param QueueItem[] $items
 	 */
-	private function processItems(array $items, int $limit, bool $manual): int {
+	private function processItems(array $items, int $limit, bool $manual, ?string $runId = null): int {
 		$processed = 0;
 		foreach ($items as $item) {
 			if ($processed >= max(1, $limit)) {
@@ -109,6 +155,16 @@ class QueueExecutionService {
 				$item->setAttempts(max(0, $item->getAttempts() - 1));
 				$item->setUpdatedAt(time());
 				$this->queueMapper->update($item);
+				$this->logService->debug('queue_background_item_skipped_auto_disabled', $item->getUserId(), [
+					'runId' => $runId,
+					'queueItemId' => $item->getId(),
+					'jobId' => $item->getJobId(),
+					'operationType' => $item->getOperationType(),
+					'sourcePath' => $item->getSourcePath(),
+					'targetPath' => $item->getTargetPath(),
+					'jobStatus' => $job?->getStatus(),
+					'autoProcess' => false,
+				], $item->getJobId(), 'Wartende Ablage bleibt stehen, weil Automatik für diesen Flow aus ist.');
 				continue;
 			}
 			$this->markJobExecuting($job);
@@ -130,7 +186,7 @@ class QueueExecutionService {
 				];
 			}
 
-			$this->finishItem($item, $result);
+			$this->finishItem($item, $result, $manual, $runId);
 			$this->updateAssignmentStatus($item, (string)$result['status']);
 			$this->refreshJobStats($item->getUserId(), $item->getJobId());
 			$processed++;
@@ -301,7 +357,7 @@ class QueueExecutionService {
 		], $sourceChecksum, $targetChecksum);
 	}
 
-	private function finishItem(QueueItem $item, array $result): void {
+	private function finishItem(QueueItem $item, array $result, bool $manual, ?string $runId = null): void {
 		$status = (string)($result['status'] ?? self::STATUS_FAILED);
 		$message = (string)($result['message'] ?? 'Unbekannter Ablagestatus.');
 		$item->setStatus($status);
@@ -327,6 +383,11 @@ class QueueExecutionService {
 			'targetAlbumId' => $item->getTargetAlbumId(),
 			'attempts' => $item->getAttempts(),
 			'realExecutionEnabled' => $this->realExecutionEnabled(),
+			'manual' => $manual,
+			'runId' => $runId,
+			'status' => $status,
+			'sourceChecksumPresent' => $item->getSourceChecksum() !== null,
+			'targetChecksumPresent' => $item->getTargetChecksum() !== null,
 		], is_array($result['context'] ?? null) ? $result['context'] : []);
 
 		if ($level === 'info') {
@@ -494,6 +555,14 @@ class QueueExecutionService {
 
 	private function realExecutionEnabled(): bool {
 		return $this->config->getAppValue('imageflow', 'real_execution_enabled', '0') === '1';
+	}
+
+	private function runId(): string {
+		try {
+			return bin2hex(random_bytes(6));
+		} catch (\Throwable) {
+			return substr(str_replace('.', '', uniqid('', true)), 0, 12);
+		}
 	}
 
 	private function backgroundProcessingEnabled(): bool {

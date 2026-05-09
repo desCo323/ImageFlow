@@ -13,7 +13,7 @@ use OCP\BackgroundJob\IJobList;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'imageflow';
-	public const VERSION = '0.1.0';
+	public const VERSION = '0.1.4';
 
 	public function __construct() {
 		parent::__construct(self::APP_ID);

@@ -29,7 +29,10 @@ class AppLogMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->eq('level', $qb->createNamedParameter($level)));
 		}
 		if ($userId !== null && $userId !== '') {
-			$qb->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+			$qb->andWhere($qb->expr()->orX(
+				$qb->expr()->eq('user_id', $qb->createNamedParameter($userId)),
+				$qb->expr()->isNull('user_id'),
+			));
 		}
 		if ($jobId !== null) {
 			$qb->andWhere($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId)));

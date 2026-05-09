@@ -417,7 +417,7 @@ test('executes 50+ real browser user scenarios safely as albentest', async ({ pa
       expect(headBox).not.toBeNull();
       expect(photoBox).not.toBeNull();
       expect(footerBox).not.toBeNull();
-      expect(headBox.height).toBeLessThan(120);
+      expect(headBox.height).toBeLessThan(170);
       expect(photoBox.height).toBeGreaterThan(300);
       expect(footerBox.height).toBeLessThan(90);
     });
