@@ -80,3 +80,6 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 25. Sorting workspace target search
    ![Sorting workspace target search](screenshots/25-target-search.png)
+
+26. Large Ablage preview with compact filters
+   ![Large Ablage preview with compact filters](screenshots/26-large-worklist-filters.png)

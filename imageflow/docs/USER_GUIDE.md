@@ -65,6 +65,8 @@ For large folders, ImageFlow keeps the visible filmstrip small, preloads nearby 
 
 Use `Ablage prüfen` on the overview to open the safe preview first. The preview checks planned operations, missing sources or targets, possible duplicates and safe-mode readiness.
 
+For large rounds, the preview checks the complete worklist but only shows a compact latest-item list. Use the filter chips to focus on `Auffälligkeiten`, ready items, waiting items or completed items.
+
 Planned or queued items can be removed from the preview before execution. This also removes the linked decision from the round, so the image can be handled again later.
 
 The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt ablegen` runs a small manual batch. If both real writes and server-side background processing are enabled, and the round is marked for automatic processing, the cron worker can process queued work later when the quiet-server gate allows it.

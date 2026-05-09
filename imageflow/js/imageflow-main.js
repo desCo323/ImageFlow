@@ -82,6 +82,7 @@
       preview: null,
       error: null,
       autoProcess: false,
+      filter: "all",
     },
   };
 
@@ -718,6 +719,9 @@
     const realExecutionEnabled = root.dataset.mockRealExecution === "1";
     const configuredBackgroundMode = root.dataset.mockBackgroundMode || "manual-only";
     const backgroundMode = realExecutionEnabled ? configuredBackgroundMode : "manual-only";
+    const total = Math.max(3, Number.parseInt(root.dataset.mockWorklistTotal || "3", 10) || 3);
+    const warnings = total > 3 ? Math.max(1, Math.floor(total * 0.12)) : 1;
+    const ready = Math.max(0, total - warnings);
     return {
       job: {
         id: job.id,
@@ -728,16 +732,23 @@
         options: job.options || {},
       },
       summary: {
-        total: 3,
-        planned: queued ? 0 : 3,
-        queued: queued ? 3 : 0,
+        total,
+        planned: queued ? 0 : total,
+        queued: queued ? total : 0,
         executing: 0,
         blocked: 0,
         executed: 0,
         failed: 0,
-        ready: 2,
-        warnings: 1,
+        ready,
+        warnings,
         errors: 0,
+      },
+      window: {
+        total,
+        shown: 3,
+        limit: 3,
+        truncated: total > 3,
+        validationComplete: true,
       },
       canQueue: !queued,
       executionMode: realExecutionEnabled ? "real-writes-enabled" : "dry-run-only",
@@ -1458,6 +1469,8 @@
     const preview = state.worklist.preview;
     const summary = preview?.summary || {};
     const items = preview?.items || [];
+    const filteredItems = filteredWorklistItems(items, state.worklist.filter);
+    const windowInfo = preview?.window || { total: Number(summary.total || items.length), shown: items.length, truncated: false };
     const queuedCount = Number(summary.queued || 0) + Number(summary.executing || 0);
     const canSaveQueueSettings = queuedCount > 0 && !preview?.canQueue;
     const queueButtonEnabled = Boolean(preview?.canQueue || canSaveQueueSettings);
@@ -1491,14 +1504,16 @@
             </div>
             <div class="imageflow-worklist-note">
               <span>${escapeHtml(preview.message || "")}</span>
+              ${renderWorklistWindowNote(windowInfo)}
               ${renderBackgroundGateNote(preview)}
             </div>
+            ${renderWorklistFilters(items, windowInfo)}
             <label class="imageflow-toggle imageflow-worklist-toggle">
               <input id="ifl-worklist-auto" data-action="toggle-worklist-auto" type="checkbox" ${state.worklist.autoProcess ? "checked" : ""}>
               Automatisch ablegen, wenn der Server ruhig ist
             </label>
             <div class="imageflow-worklist-table">
-              ${items.map(renderWorklistItem).join("") || '<div class="imageflow-empty">Noch keine Entscheidungen für die Ablage vorhanden.</div>'}
+              ${filteredItems.map(renderWorklistItem).join("") || `<div class="imageflow-empty">${escapeHtml(worklistEmptyLabel(state.worklist.filter, items.length))}</div>`}
             </div>
             <div class="imageflow-folder-actions">
               <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Noch mal prüfen</button>
@@ -1517,6 +1532,71 @@
       return "";
     }
     return `<span>${escapeHtml(preview.backgroundGate.message || "Automatik wartet auf ein ruhiges Serverfenster.")}</span>`;
+  }
+
+  function renderWorklistWindowNote(windowInfo) {
+    const total = Number(windowInfo?.total || 0);
+    const shown = Number(windowInfo?.shown || 0);
+    if (!total) {
+      return "";
+    }
+    if (windowInfo?.truncated) {
+      return `<span>${total} geprüft, ${shown} wichtige Einträge angezeigt. Die Summen und Fehlerprüfung gelten für die komplette Ablage.</span>`;
+    }
+    return `<span>${total} geprüft, ${shown} angezeigt.</span>`;
+  }
+
+  function renderWorklistFilters(items, windowInfo) {
+    if (!items.length) {
+      return "";
+    }
+    const filters = [
+      { id: "all", label: "Alle", count: items.length },
+      { id: "issues", label: "Auffälligkeiten", count: items.filter(isWorklistIssue).length },
+      { id: "ready", label: "Bereit", count: items.filter((item) => item.readiness === "ready").length },
+      { id: "waiting", label: "Wartet", count: items.filter((item) => ["planned", "queued", "executing"].includes(item.status || "")).length },
+      { id: "done", label: "Erledigt", count: items.filter((item) => item.status === "executed").length },
+    ];
+    const visibleLabel = windowInfo?.truncated
+      ? `${Number(windowInfo.shown || items.length)} sichtbar von ${Number(windowInfo.total || items.length)}`
+      : `${items.length} sichtbar`;
+    return `
+      <div class="imageflow-worklist-filter" aria-label="Ablagefilter">
+        <div class="imageflow-worklist-filter-buttons">
+          ${filters.map((filter) => `
+            <button class="imageflow-filter-chip ${state.worklist.filter === filter.id ? "is-active" : ""}" data-action="filter-worklist" data-worklist-filter="${escapeAttr(filter.id)}" type="button">${escapeHtml(filter.label)} <span>${filter.count}</span></button>
+          `).join("")}
+        </div>
+        <span>${escapeHtml(visibleLabel)}</span>
+      </div>
+    `;
+  }
+
+  function filteredWorklistItems(items, filter) {
+    if (filter === "issues") {
+      return items.filter(isWorklistIssue);
+    }
+    if (filter === "ready") {
+      return items.filter((item) => item.readiness === "ready");
+    }
+    if (filter === "waiting") {
+      return items.filter((item) => ["planned", "queued", "executing"].includes(item.status || ""));
+    }
+    if (filter === "done") {
+      return items.filter((item) => item.status === "executed");
+    }
+    return items;
+  }
+
+  function isWorklistIssue(item) {
+    return item.readiness === "warning" || item.readiness === "error" || ["blocked", "failed"].includes(item.status || "");
+  }
+
+  function worklistEmptyLabel(filter, totalItems) {
+    if (!totalItems) {
+      return "Noch keine Entscheidungen für die Ablage vorhanden.";
+    }
+    return "Keine Einträge in diesem Filter.";
   }
 
   function renderWorklistItem(item) {
@@ -1804,6 +1884,9 @@
     } else if (action === "toggle-worklist-auto") {
       state.worklist.autoProcess = Boolean(event.currentTarget.checked);
       render();
+    } else if (action === "filter-worklist") {
+      state.worklist.filter = event.currentTarget.dataset.worklistFilter || "all";
+      render();
     } else if (action === "confirm-queue-job" && jobId) {
       await confirmQueueJob(jobId);
     } else if (action === "process-job-now" && jobId) {
@@ -2067,6 +2150,7 @@
       preview: null,
       error: null,
       autoProcess: Boolean((state.jobs.find((job) => job.id === jobId)?.options || {}).autoProcess),
+      filter: "all",
     };
     render();
     await loadWorklistPreview(jobId);
@@ -2108,6 +2192,7 @@
       preview: null,
       error: null,
       autoProcess: false,
+      filter: "all",
     };
     render();
   }
@@ -2240,6 +2325,11 @@
       summary.warnings = Math.max(0, Number(summary.warnings || 0) - 1);
     } else {
       summary.errors = Math.max(0, Number(summary.errors || 0) - 1);
+    }
+    if (preview.window) {
+      preview.window.total = Math.max(0, Number(preview.window.total || 0) - 1);
+      preview.window.shown = Math.max(0, Number(preview.window.shown || 0) - 1);
+      preview.window.truncated = Number(preview.window.total || 0) > Number(preview.window.shown || 0);
     }
     preview.canQueue = Number(summary.planned || 0) > 0 && Number(summary.errors || 0) === 0;
   }

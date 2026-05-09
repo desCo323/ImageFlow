@@ -133,11 +133,30 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Entscheidungen', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('3 geprüft, 3 angezeigt.')).toBeVisible();
   await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
   await expect(dialog.getByText('Manuell')).toBeVisible();
+  await dialog.getByRole('button', { name: /Auffälligkeiten 1/ }).click();
+  await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(1);
+  await expect(dialog.locator('.imageflow-worklist-row')).toContainText('IMG_4022');
+  await dialog.getByRole('button', { name: /Bereit 2/ }).click();
+  await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(2);
+  await dialog.getByRole('button', { name: /Alle 3/ }).click();
   await dialog.getByLabel('Automatisch ablegen, wenn der Server ruhig ist').check();
   await dialog.getByRole('button', { name: 'Für später merken' }).click();
   await expect(page.getByText('Ablage wurde für später gemerkt')).toBeVisible();
+});
+
+test('summarizes a large worklist while showing a compact list', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-worklist-total="1200"');
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('1200 geprüft, 3 wichtige Einträge angezeigt. Die Summen und Fehlerprüfung gelten für die komplette Ablage.')).toBeVisible();
+  await expect(dialog.getByText('3 sichtbar von 1200')).toBeVisible();
+  await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(3);
 });
 
 test('shows the quiet-server gate when background processing is waiting', async ({ page }) => {

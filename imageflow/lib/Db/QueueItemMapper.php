@@ -20,14 +20,15 @@ class QueueItemMapper extends QBMapper {
 	/**
 	 * @return QueueItem[]
 	 */
-	public function findForJob(string $userId, int $jobId, int $limit = 100): array {
+	public function findForJob(string $userId, int $jobId, int $limit = 100, int $offset = 0): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->tableName)
 			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
 			->orderBy('created_at', 'DESC')
-			->setMaxResults(max(1, min(250, $limit)));
+			->setFirstResult(max(0, $offset))
+			->setMaxResults(max(1, min(500, $limit)));
 
 		return $this->findEntities($qb);
 	}

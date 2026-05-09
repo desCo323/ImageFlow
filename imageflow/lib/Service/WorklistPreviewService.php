@@ -16,6 +16,8 @@ use OCP\IConfig;
 use OCP\IDBConnection;
 
 class WorklistPreviewService {
+	private const VALIDATION_BATCH_SIZE = 250;
+
 	public function __construct(
 		private readonly SortJobMapper $jobMapper,
 		private readonly QueueItemMapper $queueMapper,
@@ -34,9 +36,10 @@ class WorklistPreviewService {
 	public function preview(string $userId, int $jobId, int $limit = 250): array {
 		$job = $this->jobMapper->findForUserById($userId, $jobId);
 		$options = $this->decodeOptions($job->getOptionsJson());
-		$items = $this->queueMapper->findForJob($userId, $jobId, $limit);
 		$seenKeys = [];
-		$rows = [];
+		$issueRows = [];
+		$sampleRows = [];
+		$displayLimit = max(1, min(500, $limit));
 		$summary = [
 			'total' => 0,
 			'planned' => 0,
@@ -50,27 +53,29 @@ class WorklistPreviewService {
 			'errors' => 0,
 		];
 
-		foreach ($items as $item) {
-			$row = $this->previewItem($userId, $item, $seenKeys);
-			$rows[] = $row;
-			$summary['total']++;
-			$status = (string)$row['status'];
-			if (isset($summary[$status])) {
-				$summary[$status]++;
+		$offset = 0;
+		do {
+			$items = $this->queueMapper->findForJob($userId, $jobId, self::VALIDATION_BATCH_SIZE, $offset);
+			foreach ($items as $item) {
+				$row = $this->previewItem($userId, $item, $seenKeys);
+				if ($this->isPreviewIssue($row) && count($issueRows) < $displayLimit) {
+					$issueRows[] = $row;
+				} elseif (count($sampleRows) < $displayLimit) {
+					$sampleRows[] = $row;
+				}
+				$this->addToSummary($summary, $row);
 			}
-			if ($row['readiness'] === 'ready') {
-				$summary['ready']++;
-			} elseif ($row['readiness'] === 'warning') {
-				$summary['warnings']++;
-			} else {
-				$summary['errors']++;
-			}
-		}
+			$offset += count($items);
+		} while (count($items) === self::VALIDATION_BATCH_SIZE);
 
+		$rows = array_slice([...$issueRows, ...$sampleRows], 0, $displayLimit);
 		$canQueue = $summary['planned'] > 0 && $summary['errors'] === 0;
+		$truncated = $summary['total'] > count($rows);
 		$this->logService->debug('worklist_preview_created', $userId, [
 			'jobId' => $jobId,
 			'total' => $summary['total'],
+			'shown' => count($rows),
+			'truncated' => $truncated,
 			'errors' => $summary['errors'],
 			'warnings' => $summary['warnings'],
 			'canQueue' => $canQueue,
@@ -92,6 +97,13 @@ class WorklistPreviewService {
 			],
 			'summary' => $summary,
 			'items' => $rows,
+			'window' => [
+				'total' => $summary['total'],
+				'shown' => count($rows),
+				'limit' => $displayLimit,
+				'truncated' => $truncated,
+				'validationComplete' => true,
+			],
 			'canQueue' => $canQueue,
 			'executionMode' => $realExecutionEnabled ? 'real-writes-enabled' : 'dry-run-only',
 			'backgroundMode' => $backgroundMode,
@@ -111,6 +123,33 @@ class WorklistPreviewService {
 				? 'Echte Dateiänderungen sind serverseitig freigeschaltet. Jede Ablage wird trotzdem noch einmal auf Doppelungen, Zielkonflikte und Prüfsummen geprüft.'
 				: 'Dateiänderungen sind gesperrt. Du kannst die Ablage prüfen und für später merken, ohne Dateien zu verändern.',
 		];
+	}
+
+	/**
+	 * @param array<string, int> $summary
+	 * @param array<string, mixed> $row
+	 */
+	private function addToSummary(array &$summary, array $row): void {
+		$summary['total']++;
+		$status = (string)$row['status'];
+		if (isset($summary[$status])) {
+			$summary[$status]++;
+		}
+		if ($row['readiness'] === 'ready') {
+			$summary['ready']++;
+		} elseif ($row['readiness'] === 'warning') {
+			$summary['warnings']++;
+		} else {
+			$summary['errors']++;
+		}
+	}
+
+	/**
+	 * @param array<string, mixed> $row
+	 */
+	private function isPreviewIssue(array $row): bool {
+		return in_array((string)($row['readiness'] ?? ''), ['warning', 'error'], true)
+			|| in_array((string)($row['status'] ?? ''), ['blocked', 'failed'], true);
 	}
 
 	/**

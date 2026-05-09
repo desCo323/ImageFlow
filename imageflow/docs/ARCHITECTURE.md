@@ -60,6 +60,7 @@ The sorting workspace now uses the high-speed filmstrip and worklist execution m
 - Large folders are read through filecache-backed offset cursor pages. The browser only receives the current page plus preview URLs, not the entire folder.
 - A job can resume at its last saved cursor/index, restart from the beginning, or jump to the first image without a recorded sort/skip decision.
 - A planned decision can be undone or removed from the worklist until the linked queue item starts executing.
+- Worklist previews validate all queue rows in bounded batches, but return only a compact display window to the browser. The summary and `canQueue` decision therefore account for hidden rows as well as visible rows.
 - Animations should use `transform` and `opacity` only, respect `prefers-reduced-motion`, and avoid layout shifts during rapid key navigation.
 - Queue creation must be idempotent. Album and copy operations need a stable operation key and a pre-execution duplicate check so repeated processing runs do not create duplicate album memberships or duplicate copied files.
 - The dashboard remains the execution gate: users can process the current worklist now, leave it queued for later, or allow a cron-controlled low-load execution window.

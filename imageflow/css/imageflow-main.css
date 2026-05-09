@@ -145,6 +145,7 @@
 .imageflow-button:focus-visible,
 .imageflow-icon-button:focus-visible,
 .imageflow-tab:focus-visible,
+.imageflow-filter-chip:focus-visible,
 .imageflow-favorite:focus-visible,
 .imageflow-target:focus-visible,
 .imageflow-mini-button:focus-visible,
@@ -1133,6 +1134,50 @@
   overflow-wrap: anywhere;
 }
 
+.imageflow-worklist-filter {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.imageflow-worklist-filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.imageflow-filter-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-main-text);
+  background: var(--color-main-background);
+  font-weight: 800;
+}
+
+.imageflow-filter-chip span {
+  color: var(--color-text-maxcontrast);
+}
+
+.imageflow-filter-chip.is-active {
+  border-color: #2f7d72;
+  background: color-mix(in srgb, var(--color-main-background) 86%, #b7eadf);
+}
+
+.imageflow-worklist-filter > span {
+  flex: 0 0 auto;
+  color: var(--color-text-maxcontrast);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .imageflow-worklist-table {
   display: grid;
   gap: 8px;
@@ -1270,6 +1315,7 @@
 
   .imageflow-panel-head,
   .imageflow-actions,
+  .imageflow-worklist-filter,
   .imageflow-toolbar {
     align-items: stretch;
     flex-direction: column;
