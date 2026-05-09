@@ -92,3 +92,6 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 29. Stable sorting workspace with visible filmstrip footer
    ![Stable sorting workspace with visible filmstrip footer](screenshots/29-flow-stable-filmstrip.png)
+
+30. Live narrow Nextcloud layout with visible create button and filmstrip
+   ![Live narrow Nextcloud layout with visible create button and filmstrip](screenshots/30-live-narrow-flow-layout.png)
