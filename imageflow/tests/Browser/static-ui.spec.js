@@ -234,9 +234,14 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.getByRole('button', { name: 'Neu anfangen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Offene Bilder' })).toBeVisible();
 
+  const photoBox = await page.locator('.imageflow-photo-stage').boundingBox();
   const footerBox = await page.locator('.imageflow-filmstrip').boundingBox();
+  expect(photoBox).not.toBeNull();
+  expect(photoBox.height).toBeGreaterThan(300);
   expect(footerBox).not.toBeNull();
+  expect(footerBox.height).toBeLessThan(120);
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(900);
+  expect(await page.locator('.imageflow-thumb strong').first().boundingBox()).toBeNull();
 });
 
 test('moves through the filmstrip with arrow keys and thumbnail selection', async ({ page }) => {
@@ -244,7 +249,7 @@ test('moves through the filmstrip with arrow keys and thumbnail selection', asyn
 
   await page.keyboard.press('ArrowRight');
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
-  await expect(page.locator('.imageflow-thumb.is-active')).toContainText('IMG_4022.jpg');
+  await expect(page.locator('.imageflow-thumb.is-active')).toHaveAttribute('aria-label', 'IMG_4022.jpg');
 
   await page.getByRole('option', { name: /IMG_4023/ }).click();
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4023.jpg');
@@ -272,8 +277,9 @@ test('keeps flow controls visible inside a narrow Nextcloud content area', async
   expect(createBox).not.toBeNull();
   expect(createBox.y).toBeLessThan(260);
   expect(photoBox).not.toBeNull();
-  expect(photoBox.height).toBeGreaterThan(120);
+  expect(photoBox.height).toBeGreaterThan(190);
   expect(footerBox).not.toBeNull();
+  expect(footerBox.height).toBeLessThan(120);
   expect(footerBox.y).toBeLessThan(720);
 });
 
@@ -296,6 +302,7 @@ test('uses mobile space with the photo before target lists', async ({ page }) =>
   expect(photoBox.y).toBeLessThan(targetsBox.y);
   expect(targetsBox.y).toBeLessThan(railBox.y);
   expect(footerBox).not.toBeNull();
+  expect(footerBox.height).toBeLessThan(110);
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(844);
 });
 

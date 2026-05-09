@@ -1565,7 +1565,7 @@
     const buffered = bufferPlan.includes(index);
     const preview = image?.thumbnailUrl || imageUrl(image);
     return `
-      <button class="imageflow-thumb ${active ? "is-active" : ""} ${buffered ? "is-buffered" : ""}" data-action="select-image" data-index="${index}" role="option" aria-selected="${active ? "true" : "false"}" type="button">
+      <button class="imageflow-thumb ${active ? "is-active" : ""} ${buffered ? "is-buffered" : ""}" data-action="select-image" data-index="${index}" role="option" aria-label="${escapeAttr(image.name || "Bild")}" aria-selected="${active ? "true" : "false"}" type="button">
         ${preview ? `<img class="imageflow-thumb-img" src="${escapeAttr(preview)}" alt="" loading="lazy" decoding="async" draggable="false">` : ""}
         <strong>${escapeHtml(image.name || "Bild")}</strong>
         <span>${escapeHtml(image.mimeType || "")}</span>
