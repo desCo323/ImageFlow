@@ -2589,6 +2589,9 @@
     const data = state.adminSettings.data || {};
     const settings = data.settings || {};
     const gate = data.backgroundGate || state.health?.backgroundGate || {};
+    const settingsLoaded = Boolean(data.settings);
+    const controlsDisabled = state.adminSettings.loading || !settingsLoaded || state.adminSettings.saving;
+    const disabled = controlsDisabled ? "disabled" : "";
     return `
       <section class="imageflow-settings-page" aria-label="Betrieb">
         <form class="imageflow-panel accent-violet imageflow-settings-form" id="imageflow-settings-form">
@@ -2602,40 +2605,40 @@
               <button class="imageflow-button" data-action="export-diagnostics-all" type="button">Alle Logs laden</button>
               <button class="imageflow-button" data-action="export-diagnostics" type="button">Diagnose exportieren</button>
               <button class="imageflow-button" data-action="export-diagnostics-all-anonymized" type="button">Anonymisierte Logs laden</button>
-              <button class="imageflow-button primary" type="submit" ${state.adminSettings.saving ? "disabled" : ""}>Speichern</button>
+              <button class="imageflow-button primary" type="submit" ${disabled}>Speichern</button>
             </div>
           </div>
           ${state.adminSettings.loading ? '<div class="imageflow-empty">Betriebseinstellungen werden geladen.</div>' : ""}
           ${state.adminSettings.error ? `<div class="imageflow-empty">${escapeHtml(state.adminSettings.error)}</div>` : ""}
           <div class="imageflow-settings-grid">
             <label class="imageflow-toggle imageflow-settings-danger">
-              <input name="realExecutionEnabled" type="checkbox" ${settings.realExecutionEnabled ? "checked" : ""}>
+              <input name="realExecutionEnabled" type="checkbox" ${settings.realExecutionEnabled ? "checked" : ""} ${disabled}>
               Echte Dateiänderungen erlauben
             </label>
             <label class="imageflow-toggle">
-              <input name="backgroundProcessingEnabled" type="checkbox" ${settings.backgroundProcessingEnabled ? "checked" : ""}>
+              <input name="backgroundProcessingEnabled" type="checkbox" ${settings.backgroundProcessingEnabled ? "checked" : ""} ${disabled}>
               Automatisch im Hintergrund ablegen
             </label>
             <label class="imageflow-toggle">
-              <input name="backgroundLowLoadOnly" type="checkbox" ${settings.backgroundLowLoadOnly !== false ? "checked" : ""}>
+              <input name="backgroundLowLoadOnly" type="checkbox" ${settings.backgroundLowLoadOnly !== false ? "checked" : ""} ${disabled}>
               Nur bei ruhigem Server laufen lassen
             </label>
             <div class="imageflow-field">
               <label for="ifl-max-load">Maximale Serverauslastung (%)</label>
-              <input id="ifl-max-load" name="backgroundMaxLoadPercent" type="number" min="1" max="100" step="1" value="${escapeAttr(settings.backgroundMaxLoadPercent ?? gate.maxLoadPercent ?? 70)}">
+              <input id="ifl-max-load" name="backgroundMaxLoadPercent" type="number" min="1" max="100" step="1" value="${escapeAttr(settings.backgroundMaxLoadPercent ?? gate.maxLoadPercent ?? 70)}" ${disabled}>
             </div>
             <label class="imageflow-toggle">
-              <input name="quietHoursEnabled" type="checkbox" ${settings.quietHoursEnabled ? "checked" : ""}>
+              <input name="quietHoursEnabled" type="checkbox" ${settings.quietHoursEnabled ? "checked" : ""} ${disabled}>
               Nur im Zeitfenster laufen
             </label>
             <div class="imageflow-settings-times">
               <div class="imageflow-field">
                 <label for="ifl-quiet-start">Start</label>
-                <input id="ifl-quiet-start" name="quietHoursStart" type="time" value="${escapeAttr(settings.quietHoursStart || "22:00")}">
+                <input id="ifl-quiet-start" name="quietHoursStart" type="time" value="${escapeAttr(settings.quietHoursStart || "22:00")}" ${disabled}>
               </div>
               <div class="imageflow-field">
                 <label for="ifl-quiet-end">Ende</label>
-                <input id="ifl-quiet-end" name="quietHoursEnd" type="time" value="${escapeAttr(settings.quietHoursEnd || "06:00")}">
+                <input id="ifl-quiet-end" name="quietHoursEnd" type="time" value="${escapeAttr(settings.quietHoursEnd || "06:00")}" ${disabled}>
               </div>
             </div>
           </div>
