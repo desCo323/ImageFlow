@@ -208,6 +208,7 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await expect(dialog.getByText('3 geprüft, 3 angezeigt.')).toBeVisible();
   await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
   await expect(dialog.getByText('Manuell')).toBeVisible();
+  await expect(dialog.getByText(/Nächster Schritt: 3 Entscheidungen sicher für später vormerken/)).toBeVisible();
   await dialog.getByRole('button', { name: /Auffälligkeiten 1/ }).click();
   await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(1);
   await expect(dialog.locator('.imageflow-worklist-row')).toContainText('IMG_4022');
@@ -232,6 +233,22 @@ test('shows the manual execution button after a flow is released for filing', as
   await dialog.getByRole('button', { name: 'Schließen' }).click();
 
   await expect(row.getByRole('button', { name: 'Jetzt ausführen' })).toBeVisible();
+});
+
+test('explains release before manual execution when file writes are active', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-real-execution="1"');
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+
+  await expect(dialog.getByText(/Nächster Schritt: 3 Entscheidungen zur Ausführung freigeben/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Jetzt ausführen' })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Zur Ausführung freigeben' }).click();
+
+  await expect(page.getByText('Ablage ist freigegeben. Du kannst sie jetzt manuell ausführen.')).toBeVisible();
+  await expect(dialog.getByText('3 Ablagen sind ausführbar.')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Jetzt ausführen' })).toBeEnabled();
 });
 
 test('summarizes a large worklist while showing a compact list', async ({ page }) => {

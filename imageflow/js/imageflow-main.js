@@ -1282,8 +1282,8 @@
           <div class="imageflow-status-grid">
             <div class="imageflow-stat"><strong>${totals.jobs}</strong><span>Flows</span></div>
             <div class="imageflow-stat"><strong>${totals.sorted}</strong><span>Entschieden</span></div>
-            <div class="imageflow-stat"><strong>${totals.planned}</strong><span>Vorgemerkt</span></div>
-            <div class="imageflow-stat"><strong>${totals.queued}</strong><span>Freigegeben</span></div>
+            <div class="imageflow-stat"><strong>${totals.planned}</strong><span>Wartet</span></div>
+            <div class="imageflow-stat"><strong>${totals.queued}</strong><span>Ausführbar</span></div>
             <div class="imageflow-stat"><strong>${totals.failed}</strong><span>Fehler</span></div>
           </div>
           ${renderJobTable()}
@@ -1455,7 +1455,7 @@
   }
 
   function jobQueueLabel(job) {
-    return job?.status === "queued" ? "freigegeben" : "vorgemerkt";
+    return job?.status === "queued" ? "ausführbar" : "wartet";
   }
 
   function renderJobRow(job) {
@@ -1794,13 +1794,14 @@
     const items = preview?.items || [];
     const filteredItems = filteredWorklistItems(items, state.worklist.filter);
     const windowInfo = preview?.window || { total: Number(summary.total || items.length), shown: items.length, truncated: false };
+    const plannedCount = Number(summary.planned || 0);
     const queuedCount = Number(summary.queued || 0) + Number(summary.executing || 0);
     const worklistHasErrors = Number(summary.errors || 0) > 0;
     const canSaveQueueSettings = queuedCount > 0 && !preview?.canQueue;
     const queueButtonEnabled = Boolean(preview?.canQueue || canSaveQueueSettings);
     const queueButtonLabel = canSaveQueueSettings
       ? "Einstellung merken"
-      : (preview?.executionMode === "real-writes-enabled" ? "Zur Ablage freigeben" : "Für später vormerken");
+      : (preview?.executionMode === "real-writes-enabled" ? "Zur Ausführung freigeben" : "Für später vormerken");
     return `
       <div class="imageflow-modal-backdrop" role="presentation">
         <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Ablage prüfen">
@@ -1819,8 +1820,8 @@
             <div class="imageflow-worklist-body">
             <div class="imageflow-status-grid">
               <div class="imageflow-stat"><strong>${Number(summary.total || 0)}</strong><span>Entscheidungen</span></div>
-              <div class="imageflow-stat"><strong>${Number(summary.planned || 0)}</strong><span>Vorgemerkt</span></div>
-              <div class="imageflow-stat"><strong>${queuedCount}</strong><span>Freigegeben</span></div>
+              <div class="imageflow-stat"><strong>${plannedCount}</strong><span>Wartet auf Freigabe</span></div>
+              <div class="imageflow-stat"><strong>${queuedCount}</strong><span>Ausführbar</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.warnings || 0)}</strong><span>Warnungen</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.errors || 0)}</strong><span>Fehler</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.executed || 0)}</strong><span>Erledigt</span></div>
@@ -1831,6 +1832,8 @@
               ${renderWorklistWindowNote(windowInfo)}
               ${renderBackgroundGateNote(preview)}
             </div>
+            ${renderWorklistNextStep(preview, plannedCount, queuedCount, worklistHasErrors)}
+            ${renderWorklistActions(preview, queueButtonEnabled, queueButtonLabel, queuedCount, worklistHasErrors)}
             ${renderWorklistFilters(items, windowInfo)}
             <label class="imageflow-toggle imageflow-worklist-toggle">
               <input id="ifl-worklist-auto" data-action="toggle-worklist-auto" type="checkbox" ${state.worklist.autoProcess ? "checked" : ""}>
@@ -1839,14 +1842,37 @@
             <div class="imageflow-worklist-table">
               ${filteredItems.map(renderWorklistItem).join("") || `<div class="imageflow-empty">${escapeHtml(worklistEmptyLabel(state.worklist.filter, items.length))}</div>`}
             </div>
-            <div class="imageflow-folder-actions">
-              <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Erneut prüfen</button>
-              <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${queueButtonEnabled ? "" : "disabled"}>${queueButtonLabel}</button>
-              <button class="imageflow-button" data-action="process-job-now" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.executionMode === "real-writes-enabled" && queuedCount > 0 && !worklistHasErrors ? "" : "disabled"}>Jetzt ausführen</button>
-            </div>
             </div>
           ` : ""}
         </section>
+      </div>
+    `;
+  }
+
+  function renderWorklistNextStep(preview, plannedCount, queuedCount, hasErrors) {
+    let message = "Keine Aktion nötig.";
+    if (hasErrors) {
+      message = "Erst die Fehler beheben. Danach kann die Ablage freigegeben werden.";
+    } else if (plannedCount > 0 && preview?.executionMode === "real-writes-enabled") {
+      message = `Nächster Schritt: ${plannedCount} Entscheidungen zur Ausführung freigeben. Danach kannst du manuell starten oder die Automatik arbeiten lassen.`;
+    } else if (plannedCount > 0) {
+      message = `Nächster Schritt: ${plannedCount} Entscheidungen sicher für später vormerken. Dateien werden dabei nicht verändert.`;
+    } else if (queuedCount > 0 && preview?.executionMode === "real-writes-enabled") {
+      message = `${queuedCount} Ablagen sind ausführbar. Du kannst jetzt manuell starten oder die Automatik laufen lassen.`;
+    } else if (queuedCount > 0) {
+      message = `${queuedCount} Ablagen warten. Echte Dateiänderungen sind noch serverseitig gesperrt.`;
+    }
+
+    return `<div class="imageflow-worklist-next-step">${escapeHtml(message)}</div>`;
+  }
+
+  function renderWorklistActions(preview, queueButtonEnabled, queueButtonLabel, queuedCount, hasErrors) {
+    const processEnabled = preview?.executionMode === "real-writes-enabled" && queuedCount > 0 && !hasErrors;
+    return `
+      <div class="imageflow-worklist-actions" aria-label="Ablage Aktionen">
+        <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Erneut prüfen</button>
+        <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${queueButtonEnabled ? "" : "disabled"}>${queueButtonLabel}</button>
+        <button class="imageflow-button" data-action="process-job-now" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${processEnabled ? "" : "disabled"}>Jetzt ausführen</button>
       </div>
     `;
   }
