@@ -16,6 +16,7 @@
   const imageBuffer = new Map();
   const imagePageCache = new Map();
   const imagePagePrefetches = new Map();
+  let imagePageCacheGeneration = 0;
   let positionSaveTimer = null;
   let feedbackTimer = null;
   let imagePageLoadPromise = null;
@@ -1464,6 +1465,7 @@
     const hasDecisions = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) + Number(job.queuedOperations || 0) > 0;
     const primaryStartLabel = hasDecisions ? "Weitermachen" : "Sortieren";
     const queueLabel = jobQueueLabel(job);
+    const canProcessNow = job.status === "queued" && Number(job.queuedOperations || 0) > 0;
     return `
       <tr>
         <td>
@@ -1486,6 +1488,7 @@
             <button class="imageflow-button" data-action="duplicate-job" data-job-id="${job.id}" type="button">Duplizieren</button>
             <button class="imageflow-button" data-action="${paused ? "resume-job" : "pause-job"}" data-job-id="${job.id}" type="button">${paused ? "Fortsetzen" : "Pausieren"}</button>
             <button class="imageflow-button primary" data-action="queue-job" data-job-id="${job.id}" type="button">Ablage prüfen</button>
+            ${canProcessNow ? `<button class="imageflow-button" data-action="process-job-now-direct" data-job-id="${job.id}" type="button">Jetzt ausführen</button>` : ""}
             ${debugUi ? `<button class="imageflow-button" data-action="show-job-log" data-job-id="${job.id}" type="button">Ereignisse</button>` : ""}
             <button class="imageflow-button danger" data-action="discard-job" data-job-id="${job.id}" type="button">Flow verwerfen</button>
           </div>
@@ -2298,6 +2301,8 @@
       await confirmQueueJob(jobId);
     } else if (action === "process-job-now" && jobId) {
       await processJobNow(jobId);
+    } else if (action === "process-job-now-direct" && jobId) {
+      await processJobNowFromDashboard(jobId);
     } else if (action === "remove-worklist-item" && jobId) {
       await removeWorklistItem(jobId, numberOrNull(event.currentTarget.dataset.queueItemId));
     } else if (action === "select-image") {
@@ -2848,6 +2853,20 @@
     }
   }
 
+  async function processJobNowFromDashboard(jobId) {
+    try {
+      state.toast = { type: "info", message: "Ablage wird gestartet." };
+      render();
+      const payload = await request(`/api/v1/jobs/${jobId}/process-now`, { method: "POST", body: { limit: 25 } });
+      state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
+      state.toast = { type: "info", message: payload.result?.message || "Ablage wurde abgelegt." };
+      render();
+    } catch (error) {
+      state.toast = { type: "error", message: error.message || "Ablage konnte nicht gestartet werden." };
+      render();
+    }
+  }
+
   async function removeWorklistItem(jobId, queueItemId) {
     if (!jobId || !queueItemId) {
       return;
@@ -3006,6 +3025,7 @@
         message: payload.duplicate ? `Schon vorgemerkt: ${target.label}` : `Entschieden: ${target.label}`,
       };
       completeCurrentDecision(payload.duplicate ? "duplicate" : "assign", target.label);
+      await refillImagesAfterDecision();
       render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Entscheidung konnte nicht gespeichert werden." };
@@ -3170,7 +3190,7 @@
 
   async function skipCurrent(current) {
     try {
-      await request(`/api/v1/jobs/${state.jobId}/skip`, {
+      const payload = await request(`/api/v1/jobs/${state.jobId}/skip`, {
         method: "POST",
         body: {
           sourcePath: current?.path || "",
@@ -3180,8 +3200,9 @@
           mimeType: current?.mimeType || "",
         },
       });
-      state.toast = { type: "info", message: "Weiter zum nächsten Bild." };
-      completeCurrentDecision("skip", "nächstes Bild");
+      state.toast = { type: "info", message: payload.duplicate ? "Schon entschieden." : "Weiter zum nächsten Bild." };
+      completeCurrentDecision(payload.duplicate ? "duplicate" : "skip", "nächstes Bild");
+      await refillImagesAfterDecision();
       render();
     } catch (error) {
       state.toast = { type: "error", message: error.message || "Bild konnte nicht übersprungen werden." };
@@ -3304,8 +3325,28 @@
     if (sortState.job.status === "draft") {
       sortState.job.status = "sorting";
     }
+    clearImagePageCache();
     registerDecisionFeedback(type, label);
     persistPositionSoon();
+  }
+
+  async function refillImagesAfterDecision() {
+    if (!state.sortState) {
+      return;
+    }
+
+    if (sortImages(state.sortState).length > 0) {
+      prefetchAdjacentImagePages();
+      return;
+    }
+
+    const page = pageInfo(state.sortState);
+    if (page.hasNext && page.nextCursor !== null && page.nextCursor !== undefined) {
+      await loadImagePage(page.nextCursor, 0, false, null);
+    }
+    if (sortImages(state.sortState).length === 0 && Number(page.cursor || 0) > 0) {
+      await loadImagePage(0, 0, false, "unsorted");
+    }
     prefetchAdjacentImagePages();
   }
 
@@ -3556,14 +3597,20 @@
     }
 
     const params = new URLSearchParams({ limit: String(PAGE_LIMIT), cursor: String(numericCursor) });
+    const generation = imagePageCacheGeneration;
     const promise = request(`/api/v1/jobs/${state.jobId}/sort-state?${params.toString()}`)
       .then((payload) => {
+        if (generation !== imagePageCacheGeneration) {
+          return;
+        }
         rememberImagePage(payload);
         preloadFirstPageImages(payload);
       })
       .catch(() => {})
       .finally(() => {
-        imagePagePrefetches.delete(key);
+        if (generation === imagePageCacheGeneration) {
+          imagePagePrefetches.delete(key);
+        }
         root.dataset.pageCacheSize = String(imagePageCache.size);
         root.dataset.pagePrefetchPending = String(imagePagePrefetches.size);
       });
@@ -3593,6 +3640,7 @@
   }
 
   function clearImagePageCache() {
+    imagePageCacheGeneration += 1;
     imagePageCache.clear();
     imagePagePrefetches.clear();
     root.dataset.pageCacheSize = "0";
@@ -3673,13 +3721,18 @@
 
   function summarizeJobs(jobs) {
     return jobs.reduce(
-      (summary, job) => ({
-        jobs: summary.jobs + 1,
-        sorted: summary.sorted + Number(job.sortedFiles || 0),
-        queued: summary.queued + Number(job.queuedOperations || 0),
-        failed: summary.failed + Number(job.failedOperations || 0),
-      }),
-      { jobs: 0, sorted: 0, queued: 0, failed: 0 },
+      (summary, job) => {
+        const queuedOperations = Number(job.queuedOperations || 0);
+        const released = job.status === "queued" ? queuedOperations : 0;
+        return {
+          jobs: summary.jobs + 1,
+          sorted: summary.sorted + Number(job.sortedFiles || 0),
+          planned: summary.planned + Math.max(0, queuedOperations - released),
+          queued: summary.queued + released,
+          failed: summary.failed + Number(job.failedOperations || 0),
+        };
+      },
+      { jobs: 0, sorted: 0, planned: 0, queued: 0, failed: 0 },
     );
   }
 

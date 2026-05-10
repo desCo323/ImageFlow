@@ -219,6 +219,21 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await expect(page.getByText('Ablage wurde für später vorgemerkt')).toBeVisible();
 });
 
+test('shows the manual execution button after a flow is released for filing', async ({ page }) => {
+  await mount(page);
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await expect(row.getByRole('button', { name: 'Jetzt ausführen' })).toHaveCount(0);
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+  await dialog.getByRole('button', { name: 'Für später vormerken' }).click();
+  await expect(page.getByText('Ablage wurde für später vorgemerkt')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Schließen' }).click();
+
+  await expect(row.getByRole('button', { name: 'Jetzt ausführen' })).toBeVisible();
+});
+
 test('summarizes a large worklist while showing a compact list', async ({ page }) => {
   await mount(page, 'data-page="jobs" data-mock-worklist-total="1200"');
 
@@ -395,6 +410,18 @@ test('shows flow feedback after a sorting decision', async ({ page }) => {
   await expect(page.locator('.imageflow-feedback-burst')).toContainText('1er Serie');
   await expect(page.locator('.imageflow-flow-chip.accent-warm strong')).toHaveText('1');
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
+});
+
+test('loads the next open image page after a decided page is exhausted', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1" data-mock-image-count="50"');
+
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_0001.jpg');
+  for (let index = 0; index < 48; index += 1) {
+    await page.locator('.imageflow-favorite', { hasText: 'Familie' }).click();
+  }
+
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_0049.jpg');
+  await expect(page.locator('.imageflow-thumb')).toHaveCount(2);
 });
 
 test('creates a target from the sorting rail and can undo the last decision', async ({ page }) => {

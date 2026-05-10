@@ -179,6 +179,29 @@ class QueueItemMapper extends QBMapper {
 		}
 	}
 
+	/**
+	 * @param string[] $statuses
+	 * @return QueueItem[]
+	 */
+	public function findForSourceByStatuses(string $userId, int $jobId, string $sourcePath, array $statuses): array {
+		$statuses = array_values(array_unique(array_filter($statuses, static fn ($status): bool => is_string($status) && $status !== '')));
+		if ($statuses === []) {
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('source_path', $qb->createNamedParameter($sourcePath)))
+			->andWhere($qb->expr()->in('status', $qb->createNamedParameter($statuses, IQueryBuilder::PARAM_STR_ARRAY)))
+			->orderBy('created_at', 'DESC')
+			->addOrderBy('id', 'DESC');
+
+		return $this->findEntities($qb);
+	}
+
 	public function markPlannedQueuedForJob(string $userId, int $jobId): int {
 		$qb = $this->db->getQueryBuilder();
 		$qb->update($this->tableName)

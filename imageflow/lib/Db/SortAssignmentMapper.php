@@ -71,6 +71,24 @@ class SortAssignmentMapper extends QBMapper {
 		return $this->findEntity($qb);
 	}
 
+	public function findLatestForSource(string $userId, int $jobId, string $sourcePath): ?SortAssignment {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where($qb->expr()->eq('job_id', $qb->createNamedParameter($jobId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('source_path', $qb->createNamedParameter($sourcePath)))
+			->orderBy('created_at', 'DESC')
+			->addOrderBy('id', 'DESC')
+			->setMaxResults(1);
+
+		try {
+			return $this->findEntity($qb);
+		} catch (DoesNotExistException) {
+			return null;
+		}
+	}
+
 	/**
 	 * @param string[] $sourcePaths
 	 * @return string[]
