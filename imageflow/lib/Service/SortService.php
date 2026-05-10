@@ -549,9 +549,12 @@ class SortService {
 			'mode' => 'unavailable',
 			'recursive' => $recursive,
 		];
-		$page['cursor'] = (int)($firstPage['cursor'] ?? $cursor);
+		$firstCursor = (int)($firstPage['cursor'] ?? $cursor);
+		$page['cursor'] = $firstCursor;
 		$page['limit'] = $limit;
 		$page['returned'] = count($images);
+		$page['hasPrevious'] = $firstCursor > 0;
+		$page['previousCursor'] = $firstCursor > 0 ? max(0, $firstCursor - $limit) : null;
 		$page['rawReturned'] = $rawReturned;
 		$page['filteredAssigned'] = $filteredAssigned;
 		$page['pagesScanned'] = $pagesScanned;
