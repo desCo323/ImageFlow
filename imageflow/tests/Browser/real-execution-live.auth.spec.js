@@ -168,8 +168,10 @@ async function api(page, path, options = {}) {
 }
 
 async function enableRealWritesThroughUi(page) {
-  await page.getByRole('button', { name: 'Betrieb' }).click();
-  await expect(page.getByRole('heading', { name: 'Betrieb' })).toBeVisible();
+  const appUrl = page.url();
+  const root = new URL(appUrl).origin;
+  await page.goto(`${root}/settings/admin/imageflow`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Globale Betriebseinstellungen' })).toBeVisible({ timeout: 15000 });
   await page.getByLabel('Echte Dateiänderungen erlauben').check();
   await page.getByLabel('Automatisch im Hintergrund ablegen').uncheck();
   await page.getByLabel('Nur bei ruhigem Server laufen lassen').uncheck();
@@ -183,6 +185,8 @@ async function enableRealWritesThroughUi(page) {
     backgroundMaxLoad1m: 128,
     quietHoursEnabled: false,
   });
+  await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible({ timeout: 15000 });
 }
 
 async function expectOperationSettings(page, expected) {
@@ -246,7 +250,7 @@ async function processFromDashboard(page, jobName) {
   const processButton = dialog.locator('[data-action="process-job-now"]');
   await expect(queueButton).toBeEnabled({ timeout: 15000 });
   await queueButton.click();
-  await expect(page.getByText(/Ablage wartet|Ablage darf|Ablage wurde/)).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Ablage wartet|Ablage darf|Ablage wurde|Ablage ist freigegeben/)).toBeVisible({ timeout: 15000 });
   await expect(processButton).toBeEnabled({ timeout: 15000 });
   await processButton.click();
   await expect(page.getByText(/Die vorgemerkte Ablage wurde abgelegt|Keine wartenden Bilder/)).toBeVisible({ timeout: 20000 });

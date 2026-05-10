@@ -18,7 +18,11 @@ Use `docs/DEPLOYMENT_RUNBOOK.md` and `scripts/production-update.sh` for controll
 
 ## Operation Settings
 
-Administrators can open the `Betrieb` tab inside ImageFlow. It controls:
+Administrators configure ImageFlow under the regular Nextcloud administration area:
+
+`Administration settings` -> `ImageFlow`
+
+These settings are global app settings, not per-user preferences. They are stored in Nextcloud app config and affect all ImageFlow users. The page controls:
 
 - `Echte Dateiänderungen erlauben`
 - `Automatisch im Hintergrund ablegen`

@@ -511,19 +511,22 @@ test('renders the debug protocol view', async ({ page }) => {
 });
 
 test('opens admin operation settings and exports diagnostics', async ({ page }) => {
-  await mount(page, 'data-page="jobs" data-mock-user="albentest"');
+  await mount(page, 'data-page="settings" data-admin-settings="1" data-mock-user="albentest"');
 
-  await page.getByRole('button', { name: 'Betrieb' }).click();
-  await expect(page.getByRole('heading', { name: 'Betrieb' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ImageFlow Betrieb' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Globale Betriebseinstellungen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Übersicht' })).toHaveCount(0);
   await page.getByLabel('Echte Dateiänderungen erlauben').check();
   await page.getByLabel('Automatisch im Hintergrund ablegen').check();
   await page.getByLabel('Maximale Serverlast').fill('4.5');
   await page.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByText('Betriebseinstellungen wurden gespeichert.')).toBeVisible();
-  await page.getByRole('button', { name: 'Übersicht' }).click();
-  await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen aktiv');
-  await page.getByRole('button', { name: 'Betrieb' }).click();
 
+  await mount(page, 'data-page="jobs" data-mock-user="albentest" data-mock-real-execution="1" data-mock-background-mode="cron-ready"');
+  await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen aktiv');
+  await expect(page.getByRole('button', { name: 'Betrieb' })).toHaveCount(0);
+
+  await mount(page, 'data-page="settings" data-admin-settings="1" data-mock-user="albentest" data-mock-real-execution="1"');
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Diagnose exportieren' }).click();
   const download = await downloadPromise;

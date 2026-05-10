@@ -28,7 +28,7 @@ sudo -u www-data php /var/www/nextcloud/occ config:app:get imageflow background_
 
 Expected output for both commands is `0`.
 
-Administrators can also open `Betrieb` in ImageFlow. The page must show the real-write and background switches, current background-gate status and the diagnosis export button.
+Administrators can also open `Administration settings` -> `ImageFlow`. The page must show the real-write and background switches, current background-gate status and the diagnosis export button.
 
 ## Manual Round Check
 

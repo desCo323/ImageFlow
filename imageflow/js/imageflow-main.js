@@ -1156,19 +1156,19 @@
 
   function renderTopbar() {
     const debugUi = debugUiEnabled();
+    const adminSettingsPage = root.dataset.adminSettings === "1";
     return `
       <header class="imageflow-topbar">
         <span class="imageflow-mark" aria-hidden="true"><span></span></span>
         <div class="imageflow-title">
-          <h2>ImageFlow</h2>
-          <p>Viele Bilder schnell durchsehen, entscheiden und sicher ablegen.</p>
+          <h2>${adminSettingsPage ? "ImageFlow Betrieb" : "ImageFlow"}</h2>
+          <p>${adminSettingsPage ? "Globale Servereinstellungen für Ablage, Automatik und Prüflast." : "Viele Bilder schnell durchsehen, entscheiden und sicher ablegen."}</p>
         </div>
-        <nav class="imageflow-tabs" aria-label="ImageFlow">
+        ${adminSettingsPage ? "" : `<nav class="imageflow-tabs" aria-label="ImageFlow">
           <button class="imageflow-tab ${state.page === "jobs" ? "is-active" : ""}" data-action="go-jobs" type="button">Übersicht</button>
           <button class="imageflow-tab ${state.page === "sort" ? "is-active" : ""}" data-action="go-sort" type="button" ${state.jobId ? "" : "disabled"}>Sortieren</button>
-          ${isAdminUser() ? `<button class="imageflow-tab ${state.page === "settings" ? "is-active" : ""}" data-action="show-settings" type="button">Betrieb</button>` : ""}
           ${debugUi ? `<button class="imageflow-tab ${state.page === "logs" ? "is-active" : ""}" data-action="show-log" type="button">Protokoll</button>` : ""}
-        </nav>
+        </nav>`}
       </header>
     `;
   }
@@ -2022,8 +2022,8 @@
         <form class="imageflow-panel accent-violet imageflow-settings-form" id="imageflow-settings-form">
           <div class="imageflow-panel-head">
             <div>
-              <h3>Betrieb</h3>
-              <p>Schalte echte Ablagen nur fuer ein vorbereitetes Testfenster ein.</p>
+              <h3>Globale Betriebseinstellungen</h3>
+              <p>Diese Werte gelten serverweit für alle ImageFlow-Benutzer und werden in der Nextcloud-App-Konfiguration gespeichert.</p>
             </div>
             <div class="imageflow-actions">
               <button class="imageflow-button" data-action="refresh-settings" type="button">Neu laden</button>

@@ -30,6 +30,10 @@ The first implementation is intentionally conservative: sorting decisions are re
     <background-jobs>
         <job>OCA\ImageFlow\BackgroundJob\QueueExecutionJob</job>
     </background-jobs>
+    <settings>
+        <admin>OCA\ImageFlow\Settings\AdminSettings</admin>
+        <admin-section>OCA\ImageFlow\Settings\AdminSection</admin-section>
+    </settings>
     <navigations>
         <navigation>
             <id>imageflow</id>
