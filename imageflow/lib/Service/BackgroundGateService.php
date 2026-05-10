@@ -19,9 +19,12 @@ class BackgroundGateService {
 	public function status(?int $now = null): array {
 		$now ??= time();
 		$lowLoadOnly = $this->boolConfig('background_low_load_only', true);
-		$maxLoad = $this->floatConfig('background_max_load_1m', 2.0, 0.1, 128.0);
+		$cpuCount = $this->cpuCount();
+		$maxLoadPercent = $this->maxLoadPercent($cpuCount);
+		$maxLoad = round(($maxLoadPercent / 100.0) * $cpuCount, 2);
 		$currentLoad = $this->currentLoad();
-		$loadOk = !$lowLoadOnly || ($currentLoad !== null && $currentLoad <= $maxLoad);
+		$currentLoadPercent = $currentLoad === null ? null : round(($currentLoad / max(1, $cpuCount)) * 100.0, 1);
+		$loadOk = !$lowLoadOnly || ($currentLoadPercent !== null && $currentLoadPercent <= $maxLoadPercent);
 
 		$quietHoursEnabled = $this->boolConfig('background_quiet_hours_enabled', false);
 		$quietHoursStart = $this->timeConfig('background_quiet_hours_start', '22:00');
@@ -40,10 +43,13 @@ class BackgroundGateService {
 		return [
 			'canRun' => $canRun,
 			'reason' => $reason,
-			'message' => $this->message($reason, $currentLoad, $maxLoad, $quietHoursStart, $quietHoursEnd),
+			'message' => $this->message($reason, $currentLoad, $currentLoadPercent, $maxLoadPercent, $cpuCount, $quietHoursStart, $quietHoursEnd),
 			'lowLoadOnly' => $lowLoadOnly,
+			'cpuCount' => $cpuCount,
 			'currentLoad1m' => $currentLoad,
 			'maxLoad1m' => $maxLoad,
+			'currentLoadPercent' => $currentLoadPercent,
+			'maxLoadPercent' => $maxLoadPercent,
 			'loadOk' => $loadOk,
 			'quietHoursEnabled' => $quietHoursEnabled,
 			'quietHoursStart' => $quietHoursStart,
@@ -64,6 +70,24 @@ class BackgroundGateService {
 		return max($min, min($max, $float));
 	}
 
+	private function maxLoadPercent(int $cpuCount): float {
+		$explicit = $this->config->getAppValue(Application::APP_ID, 'background_max_load_percent', '');
+		if (is_numeric(str_replace(',', '.', $explicit))) {
+			return $this->floatConfig('background_max_load_percent', 70.0, 1.0, 100.0);
+		}
+
+		$legacy = str_replace(',', '.', $this->config->getAppValue(Application::APP_ID, 'background_max_load_1m', ''));
+		$legacyRawLoad = is_numeric($legacy) ? max(0.1, min(128.0, (float)$legacy)) : 0.0;
+		if ($legacyRawLoad > 0.0) {
+			if (abs($legacyRawLoad - 2.0) < 0.001) {
+				return 70.0;
+			}
+			return round(max(1.0, min(100.0, ($legacyRawLoad / max(1, $cpuCount)) * 100.0)), 1);
+		}
+
+		return 70.0;
+	}
+
 	private function timeConfig(string $key, string $default): string {
 		$value = $this->config->getAppValue(Application::APP_ID, $key, $default);
 		if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value) !== 1) {
@@ -80,6 +104,18 @@ class BackgroundGateService {
 		}
 
 		return round((float)$load[0], 2);
+	}
+
+	private function cpuCount(): int {
+		if (is_readable('/proc/cpuinfo')) {
+			$cpuInfo = (string)file_get_contents('/proc/cpuinfo');
+			preg_match_all('/^processor\s*:/m', $cpuInfo, $matches);
+			if (count($matches[0]) > 0) {
+				return count($matches[0]);
+			}
+		}
+
+		return 1;
 	}
 
 	private function isWithinWindow(string $current, string $start, string $end): bool {
@@ -101,12 +137,12 @@ class BackgroundGateService {
 		return ($hours * 60) + $minutes;
 	}
 
-	private function message(string $reason, ?float $currentLoad, float $maxLoad, string $start, string $end): string {
+	private function message(string $reason, ?float $currentLoad, ?float $currentLoadPercent, float $maxLoadPercent, int $cpuCount, string $start, string $end): string {
 		return match ($reason) {
-			'server_load_too_high' => sprintf('Automatik wartet: Serverlast %.2f liegt über %.2f.', $currentLoad ?? 0.0, $maxLoad),
-			'load_unavailable' => 'Automatik wartet: Serverlast konnte nicht gelesen werden.',
+			'server_load_too_high' => sprintf('Automatik wartet: Serverauslastung %.1f%% liegt über %.1f%%. Linux-Load %.2f bei %d CPU-Kernen.', $currentLoadPercent ?? 0.0, $maxLoadPercent, $currentLoad ?? 0.0, $cpuCount),
+			'load_unavailable' => 'Automatik wartet: Serverauslastung konnte nicht gelesen werden.',
 			'outside_quiet_hours' => sprintf('Automatik wartet auf das Zeitfenster %s-%s.', $start, $end),
-			default => 'Automatik darf laufen, sobald wartende Ablagen vorhanden sind.',
+			default => sprintf('Automatik darf laufen: Serverauslastung %.1f%% liegt unter %.1f%%. Der nächste Nextcloud-Cronlauf verarbeitet freigegebene Ablagen.', $currentLoadPercent ?? 0.0, $maxLoadPercent),
 		};
 	}
 }

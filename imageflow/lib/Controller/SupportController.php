@@ -30,6 +30,7 @@ class SupportController extends Controller {
 
 	#[NoAdminRequired]
 	public function export(): JSONResponse {
+		$backgroundGate = $this->backgroundGateService->status();
 		$payload = [
 			'app' => Application::APP_ID,
 			'version' => Application::VERSION,
@@ -43,12 +44,13 @@ class SupportController extends Controller {
 				'realExecutionEnabled' => $this->config->getAppValue(Application::APP_ID, 'real_execution_enabled', '0') === '1',
 				'backgroundProcessingEnabled' => $this->config->getAppValue(Application::APP_ID, 'background_processing_enabled', '0') === '1',
 				'backgroundLowLoadOnly' => $this->config->getAppValue(Application::APP_ID, 'background_low_load_only', '1') === '1',
-				'backgroundMaxLoad1m' => $this->config->getAppValue(Application::APP_ID, 'background_max_load_1m', '2'),
+				'backgroundMaxLoadPercent' => $backgroundGate['maxLoadPercent'] ?? null,
+				'backgroundMaxLoad1m' => $backgroundGate['maxLoad1m'] ?? null,
 				'quietHoursEnabled' => $this->config->getAppValue(Application::APP_ID, 'background_quiet_hours_enabled', '0') === '1',
 				'quietHoursStart' => $this->config->getAppValue(Application::APP_ID, 'background_quiet_hours_start', '22:00'),
 				'quietHoursEnd' => $this->config->getAppValue(Application::APP_ID, 'background_quiet_hours_end', '06:00'),
 			],
-			'backgroundGate' => $this->backgroundGateService->status(),
+			'backgroundGate' => $backgroundGate,
 			'counts' => $this->counts(),
 			'notes' => [
 				'Systemweite Cron-Ereignisse haben userId=null.',

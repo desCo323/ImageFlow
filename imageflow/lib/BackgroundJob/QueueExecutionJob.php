@@ -16,8 +16,8 @@ class QueueExecutionJob extends TimedJob {
 	) {
 		parent::__construct($time);
 		$this->setAllowParallelRuns(false);
-		$this->setTimeSensitivity(IJob::TIME_INSENSITIVE);
-		$this->setInterval(300);
+		$this->setTimeSensitivity(IJob::TIME_SENSITIVE);
+		$this->setInterval(60);
 	}
 
 	protected function run($argument): void {

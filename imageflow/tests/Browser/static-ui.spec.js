@@ -155,7 +155,7 @@ test('switches the UI to English from the selected language and keeps tooltips t
   await expect(page.getByRole('heading', { name: 'ImageFlow Operations' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Global operation settings' })).toBeVisible();
   await expect(page.getByLabel('Allow real file changes')).toBeVisible();
-  await expect(page.getByLabel('Maximum server load')).toHaveAttribute('title', /1-minute server load/);
+  await expect(page.getByLabel('Maximum server usage (%)')).toHaveAttribute('title', /normalized server usage/);
 });
 
 test('shows the guided self-test as allowed for albentest', async ({ page }) => {
@@ -292,7 +292,7 @@ test('shows the quiet-server gate when background processing is waiting', async 
   const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Wartet auf Ruhe')).toBeVisible();
-  await expect(dialog.getByText('Automatik wartet: Serverlast 3.40 liegt über 2.00.')).toBeVisible();
+  await expect(dialog.getByText('Automatik wartet: Serverauslastung 85.0% liegt über 70.0%. Linux-Load 3.40 bei 4 CPU-Kernen.')).toBeVisible();
 });
 
 test('removes a planned item from the worklist preview', async ({ page }) => {
@@ -551,7 +551,7 @@ test('opens admin operation settings and exports diagnostics', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Übersicht' })).toHaveCount(0);
   await page.getByLabel('Echte Dateiänderungen erlauben').check();
   await page.getByLabel('Automatisch im Hintergrund ablegen').check();
-  await page.getByLabel('Maximale Serverlast').fill('4.5');
+  await page.getByLabel('Maximale Serverauslastung (%)').fill('70');
   await page.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByText('Betriebseinstellungen wurden gespeichert.')).toBeVisible();
 

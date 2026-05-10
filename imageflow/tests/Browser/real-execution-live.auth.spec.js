@@ -98,7 +98,7 @@ test('executes real copy, move, album and background cron safely as albentest', 
         realExecutionEnabled: true,
         backgroundProcessingEnabled: true,
         backgroundLowLoadOnly: false,
-        backgroundMaxLoad1m: 128,
+        backgroundMaxLoadPercent: 100,
         quietHoursEnabled: false,
         quietHoursStart: '00:00',
         quietHoursEnd: '23:59',
@@ -108,7 +108,7 @@ test('executes real copy, move, album and background cron safely as albentest', 
       realExecutionEnabled: true,
       backgroundProcessingEnabled: true,
       backgroundLowLoadOnly: false,
-      backgroundMaxLoad1m: 128,
+      backgroundMaxLoadPercent: 100,
       quietHoursEnabled: false,
     });
     executeImageFlowBackgroundJob();
@@ -175,14 +175,14 @@ async function enableRealWritesThroughUi(page) {
   await page.getByLabel('Echte Dateiänderungen erlauben').check();
   await page.getByLabel('Automatisch im Hintergrund ablegen').uncheck();
   await page.getByLabel('Nur bei ruhigem Server laufen lassen').uncheck();
-  await page.getByLabel('Maximale Serverlast').fill('128');
+  await page.getByLabel('Maximale Serverauslastung (%)').fill('100');
   await page.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByText('Betriebseinstellungen wurden gespeichert.')).toBeVisible({ timeout: 15000 });
   await expectOperationSettings(page, {
     realExecutionEnabled: true,
     backgroundProcessingEnabled: false,
     backgroundLowLoadOnly: false,
-    backgroundMaxLoad1m: 128,
+    backgroundMaxLoadPercent: 100,
     quietHoursEnabled: false,
   });
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });

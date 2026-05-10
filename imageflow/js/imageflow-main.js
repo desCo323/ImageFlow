@@ -300,7 +300,7 @@
         "Echte Dateiänderungen erlauben": "Allow real file changes",
         "Automatisch im Hintergrund ablegen": "File automatically in background",
         "Nur bei ruhigem Server laufen lassen": "Run only when the server is quiet",
-        "Maximale Serverlast": "Maximum server load",
+        "Maximale Serverauslastung (%)": "Maximum server usage (%)",
         "Nur im Zeitfenster laufen": "Run only in time window",
         "Start": "Start",
         "Ende": "End",
@@ -355,7 +355,8 @@
         "Globaler Schalter für echte Kopier-, Verschiebe- und Albumoperationen.": "Global switch for real copy, move and album operations.",
         "Erlaubt dem Hintergrundjob freigegebene Ablagen abzuarbeiten.": "Allows the background job to process released filing items.",
         "Stoppt Automatikläufe bei zu hoher Serverlast.": "Stops automatic runs when server load is too high.",
-        "Grenze für die 1-Minuten-Serverlast.": "Limit for the 1-minute server load.",
+        "Grenze für die normalisierte Serverauslastung. 100% entspricht der vollen Kapazität aller CPU-Kerne.": "Limit for normalized server usage. 100% means the full capacity of all CPU cores.",
+        "Automatik darf laufen: Serverauslastung": "Automation may run: server usage",
         "Beschränkt Automatikläufe auf ein Zeitfenster.": "Restricts automatic runs to a time window.",
         "Beginn des erlaubten Zeitfensters.": "Start of the allowed time window.",
         "Ende des erlaubten Zeitfensters.": "End of the allowed time window."
@@ -379,6 +380,9 @@
         [/^Nächster Schritt: (\d+) Entscheidungen sicher für später vormerken. Dateien werden dabei nicht verändert.$/, "Next step: safely save $1 decisions for later. Files are not changed."],
         [/^(\d+) Ablagen sind ausführbar. Du kannst jetzt manuell starten oder die Automatik laufen lassen.$/, "$1 filing items are ready. You can start manually now or let automation run."],
         [/^(\d+) Ablagen warten. Echte Dateiänderungen sind noch serverseitig gesperrt.$/, "$1 filing items are waiting. Real file changes are still locked server-side."],
+        [/^Automatik wartet: Serverauslastung ([0-9.,]+)% liegt über ([0-9.,]+)%. Linux-Load ([0-9.,]+) bei (\d+) CPU-Kernen.$/, "Automation waiting: server usage $1% is above $2%. Linux load $3 on $4 CPU cores."],
+        [/^Automatik darf laufen: Serverauslastung ([0-9.,]+)% liegt unter ([0-9.,]+)%. Der nächste Nextcloud-Cronlauf verarbeitet freigegebene Ablagen.$/, "Automation may run: server usage $1% is below $2%. The next Nextcloud cron run processes released filing items."],
+        [/^Auslastung ([0-9.,-]+)% \/ Grenze ([0-9.,-]+)% · Load ([0-9.,-]+) · CPU-Kerne (\d+)$/, "Usage $1% / limit $2% · load $3 · CPU cores $4"],
         [/^Schnellziel entfernen: (.+)$/, "Remove quick target: $1"],
         [/^Ordner öffnen: (.+)$/, "Open folder: $1"],
         [/^Als Schnellziel merken: (.+)$/, "Save as quick target: $1"],
@@ -456,7 +460,7 @@
     "Echte Dateiänderungen erlauben": "Globaler Schalter für echte Kopier-, Verschiebe- und Albumoperationen.",
     "Automatisch im Hintergrund ablegen": "Erlaubt dem Hintergrundjob freigegebene Ablagen abzuarbeiten.",
     "Nur bei ruhigem Server laufen lassen": "Stoppt Automatikläufe bei zu hoher Serverlast.",
-    "Maximale Serverlast": "Grenze für die 1-Minuten-Serverlast.",
+        "Maximale Serverauslastung (%)": "Grenze für die normalisierte Serverauslastung. 100% entspricht der vollen Kapazität aller CPU-Kerne.",
     "Nur im Zeitfenster laufen": "Beschränkt Automatikläufe auf ein Zeitfenster.",
     "Start": "Beginn des erlaubten Zeitfensters.",
     "Ende": "Ende des erlaubten Zeitfensters."
@@ -582,8 +586,9 @@
       const settings = {
         ...current.settings,
         ...options.body,
-        backgroundMaxLoad1m: Number(options.body.backgroundMaxLoad1m || current.settings.backgroundMaxLoad1m),
+        backgroundMaxLoadPercent: Number(options.body.backgroundMaxLoadPercent || current.settings.backgroundMaxLoadPercent),
       };
+      settings.backgroundMaxLoad1m = Number(((settings.backgroundMaxLoadPercent / 100) * 4).toFixed(2));
       root.dataset.mockRealExecution = settings.realExecutionEnabled ? "1" : "0";
       root.dataset.mockBackgroundMode = settings.backgroundProcessingEnabled ? "cron-enabled" : "manual-only";
       return { isAdmin: true, settings, backgroundGate: mockBackgroundGate(settings.backgroundProcessingEnabled) };
@@ -995,7 +1000,8 @@
         realExecutionEnabled,
         backgroundProcessingEnabled,
         backgroundLowLoadOnly: true,
-        backgroundMaxLoad1m: 2,
+        backgroundMaxLoadPercent: 70,
+        backgroundMaxLoad1m: 2.8,
         quietHoursEnabled: false,
         quietHoursStart: "22:00",
         quietHoursEnd: "06:00",
@@ -1008,10 +1014,13 @@
     return {
       canRun,
       reason: canRun ? "ready" : "server_load_too_high",
-      message: canRun ? "Automatik darf laufen, sobald wartende Ablagen vorhanden sind." : "Automatik wartet: Serverlast 3.40 liegt über 2.00.",
+      message: canRun ? "Automatik darf laufen: Serverauslastung 10.5% liegt unter 70.0%. Der nächste Nextcloud-Cronlauf verarbeitet freigegebene Ablagen." : "Automatik wartet: Serverauslastung 85.0% liegt über 70.0%. Linux-Load 3.40 bei 4 CPU-Kernen.",
       lowLoadOnly: true,
-      currentLoad1m: 0.42,
-      maxLoad1m: 2,
+      currentLoad1m: canRun ? 0.42 : 3.4,
+      maxLoad1m: 2.8,
+      cpuCount: 4,
+      currentLoadPercent: canRun ? 10.5 : 85,
+      maxLoadPercent: 70,
       loadOk: true,
       quietHoursEnabled: false,
       quietHoursStart: "22:00",
@@ -2546,8 +2555,8 @@
               Nur bei ruhigem Server laufen lassen
             </label>
             <div class="imageflow-field">
-              <label for="ifl-max-load">Maximale Serverlast</label>
-              <input id="ifl-max-load" name="backgroundMaxLoad1m" type="number" min="0.1" max="128" step="0.1" value="${escapeAttr(settings.backgroundMaxLoad1m ?? 2)}">
+              <label for="ifl-max-load">Maximale Serverauslastung (%)</label>
+              <input id="ifl-max-load" name="backgroundMaxLoadPercent" type="number" min="1" max="100" step="1" value="${escapeAttr(settings.backgroundMaxLoadPercent ?? gate.maxLoadPercent ?? 70)}">
             </div>
             <label class="imageflow-toggle">
               <input name="quietHoursEnabled" type="checkbox" ${settings.quietHoursEnabled ? "checked" : ""}>
@@ -2566,11 +2575,19 @@
           </div>
           <div class="imageflow-settings-gate">
             <strong>${escapeHtml(gate.message || "Automatikstatus wird nach dem Speichern neu geprüft.")}</strong>
-            <span>${escapeHtml(gate.reason || "ready")} · Last ${escapeHtml(String(gate.currentLoad1m ?? "-"))}/${escapeHtml(String(gate.maxLoad1m ?? "-"))}</span>
+            <span>${escapeHtml(gateLoadDetail(gate))}</span>
           </div>
         </form>
       </section>
     `;
+  }
+
+  function gateLoadDetail(gate) {
+    const percent = gate.currentLoadPercent ?? "-";
+    const maxPercent = gate.maxLoadPercent ?? "-";
+    const load = gate.currentLoad1m ?? "-";
+    const cpu = gate.cpuCount ?? "-";
+    return `Auslastung ${percent}% / Grenze ${maxPercent}% · Load ${load} · CPU-Kerne ${cpu}`;
   }
 
   function renderLogRow(log) {
@@ -3270,7 +3287,7 @@
       realExecutionEnabled: Boolean(elements.namedItem("realExecutionEnabled")?.checked),
       backgroundProcessingEnabled: Boolean(elements.namedItem("backgroundProcessingEnabled")?.checked),
       backgroundLowLoadOnly: Boolean(elements.namedItem("backgroundLowLoadOnly")?.checked),
-      backgroundMaxLoad1m: Number(elements.namedItem("backgroundMaxLoad1m")?.value || 2),
+      backgroundMaxLoadPercent: Number(elements.namedItem("backgroundMaxLoadPercent")?.value || 70),
       quietHoursEnabled: Boolean(elements.namedItem("quietHoursEnabled")?.checked),
       quietHoursStart: elements.namedItem("quietHoursStart")?.value || "22:00",
       quietHoursEnd: elements.namedItem("quietHoursEnd")?.value || "06:00",

@@ -48,11 +48,19 @@ class SettingsController extends Controller {
 
 		$before = $this->settings();
 		$input = $this->request->getParams();
+		$cpuCount = $this->cpuCount();
+		$maxLoadPercent = $this->floatValue(
+			$input['backgroundMaxLoadPercent'] ?? ($this->legacyLoadInputToPercent($input['backgroundMaxLoad1m'] ?? null, $cpuCount) ?? $before['backgroundMaxLoadPercent']),
+			1.0,
+			100.0,
+			70.0,
+		);
 		$settings = [
 			'realExecutionEnabled' => $this->boolValue($input['realExecutionEnabled'] ?? $before['realExecutionEnabled']),
 			'backgroundProcessingEnabled' => $this->boolValue($input['backgroundProcessingEnabled'] ?? $before['backgroundProcessingEnabled']),
 			'backgroundLowLoadOnly' => $this->boolValue($input['backgroundLowLoadOnly'] ?? $before['backgroundLowLoadOnly']),
-			'backgroundMaxLoad1m' => $this->floatValue($input['backgroundMaxLoad1m'] ?? $before['backgroundMaxLoad1m'], 0.1, 128.0),
+			'backgroundMaxLoadPercent' => $maxLoadPercent,
+			'backgroundMaxLoad1m' => round(($maxLoadPercent / 100.0) * $cpuCount, 2),
 			'quietHoursEnabled' => $this->boolValue($input['quietHoursEnabled'] ?? $before['quietHoursEnabled']),
 			'quietHoursStart' => $this->timeValue($input['quietHoursStart'] ?? $before['quietHoursStart'], (string)$before['quietHoursStart']),
 			'quietHoursEnd' => $this->timeValue($input['quietHoursEnd'] ?? $before['quietHoursEnd'], (string)$before['quietHoursEnd']),
@@ -61,6 +69,7 @@ class SettingsController extends Controller {
 		$this->config->setAppValue(Application::APP_ID, 'real_execution_enabled', $settings['realExecutionEnabled'] ? '1' : '0');
 		$this->config->setAppValue(Application::APP_ID, 'background_processing_enabled', $settings['backgroundProcessingEnabled'] ? '1' : '0');
 		$this->config->setAppValue(Application::APP_ID, 'background_low_load_only', $settings['backgroundLowLoadOnly'] ? '1' : '0');
+		$this->config->setAppValue(Application::APP_ID, 'background_max_load_percent', (string)$settings['backgroundMaxLoadPercent']);
 		$this->config->setAppValue(Application::APP_ID, 'background_max_load_1m', (string)$settings['backgroundMaxLoad1m']);
 		$this->config->setAppValue(Application::APP_ID, 'background_quiet_hours_enabled', $settings['quietHoursEnabled'] ? '1' : '0');
 		$this->config->setAppValue(Application::APP_ID, 'background_quiet_hours_start', $settings['quietHoursStart']);
@@ -82,11 +91,13 @@ class SettingsController extends Controller {
 	 * @return array<string, mixed>
 	 */
 	private function settings(): array {
+		$gate = $this->backgroundGateService->status();
 		return [
 			'realExecutionEnabled' => $this->config->getAppValue(Application::APP_ID, 'real_execution_enabled', '0') === '1',
 			'backgroundProcessingEnabled' => $this->config->getAppValue(Application::APP_ID, 'background_processing_enabled', '0') === '1',
 			'backgroundLowLoadOnly' => $this->config->getAppValue(Application::APP_ID, 'background_low_load_only', '1') === '1',
-			'backgroundMaxLoad1m' => $this->floatValue($this->config->getAppValue(Application::APP_ID, 'background_max_load_1m', '2'), 0.1, 128.0),
+			'backgroundMaxLoadPercent' => (float)($gate['maxLoadPercent'] ?? 70.0),
+			'backgroundMaxLoad1m' => (float)($gate['maxLoad1m'] ?? 2.0),
 			'quietHoursEnabled' => $this->config->getAppValue(Application::APP_ID, 'background_quiet_hours_enabled', '0') === '1',
 			'quietHoursStart' => $this->timeValue($this->config->getAppValue(Application::APP_ID, 'background_quiet_hours_start', '22:00'), '22:00'),
 			'quietHoursEnd' => $this->timeValue($this->config->getAppValue(Application::APP_ID, 'background_quiet_hours_end', '06:00'), '06:00'),
@@ -115,10 +126,27 @@ class SettingsController extends Controller {
 		return (bool)$value;
 	}
 
-	private function floatValue(mixed $value, float $min, float $max): float {
+	private function floatValue(mixed $value, float $min, float $max, float $fallback = 2.0): float {
 		$value = is_string($value) ? str_replace(',', '.', $value) : $value;
-		$float = is_numeric($value) ? (float)$value : 2.0;
+		$float = is_numeric($value) ? (float)$value : $fallback;
 		return round(max($min, min($max, $float)), 2);
+	}
+
+	private function legacyLoadInputToPercent(mixed $value, int $cpuCount): ?float {
+		if ($value === null) {
+			return null;
+		}
+		$value = is_string($value) ? str_replace(',', '.', $value) : $value;
+		if (!is_numeric($value)) {
+			return null;
+		}
+
+		return max(1.0, min(100.0, ((float)$value / max(1, $cpuCount)) * 100.0));
+	}
+
+	private function cpuCount(): int {
+		$gate = $this->backgroundGateService->status();
+		return max(1, (int)($gate['cpuCount'] ?? 1));
 	}
 
 	private function timeValue(mixed $value, string $fallback): string {

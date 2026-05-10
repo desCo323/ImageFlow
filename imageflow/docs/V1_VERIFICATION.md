@@ -14,7 +14,7 @@ This document records the v1 production verification performed on the deployed N
   - `real_execution_enabled=0`
   - `background_processing_enabled=0`
   - `background_low_load_only=1`
-  - `background_max_load_1m=2`
+  - legacy `background_max_load_1m=2`
 
 ## Automated Browser Coverage
 

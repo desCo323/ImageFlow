@@ -54,11 +54,11 @@ Disable it again:
 sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_processing_enabled --value=0
 ```
 
-Background processing also has a quiet-server gate. By default, cron work only runs while the one-minute server load is at or below `2.0`:
+Background processing also has a quiet-server gate. Cron work uses normalized server usage: 100% means the full capacity of all CPU cores, not raw Linux load. The legacy raw load value is kept in diagnostics only.
 
 ```bash
 sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_low_load_only --value=1
-sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_max_load_1m --value=2.0
+sudo -u www-data php /var/www/nextcloud/occ config:app:set imageflow background_max_load_percent --value=70
 ```
 
 Optional quiet hours can further restrict cron work to a server-local time window:

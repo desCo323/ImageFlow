@@ -9,7 +9,10 @@ use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
+use OCP\BackgroundJob\IJob;
 use OCP\BackgroundJob\IJobList;
+use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\IDBConnection;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'imageflow';
@@ -27,5 +30,16 @@ class Application extends App implements IBootstrap {
 		if (!$jobList->has(QueueExecutionJob::class, null)) {
 			$jobList->add(QueueExecutionJob::class);
 		}
+		$this->ensureQueueJobRunsWithNormalCron($context->getAppContainer()->get(IDBConnection::class));
+	}
+
+	private function ensureQueueJobRunsWithNormalCron(IDBConnection $db): void {
+		$qb = $db->getQueryBuilder();
+		$qb->update('jobs')
+			->set('time_sensitive', $qb->createNamedParameter(IJob::TIME_SENSITIVE, IQueryBuilder::PARAM_INT))
+			->set('last_checked', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+			->where($qb->expr()->eq('class', $qb->createNamedParameter(QueueExecutionJob::class)))
+			->andWhere($qb->expr()->neq('time_sensitive', $qb->createNamedParameter(IJob::TIME_SENSITIVE, IQueryBuilder::PARAM_INT)));
+		$qb->executeStatement();
 	}
 }
