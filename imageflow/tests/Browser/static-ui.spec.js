@@ -129,6 +129,7 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Automatik an');
   await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Mit Unterordnern');
   await expect(page.locator('tr', { hasText: 'Browser Smoke' })).toContainText('Alphabetisch');
+  await expect(page.locator('tr', { hasText: 'Familienfotos 2025' })).toContainText('Automatik wartet auf den nächsten ruhigen Cronlauf.');
 
   await page.locator('tr', { hasText: 'Browser Smoke' }).getByRole('button', { name: 'Bearbeiten' }).click();
   await expect(page.getByRole('heading', { name: 'Flow bearbeiten' })).toBeVisible();
@@ -156,6 +157,8 @@ test('switches the UI to English from the selected language and keeps tooltips t
   await expect(page.getByRole('heading', { name: 'Global operation settings' })).toBeVisible();
   await expect(page.getByLabel('Allow real file changes')).toBeVisible();
   await expect(page.getByLabel('Maximum server usage (%)')).toHaveAttribute('title', /normalized server usage/);
+  await expect(page.getByRole('button', { name: 'Download all logs' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download anonymized logs' })).toBeVisible();
 });
 
 test('shows the guided self-test as allowed for albentest', async ({ page }) => {
@@ -225,6 +228,8 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Entscheidungen', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Ablage-Protokoll' })).toBeVisible();
+  await expect(dialog.getByText('assignment_planned')).toBeVisible();
   await expect(dialog.getByText('3 geprüft, 3 angezeigt.')).toBeVisible();
   await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
   await expect(dialog.getByText('Manuell')).toBeVisible();
@@ -561,10 +566,16 @@ test('opens admin operation settings and exports diagnostics', async ({ page }) 
 
   await mount(page, 'data-page="settings" data-admin-settings="1" data-mock-user="albentest" data-mock-real-execution="1"');
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Diagnose exportieren' }).click();
+  await page.getByRole('button', { name: 'Alle Logs laden' }).click();
   const download = await downloadPromise;
   expect(await download.suggestedFilename()).toMatch(/imageflow-diagnostics-.*\.json/);
   await expect(page.getByText('Diagnoseexport wurde erstellt.')).toBeVisible();
+
+  const anonymizedDownloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Anonymisierte Logs laden' }).click();
+  const anonymizedDownload = await anonymizedDownloadPromise;
+  expect(await anonymizedDownload.suggestedFilename()).toMatch(/imageflow-support-anonymized-.*\.json/);
+  await expect(page.getByText('Anonymisierter Supportexport wurde erstellt.')).toBeVisible();
 });
 
 test('keeps operation settings hidden from non-admin users', async ({ page }) => {

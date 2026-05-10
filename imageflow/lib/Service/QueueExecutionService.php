@@ -168,6 +168,18 @@ class QueueExecutionService {
 				continue;
 			}
 			$this->markJobExecuting($job);
+			$this->logService->debug('queue_execution_item_started', $item->getUserId(), [
+				'runId' => $runId,
+				'queueItemId' => $item->getId(),
+				'jobId' => $item->getJobId(),
+				'operationType' => $item->getOperationType(),
+				'sourcePath' => $item->getSourcePath(),
+				'targetPath' => $item->getTargetPath(),
+				'targetAlbumId' => $item->getTargetAlbumId(),
+				'attempts' => $item->getAttempts(),
+				'manual' => $manual,
+				'safeMode' => $item->getSafeMode(),
+			], $item->getJobId(), 'Ablagepunkt wird verarbeitet.');
 
 			try {
 				$result = $this->realExecutionEnabled()

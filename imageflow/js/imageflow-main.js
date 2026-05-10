@@ -236,6 +236,11 @@
         "Dateiänderungen gesperrt": "File changes locked",
         "Prüfsummen an": "Checksums on",
         "Diagnose exportieren": "Export diagnostics",
+        "Anonymisiert exportieren": "Export anonymized",
+        "Anonymisierten Supportexport laden": "Download anonymized support export",
+        "Alle Logs laden": "Download all logs",
+        "Anonymisierte Logs laden": "Download anonymized logs",
+        "Anonymisierter Supportexport wurde erstellt.": "Anonymized support export was created.",
         "Systemprüfung": "System check",
         "Neu prüfen": "Check again",
         "Schutz": "Safety",
@@ -265,6 +270,9 @@
         "Erledigt": "Done",
         "Blockiert": "Blocked",
         "Ablage Aktionen": "Filing actions",
+        "Ablage-Protokoll": "Filing log",
+        "Die letzten Diagnoseereignisse zu diesem Flow. Pfade und Prüfdaten stehen im Kontext.": "The latest diagnostic events for this flow. Paths and check data are shown in context.",
+        "Noch keine Protokolleinträge für diesen Flow.": "No log entries for this flow yet.",
         "Erneut prüfen": "Check again",
         "Einstellung merken": "Remember setting",
         "Zur Ausführung freigeben": "Release for execution",
@@ -338,6 +346,9 @@
         "Lädt die aktuellen Daten erneut vom Server.": "Reloads the current data from the server.",
         "Speichert die globalen Betriebseinstellungen.": "Saves the global operation settings.",
         "Speichert Diagnoseinformationen für Support und Fehlersuche.": "Exports diagnostic information for support and troubleshooting.",
+        "Erstellt einen Supportexport, in dem Benutzer, Pfade und Dateinamen anonymisiert sind.": "Creates a support export where users, paths and file names are anonymized.",
+        "Erstellt als Admin einen Diagnoseexport mit globalen ImageFlow-Logs.": "Creates a diagnostics export with global ImageFlow logs as an admin.",
+        "Erstellt als Admin einen anonymisierten Supportexport mit globalen ImageFlow-Logs.": "Creates an anonymized support export with global ImageFlow logs as an admin.",
         "Gibt geprüfte Entscheidungen für die spätere Ausführung frei oder merkt sie sicher vor.": "Releases checked decisions for later execution or safely saves them.",
         "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus der Liste.": "Removes this not-yet-executed filing item from the list.",
         "Wählt diesen Ordner für den Flow aus.": "Chooses this folder for the flow.",
@@ -421,6 +432,9 @@
     "refresh-settings": "Lädt die Betriebseinstellungen erneut vom Server.",
     "refresh-logs": "Lädt die Diagnoseereignisse erneut.",
     "export-diagnostics": "Speichert Diagnoseinformationen für Support und Fehlersuche.",
+    "export-diagnostics-anonymized": "Erstellt einen Supportexport, in dem Benutzer, Pfade und Dateinamen anonymisiert sind.",
+    "export-diagnostics-all": "Erstellt als Admin einen Diagnoseexport mit globalen ImageFlow-Logs.",
+    "export-diagnostics-all-anonymized": "Erstellt als Admin einen anonymisierten Supportexport mit globalen ImageFlow-Logs.",
     "edit-job": "Öffnet diesen Flow zum Bearbeiten.",
     "duplicate-job": "Erstellt eine Kopie dieses Flows ohne Entscheidungen.",
     "pause-job": "Pausiert diesen Flow, bis du ihn fortsetzt.",
@@ -593,12 +607,14 @@
       root.dataset.mockBackgroundMode = settings.backgroundProcessingEnabled ? "cron-enabled" : "manual-only";
       return { isAdmin: true, settings, backgroundGate: mockBackgroundGate(settings.backgroundProcessingEnabled) };
     }
-    if (path === "/api/v1/support/export") {
+    if (path.startsWith("/api/v1/support/export")) {
       return {
         app: "imageflow",
         version: "1.0.0",
         generatedAt: Math.floor(Date.now() / 1000),
+        anonymized: path.includes("anonymized=1"),
         userId: root.dataset.mockUser || "albentest",
+        server: { phpVersion: "8.3", phpSapi: "fpm-fcgi", osFamily: "Linux" },
         settings: mockAdminSettings().settings,
         backgroundGate: mockBackgroundGate(false),
         counts: mockDiagnostics(false, false, "manual-only"),
@@ -624,6 +640,12 @@
         queuedOperations: 0,
         executedOperations: 0,
         failedOperations: 0,
+        lastRunStatus: {
+          level: "info",
+          event: "job_execution_queued",
+          message: "Ablage wurde vorgemerkt.",
+          createdAt: Math.floor(Date.now() / 1000) - 80,
+        },
         options: {
           autoProcess: Boolean(options.body.autoProcess),
           recursiveSource: Boolean(options.body.recursiveSource),
@@ -883,6 +905,12 @@
         queuedOperations: 74,
         executedOperations: 0,
         failedOperations: 0,
+        lastRunStatus: {
+          level: "debug",
+          event: "queue_background_gate_waiting",
+          message: "Automatik wartet auf den nächsten ruhigen Cronlauf.",
+          createdAt: Math.floor(Date.now() / 1000) - 180,
+        },
         options: {
           autoProcess: false,
           recursiveSource: false,
@@ -1971,7 +1999,10 @@
         </td>
         <td>${escapeHtml(job.sourcePath || "/")}</td>
         <td>${modeLabel(job.targetMode)}</td>
-        <td><span class="imageflow-badge ${statusClass(job.status)}">${statusLabel(job.status)}</span></td>
+        <td>
+          <span class="imageflow-badge ${statusClass(job.status)}">${statusLabel(job.status)}</span>
+          ${renderJobLastStatus(job)}
+        </td>
         <td>${Number(job.sortedFiles || 0)} entschieden<br>${Number(job.queuedOperations || 0)} ${queueLabel}</td>
         <td>
           <div class="imageflow-actions">
@@ -1988,6 +2019,19 @@
           </div>
         </td>
       </tr>
+    `;
+  }
+
+  function renderJobLastStatus(job) {
+    const latest = job.lastRunStatus || null;
+    if (!latest || !latest.message) {
+      return "";
+    }
+    return `
+      <div class="imageflow-run-status">
+        <strong>${escapeHtml(formatShortTime(latest.createdAt))}</strong>
+        <span>${escapeHtml(latest.message)}</span>
+      </div>
     `;
   }
 
@@ -2350,10 +2394,29 @@
             <div class="imageflow-worklist-table">
               ${filteredItems.map(renderWorklistItem).join("") || `<div class="imageflow-empty">${escapeHtml(worklistEmptyLabel(state.worklist.filter, items.length))}</div>`}
             </div>
+            ${renderWorklistLogs(preview.logs || [])}
             </div>
           ` : ""}
         </section>
       </div>
+    `;
+  }
+
+  function renderWorklistLogs(logs) {
+    const entries = Array.isArray(logs) ? logs.slice(0, 80) : [];
+    return `
+      <section class="imageflow-worklist-logs" aria-label="Ablage-Protokoll">
+        <div class="imageflow-panel-head">
+          <div>
+            <h4>Ablage-Protokoll</h4>
+            <p>Die letzten Diagnoseereignisse zu diesem Flow. Pfade und Prüfdaten stehen im Kontext.</p>
+          </div>
+          <button class="imageflow-button" data-action="export-diagnostics-anonymized" type="button">Anonymisierten Supportexport laden</button>
+        </div>
+        <div class="imageflow-log-list compact">
+          ${entries.map(renderLogRow).join("") || '<div class="imageflow-empty">Noch keine Protokolleinträge für diesen Flow.</div>'}
+        </div>
+      </section>
     `;
   }
 
@@ -2501,6 +2564,7 @@
               ${state.logs.jobId ? '<button class="imageflow-button" data-action="show-log" type="button">Alle Flows</button>' : ""}
               <button class="imageflow-button" data-action="refresh-logs" type="button">Neu laden</button>
               <button class="imageflow-button primary" data-action="export-diagnostics" type="button">Diagnose exportieren</button>
+              <button class="imageflow-button" data-action="export-diagnostics-anonymized" type="button">Anonymisiert exportieren</button>
             </div>
           </div>
           ${diagnostics.version ? `
@@ -2535,7 +2599,9 @@
             </div>
             <div class="imageflow-actions">
               <button class="imageflow-button" data-action="refresh-settings" type="button">Neu laden</button>
+              <button class="imageflow-button" data-action="export-diagnostics-all" type="button">Alle Logs laden</button>
               <button class="imageflow-button" data-action="export-diagnostics" type="button">Diagnose exportieren</button>
+              <button class="imageflow-button" data-action="export-diagnostics-all-anonymized" type="button">Anonymisierte Logs laden</button>
               <button class="imageflow-button primary" type="submit" ${state.adminSettings.saving ? "disabled" : ""}>Speichern</button>
             </div>
           </div>
@@ -2870,6 +2936,12 @@
       await loadAdminSettings();
     } else if (action === "export-diagnostics") {
       await exportDiagnostics();
+    } else if (action === "export-diagnostics-anonymized") {
+      await exportDiagnostics({ anonymized: true });
+    } else if (action === "export-diagnostics-all") {
+      await exportDiagnostics({ scopeAll: true });
+    } else if (action === "export-diagnostics-all-anonymized") {
+      await exportDiagnostics({ anonymized: true, scopeAll: true });
     }
   }
 
@@ -3176,6 +3248,8 @@
     render();
     try {
       const preview = await request(`/api/v1/jobs/${jobId}/worklist-preview?limit=250`);
+      const logPayload = await request(`/api/v1/logs?jobId=${encodeURIComponent(String(jobId))}&limit=80`).catch(() => ({ logs: [] }));
+      preview.logs = logPayload.logs || [];
       state.worklist = {
         ...state.worklist,
         jobId,
@@ -3327,20 +3401,29 @@
     }
   }
 
-  async function exportDiagnostics() {
+  async function exportDiagnostics(options = {}) {
     try {
-      const payload = await request("/api/v1/support/export");
+      const params = new URLSearchParams();
+      if (options.anonymized) {
+        params.set("anonymized", "1");
+      }
+      if (options.scopeAll) {
+        params.set("scopeAll", "1");
+      }
+      const query = params.toString();
+      const payload = await request(`/api/v1/support/export${query ? `?${query}` : ""}`);
       const json = JSON.stringify(payload, null, 2);
       const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `imageflow-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+      const label = options.anonymized ? "support-anonymized" : "diagnostics";
+      link.download = `imageflow-${label}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      state.toast = { type: "info", message: "Diagnoseexport wurde erstellt." };
+      state.toast = { type: "info", message: options.anonymized ? "Anonymisierter Supportexport wurde erstellt." : "Diagnoseexport wurde erstellt." };
       render();
     } catch (error) {
       state.logs.error = error.message || "Diagnoseexport konnte nicht erstellt werden.";
@@ -4376,6 +4459,18 @@
     }
     try {
       return new Date(value * 1000).toLocaleString();
+    } catch (error) {
+      return String(value);
+    }
+  }
+
+  function formatShortTime(timestamp) {
+    const value = Number(timestamp || 0);
+    if (!value) {
+      return "gerade";
+    }
+    try {
+      return new Date(value * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     } catch (error) {
       return String(value);
     }

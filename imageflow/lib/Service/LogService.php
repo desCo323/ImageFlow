@@ -9,6 +9,9 @@ use OCA\ImageFlow\Db\AppLogMapper;
 use Psr\Log\LoggerInterface;
 
 class LogService {
+	private const RETENTION_DAYS = 90;
+	private static int $lastRetentionPurge = 0;
+
 	public function __construct(
 		private readonly AppLogMapper $mapper,
 		private readonly LoggerInterface $logger,
@@ -44,11 +47,35 @@ class LogService {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function recent(?string $userId, int $limit = 100, ?string $level = null, ?int $jobId = null): array {
+		$this->purgeExpiredIfDue();
 		return array_map([$this, 'serialize'], $this->mapper->findRecent($limit, $level, $userId, $jobId));
+	}
+
+	/**
+	 * @param int[] $jobIds
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function latestForJobs(string $userId, array $jobIds): array {
+		$latest = [];
+		foreach ($this->mapper->findLatestForJobs($userId, $jobIds) as $log) {
+			$jobId = $log->getJobId();
+			if ($jobId !== null) {
+				$latest[$jobId] = $this->serialize($log);
+			}
+		}
+
+		return $latest;
+	}
+
+	public function purgeExpired(): int {
+		$cutoff = time() - (self::RETENTION_DAYS * 86400);
+		self::$lastRetentionPurge = time();
+		return $this->mapper->deleteOlderThan($cutoff);
 	}
 
 	private function write(string $level, string $event, ?string $userId, array $context, ?int $jobId, string $message): void {
 		try {
+			$this->purgeExpiredIfDue();
 			$log = new AppLog();
 			$log->setLevel($level);
 			$log->setEvent(substr($event, 0, 96));
@@ -62,6 +89,19 @@ class LogService {
 			$this->logger->warning('ImageFlow database log write failed: ' . $e->getMessage(), [
 				'app' => 'imageflow',
 				'event' => $event,
+			]);
+		}
+	}
+
+	private function purgeExpiredIfDue(): void {
+		if ((time() - self::$lastRetentionPurge) < 3600) {
+			return;
+		}
+		try {
+			$this->purgeExpired();
+		} catch (\Throwable $e) {
+			$this->logger->warning('ImageFlow log retention purge failed: ' . $e->getMessage(), [
+				'app' => 'imageflow',
 			]);
 		}
 	}

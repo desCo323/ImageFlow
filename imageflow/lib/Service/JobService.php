@@ -37,7 +37,16 @@ class JobService {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function listJobs(string $userId): array {
-		return array_map([$this, 'serializeJob'], $this->jobMapper->findForUser($userId));
+		$jobs = $this->jobMapper->findForUser($userId);
+		$latestLogs = $this->logService->latestForJobs($userId, array_map(
+			static fn (SortJob $job): int => (int)$job->getId(),
+			$jobs,
+		));
+
+		return array_map(
+			fn (SortJob $job): array => $this->serializeJob($job, $latestLogs[(int)$job->getId()] ?? null),
+			$jobs,
+		);
 	}
 
 	/**
@@ -260,7 +269,7 @@ class JobService {
 	/**
 	 * @return array<string, mixed>
 	 */
-	public function serializeJob(SortJob $job): array {
+	public function serializeJob(SortJob $job, ?array $latestLog = null): array {
 		return [
 			'id' => $job->getId(),
 			'name' => $job->getName(),
@@ -283,6 +292,7 @@ class JobService {
 			'executionStartedAt' => $job->getExecutionStartedAt(),
 			'executionFinishedAt' => $job->getExecutionFinishedAt(),
 			'errorMessage' => $job->getErrorMessage(),
+			'lastRunStatus' => $latestLog,
 		];
 	}
 

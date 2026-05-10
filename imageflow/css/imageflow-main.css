@@ -563,6 +563,25 @@
   font-size: 12px;
 }
 
+.imageflow-run-status {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin-top: 6px;
+  color: var(--color-text-maxcontrast);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.imageflow-run-status strong {
+  color: var(--color-main-text);
+  white-space: nowrap;
+}
+
+.imageflow-run-status span {
+  overflow-wrap: anywhere;
+}
+
 .imageflow-badge {
   display: inline-flex;
   align-items: center;
@@ -1552,6 +1571,18 @@
   margin: 0;
 }
 
+.imageflow-worklist-logs {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.imageflow-worklist-logs h4 {
+  margin: 0;
+}
+
 .imageflow-log-page {
   display: grid;
   gap: 12px;
@@ -1617,6 +1648,11 @@
 .imageflow-log-list {
   display: grid;
   gap: 8px;
+}
+
+.imageflow-log-list.compact {
+  max-height: 260px;
+  overflow: auto;
 }
 
 .imageflow-log-row {
