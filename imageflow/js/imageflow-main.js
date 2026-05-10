@@ -2728,21 +2728,23 @@
   async function saveAdminSettings(event) {
     event.preventDefault();
     const form = event.currentTarget;
+    const elements = form.elements;
+    const settingsBody = {
+      realExecutionEnabled: Boolean(elements.namedItem("realExecutionEnabled")?.checked),
+      backgroundProcessingEnabled: Boolean(elements.namedItem("backgroundProcessingEnabled")?.checked),
+      backgroundLowLoadOnly: Boolean(elements.namedItem("backgroundLowLoadOnly")?.checked),
+      backgroundMaxLoad1m: Number(elements.namedItem("backgroundMaxLoad1m")?.value || 2),
+      quietHoursEnabled: Boolean(elements.namedItem("quietHoursEnabled")?.checked),
+      quietHoursStart: elements.namedItem("quietHoursStart")?.value || "22:00",
+      quietHoursEnd: elements.namedItem("quietHoursEnd")?.value || "06:00",
+    };
     state.adminSettings.saving = true;
     state.adminSettings.error = null;
     render();
     try {
       const payload = await request("/api/v1/admin/settings", {
         method: "PUT",
-        body: {
-          realExecutionEnabled: Boolean(form.realExecutionEnabled?.checked),
-          backgroundProcessingEnabled: Boolean(form.backgroundProcessingEnabled?.checked),
-          backgroundLowLoadOnly: Boolean(form.backgroundLowLoadOnly?.checked),
-          backgroundMaxLoad1m: Number(form.backgroundMaxLoad1m?.value || 2),
-          quietHoursEnabled: Boolean(form.quietHoursEnabled?.checked),
-          quietHoursStart: form.quietHoursStart?.value || "22:00",
-          quietHoursEnd: form.quietHoursEnd?.value || "06:00",
-        },
+        body: settingsBody,
       });
       state.adminSettings = {
         ...state.adminSettings,

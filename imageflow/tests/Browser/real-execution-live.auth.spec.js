@@ -53,6 +53,7 @@ test('executes real copy, move, album and background cron safely as albentest', 
 
     await cleanupJobs(page);
     await cleanupAlbums();
+    await cleanupDavRealRoots(page, username);
     await deleteDavPath(page, username, runRoot);
     await prepareDavFolders(page, username, [runRoot, sourceCopy, sourceMove, sourceAlbum, sourceCron, targetCopy, targetMove, targetCron, copyDone, moveDone, cronDone]);
     await putDavImage(page, username, copyImage, 'copy');
@@ -102,10 +103,17 @@ test('executes real copy, move, album and background cron safely as albentest', 
         quietHoursEnd: '23:59',
       },
     });
+    await expectOperationSettings(page, {
+      realExecutionEnabled: true,
+      backgroundProcessingEnabled: true,
+      backgroundLowLoadOnly: false,
+      backgroundMaxLoad1m: 128,
+      quietHoursEnabled: false,
+    });
     executeImageFlowBackgroundJob();
     await expectDavExists(page, username, `${cronDone}/cron.png`, true);
 
-    const logs = await api(page, '/api/v1/logs?level=debug&limit=500');
+    const logs = await api(page, '/api/v1/logs?limit=500');
     const events = (logs.logs || []).map((entry) => entry.event);
     expect(events).toContain('queue_manual_run_started');
     expect(events).toContain('queue_background_run_started');
@@ -124,6 +132,7 @@ test('executes real copy, move, album and background cron safely as albentest', 
     }
     await cleanupJobs(page).catch(() => {});
     await cleanupAlbums().catch(() => {});
+    await cleanupDavRealRoots(page, username).catch(() => {});
     await deleteDavPath(page, username, runRoot).catch(() => {});
     await scanAlbentest();
   }
@@ -165,6 +174,21 @@ async function enableRealWritesThroughUi(page) {
   await page.getByLabel('Maximale Serverlast').fill('128');
   await page.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByText('Betriebseinstellungen wurden gespeichert.')).toBeVisible({ timeout: 15000 });
+  await expectOperationSettings(page, {
+    realExecutionEnabled: true,
+    backgroundProcessingEnabled: false,
+    backgroundLowLoadOnly: false,
+    backgroundMaxLoad1m: 128,
+    quietHoursEnabled: false,
+  });
+}
+
+async function expectOperationSettings(page, expected) {
+  const keys = Object.keys(expected);
+  await expect.poll(async () => {
+    const settings = (await api(page, '/api/v1/admin/settings')).settings || {};
+    return JSON.stringify(Object.fromEntries(keys.map((key) => [key, settings[key]])));
+  }, { timeout: 15000, message: `ImageFlow operation settings should match ${JSON.stringify(expected)}` }).toBe(JSON.stringify(expected));
 }
 
 async function createJob(page, name, sourcePath, targetMode, targetPath, autoProcess) {
@@ -215,9 +239,14 @@ async function processFromDashboard(page, jobName) {
   await row.getByRole('button', { name: 'Ablage prüfen' }).click();
   const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
   await expect(dialog).toBeVisible({ timeout: 15000 });
-  await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
+  await expect(dialog).toContainText('Dateiänderungen aktiv', { timeout: 15000 });
+  const queueButton = dialog.locator('[data-action="confirm-queue-job"]');
+  const processButton = dialog.locator('[data-action="process-job-now"]');
+  await expect(queueButton).toBeEnabled({ timeout: 15000 });
+  await queueButton.click();
   await expect(page.getByText(/Ablage wartet|Ablage darf|Ablage wurde/)).toBeVisible({ timeout: 15000 });
-  await dialog.getByRole('button', { name: 'Jetzt ablegen' }).click();
+  await expect(processButton).toBeEnabled({ timeout: 15000 });
+  await processButton.click();
   await expect(page.getByText(/Die vorgemerkte Ablage wurde abgelegt|Keine wartenden Bilder/)).toBeVisible({ timeout: 20000 });
   await dialog.getByRole('button', { name: 'Schließen' }).click();
 }
@@ -227,6 +256,20 @@ async function cleanupJobs(page) {
   const jobs = (payload.jobs || []).filter((job) => String(job.name || '').startsWith(realPrefix));
   for (const job of jobs) {
     await api(page, `/api/v1/jobs/${job.id}/discard`, { method: 'POST', body: {} }).catch(() => {});
+  }
+}
+
+async function cleanupDavRealRoots(page, username) {
+  const payload = await api(page, `/api/v1/targets?mode=copy&path=/Photos&query=${encodeURIComponent(realPrefix)}&limit=200&ordering=alphabetical`);
+  const folders = (payload.folders?.folders || payload.folders || []).filter((folder) => {
+    const path = String(folder.path || '');
+    return path.startsWith(`/Photos/${realPrefix}`);
+  });
+  const roots = [...new Set(folders.map((folder) => String(folder.path).split('/').slice(0, 3).join('/')))]
+    .filter((path) => path.startsWith(`/Photos/${realPrefix}`))
+    .sort((a, b) => b.length - a.length);
+  for (const path of roots) {
+    await deleteDavPath(page, username, path).catch(() => {});
   }
 }
 

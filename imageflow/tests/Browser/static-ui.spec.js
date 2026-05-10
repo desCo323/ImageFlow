@@ -476,6 +476,9 @@ test('opens admin operation settings and exports diagnostics', async ({ page }) 
   await page.getByLabel('Maximale Serverlast').fill('4.5');
   await page.getByRole('button', { name: 'Speichern' }).click();
   await expect(page.getByText('Betriebseinstellungen wurden gespeichert.')).toBeVisible();
+  await page.getByRole('button', { name: 'Übersicht' }).click();
+  await expect(page.getByLabel('Schutzstatus')).toContainText('Dateiänderungen aktiv');
+  await page.getByRole('button', { name: 'Betrieb' }).click();
 
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Diagnose exportieren' }).click();
