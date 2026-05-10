@@ -101,8 +101,10 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Protokoll' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Ereignisse' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Flow anlegen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Flow anlegen' })).toHaveAttribute('title', /Flow-Erstellung/);
   await page.getByRole('button', { name: 'Flow anlegen' }).click();
   await expect(page.getByRole('heading', { name: 'Neuen Flow vorbereiten' })).toBeVisible();
+  await expect(page.getByLabel('Name')).toHaveAttribute('title', /Anzeigenamen/);
   await expect(page.getByRole('button', { name: 'Flow speichern' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Speichern & loslegen' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Weitermachen' }).first()).toBeVisible();
@@ -136,6 +138,24 @@ test('renders the job dashboard and creates a local mock job', async ({ page }) 
 
   await page.locator('tr', { hasText: 'Browser Smoke Bearbeitet' }).getByRole('button', { name: 'Duplizieren' }).click();
   await expect(page.getByText('Browser Smoke Bearbeitet Duplikat')).toBeVisible();
+});
+
+test('switches the UI to English from the selected language and keeps tooltips translated', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-language="en"');
+
+  await expect(page.getByRole('heading', { name: 'ImageFlow' })).toBeVisible();
+  await expect(page.getByLabel('Safety status')).toContainText('Protected test mode');
+  await expect(page.getByRole('button', { name: 'Create flow' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Prepare new flow' })).toBeVisible();
+  await expect(page.getByLabel('Image folder')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review filing' }).first()).toHaveAttribute('title', /warnings, duplicates/);
+  await expect(page.getByRole('button', { name: 'Create flow' })).toHaveAttribute('title', /flow creation/);
+
+  await mount(page, 'data-page="settings" data-admin-settings="1" data-language="en" data-mock-user="albentest"');
+  await expect(page.getByRole('heading', { name: 'ImageFlow Operations' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Global operation settings' })).toBeVisible();
+  await expect(page.getByLabel('Allow real file changes')).toBeVisible();
+  await expect(page.getByLabel('Maximum server load')).toHaveAttribute('title', /1-minute server load/);
 });
 
 test('shows the guided self-test as allowed for albentest', async ({ page }) => {
@@ -427,6 +447,19 @@ test('shows flow feedback after a sorting decision', async ({ page }) => {
   await expect(page.locator('.imageflow-feedback-burst')).toContainText('1er Serie');
   await expect(page.locator('.imageflow-flow-chip.accent-warm strong')).toHaveText('1');
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
+});
+
+test('guides users to review filing when all open images are decided', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1"');
+
+  for (let index = 0; index < 3; index += 1) {
+    await page.locator('.imageflow-favorite', { hasText: 'Familie' }).click();
+  }
+
+  await expect(page.getByText('Alle offenen Bilder sind entschieden.')).toBeVisible();
+  await expect(page.getByText('Als nächstes bitte die Ablage prüfen.')).toBeVisible();
+  await page.locator('.imageflow-complete-panel').getByRole('button', { name: 'Ablage prüfen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Ablage prüfen' })).toBeVisible();
 });
 
 test('loads the next open image page after a decided page is exhausted', async ({ page }) => {

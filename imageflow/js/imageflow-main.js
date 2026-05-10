@@ -99,6 +99,369 @@
     },
   };
 
+  const UI_TRANSLATIONS = {
+    en: {
+      terms: {
+        "ImageFlow Betrieb": "ImageFlow Operations",
+        "Globale Servereinstellungen für Ablage, Automatik und Prüflast.": "Global server settings for filing, automation and load checks.",
+        "Viele Bilder schnell durchsehen, entscheiden und sicher ablegen.": "Review many photos quickly, decide, and file them safely.",
+        "Übersicht": "Overview",
+        "Sortieren": "Sort",
+        "Protokoll": "Log",
+        "Foto-Flows": "Photo flows",
+        "Schutzstatus": "Safety status",
+        "Bereit für die nächste Bilderrunde?": "Ready for the next photo round?",
+        "Lege einen Flow an, wähle Ordner und Zielart, und sortiere danach Bild für Bild.": "Create a flow, choose folder and filing type, then sort image by image.",
+        "Flow anlegen": "Create flow",
+        "Flow bearbeiten": "Edit flow",
+        "Neuen Flow vorbereiten": "Prepare new flow",
+        "Passe Name und Einstellungen an. Quelle und Ziel bleiben gesperrt, sobald Entscheidungen vorhanden sind.": "Change name and settings. Source and destination stay locked once decisions exist.",
+        "Speichere den Flow zuerst oder spring direkt in den Sortiermodus.": "Save the flow first or jump straight into sorting.",
+        "Name": "Name",
+        "Bilderordner": "Image folder",
+        "Auswählen": "Choose",
+        "ImageFlow nutzt nur Ordner aus deinem Nextcloud-Dateibereich.": "ImageFlow only uses folders from your Nextcloud files.",
+        "Unterordner mit einbeziehen": "Include subfolders",
+        "Wie sollen sortierte Bilder abgelegt werden?": "How should sorted images be filed?",
+        "Zu einem Album hinzufügen": "Add to an album",
+        "In einen Ordner verschieben": "Move to a folder",
+        "In einen Ordner kopieren": "Copy to a folder",
+        "Zielordner": "Destination folder",
+        "Mit Prüfsummen extra sicher prüfen": "Use extra-safe checksum verification",
+        "Automatisch ablegen, wenn der Server ruhig ist": "File automatically when the server is quiet",
+        "Vorschau laden": "Preview loading",
+        "Schonend": "Light",
+        "Ausgewogen": "Balanced",
+        "Turbo für große Stapel": "Turbo for large batches",
+        "Ziel-Reihenfolge": "Target order",
+        "Passende Ziele zuerst": "Relevant targets first",
+        "Alphabetisch": "Alphabetical",
+        "Tastenbelegung": "Keyboard shortcuts",
+        "Zahlen 1-9 und 0": "Numbers 1-9 and 0",
+        "Buchstaben A-I und 0": "Letters A-I and 0",
+        "Eigene Tasten": "Custom keys",
+        "Eigene Schnellziel-Tasten": "Custom quick-target keys",
+        "Jede Taste darf nur einmal vorkommen. 0 und Leertaste bleiben für Überspringen reserviert.": "Each key can only be used once. 0 and Space stay reserved for skipping.",
+        "Änderungen speichern": "Save changes",
+        "Flow speichern": "Save flow",
+        "Speichern & loslegen": "Save and start",
+        "Bearbeiten abbrechen": "Cancel editing",
+        "Zurücksetzen": "Reset",
+        "Deine Flows": "Your flows",
+        "Fortschritt, Tempo und Ablage bleiben hier im Blick.": "Progress, pace and filing stay visible here.",
+        "Neu laden": "Reload",
+        "Flows": "Flows",
+        "Entschieden": "Decided",
+        "Wartet": "Waiting",
+        "Ausführbar": "Ready to run",
+        "Fehler": "Errors",
+        "Flow": "Flow",
+        "Ablage": "Filing",
+        "Status": "Status",
+        "Fortschritt": "Progress",
+        "Aktionen": "Actions",
+        "Noch keine Flows vorhanden.": "No flows yet.",
+        "Extra sicher": "Extra safe",
+        "Standard": "Standard",
+        "Automatik an": "Automation on",
+        "Manuell": "Manual",
+        "Mit Unterordnern": "With subfolders",
+        "Weitermachen": "Continue",
+        "Von vorn ansehen": "View from beginning",
+        "Offene Bilder": "Open images",
+        "Bearbeiten": "Edit",
+        "Duplizieren": "Duplicate",
+        "Fortsetzen": "Resume",
+        "Pausieren": "Pause",
+        "Ablage prüfen": "Review filing",
+        "Jetzt ausführen": "Run now",
+        "Ereignisse": "Events",
+        "Flow verwerfen": "Delete flow",
+        "Entwurf": "Draft",
+        "In Arbeit": "In progress",
+        "Pausiert": "Paused",
+        "Bereit": "Ready",
+        "Wartet auf Ablage": "Waiting for filing",
+        "Wird abgelegt": "Filing",
+        "Abgeschlossen": "Done",
+        "Album": "Album",
+        "Verschieben": "Move",
+        "Kopieren": "Copy",
+        "Rückgängig": "Undo",
+        "Zurück": "Back",
+        "Serie": "Streak",
+        "Dieser Flow": "This flow",
+        "Bilder/min": "Images/min",
+        "Vorgeladen": "Preloaded",
+        "Flow-Fortschritt": "Flow progress",
+        "Schnellziele": "Quick targets",
+        "Schnellziel": "Quick target",
+        "Überspringen": "Skip",
+        "Leertaste": "Space",
+        "Vorschaubilder": "Thumbnails",
+        "Alle Ziele": "All targets",
+        "Album anlegen": "Create album",
+        "Ordner anlegen": "Create folder",
+        "Eine Ebene hoch": "Up one level",
+        "Ziel suchen": "Search target",
+        "Ordner suchen": "Search folders",
+        "Album suchen": "Search albums",
+        "Suche leeren": "Clear search",
+        "Sucht im geöffneten Ordner und seinen Unterordnern.": "Searches the open folder and its subfolders.",
+        "Sucht in deinen Nextcloud-Alben.": "Searches your Nextcloud albums.",
+        "Neues Album": "New album",
+        "Neuer Ordner": "New folder",
+        "Erscheint sofort in den Zielen und kann als Schnellziel gemerkt werden.": "Appears in targets immediately and can be saved as a quick target.",
+        "Wird angelegt": "Creating",
+        "Anlegen": "Create",
+        "Vorschauleiste": "Preview strip",
+        "Vorherige Vorschaubilder": "Previous thumbnails",
+        "Nächste Vorschaubilder": "Next thumbnails",
+        "Vorgeladene Bilder": "Preloaded images",
+        "Keine Vorschaubilder geladen.": "No thumbnails loaded.",
+        "Kein Bild geladen": "No image loaded",
+        "Bild": "Image",
+        "Keine Ziele in diesem Ordner.": "No targets in this folder.",
+        "Alle offenen Bilder sind entschieden.": "All open images are decided.",
+        "Als nächstes bitte die Ablage prüfen. Dort siehst du Warnungen, Doppelungen und gibst die Entscheidungen frei.": "Next, please review filing. There you see warnings and duplicates and release the decisions.",
+        "Zur Übersicht": "Go to overview",
+        "Dateiänderungen aktiv": "File changes active",
+        "Geschützter Testbetrieb": "Protected test mode",
+        "Reale Dateiänderungen sind freigeschaltet. Ablagen können Dateien verändern.": "Real file changes are enabled. Filing can change files.",
+        "Reale Dateiänderungen sind gesperrt. Du kannst Ablagen prüfen und für später merken, ohne Dateien zu verändern.": "Real file changes are locked. You can review filing and save it for later without changing files.",
+        "Server ruhig": "Server quiet",
+        "Automatik wartet": "Automation waiting",
+        "Automatik aus": "Automation off",
+        "Dateien können geändert werden": "Files can be changed",
+        "Dateiänderungen gesperrt": "File changes locked",
+        "Prüfsummen an": "Checksums on",
+        "Diagnose exportieren": "Export diagnostics",
+        "Systemprüfung": "System check",
+        "Neu prüfen": "Check again",
+        "Schutz": "Safety",
+        "Daten": "Data",
+        "Geführter Test": "Guided test",
+        "Testkonto aktiv": "Test account active",
+        "Nur mit albentest": "albentest only",
+        "Geführter Test ist erlaubt.": "Guided test is allowed.",
+        "Produktive Konten nicht für Testläufe nutzen.": "Do not use production accounts for test runs.",
+        "Geführter Testlauf": "Guided test run",
+        "Diese Schritte prüfen die App-Funktionen ohne echte Dateiänderungen.": "These steps verify the app without real file changes.",
+        "Mit albentest anmelden": "Sign in as albentest",
+        "Flow speichern und öffnen": "Save and open flow",
+        "Entscheidung, Rückgängig und Ablage prüfen": "Decision, undo and filing review",
+        "Ablage nur vormerken, nichts ausführen": "Save filing only, do not execute",
+        "Prüfen": "Check",
+        "Stopp": "Stop",
+        "Offen": "Open",
+        "Die App läuft, aber die Datenbankprüfung braucht Aufmerksamkeit.": "The app runs, but the database check needs attention.",
+        "Die App ist im geschützten Testbetrieb und bereit für sichere Funktionsprüfungen.": "The app is in protected test mode and ready for safe functional checks.",
+        "Echte Dateiänderungen sind aktiv. Nur mit bewusstem Testfenster und Backup verwenden.": "Real file changes are active. Use only in a planned test window with backup.",
+        "Dateiänderungen aktiv": "File changes active",
+        "Ablage wird geprüft.": "Checking filing.",
+        "Entscheidungen": "Decisions",
+        "Wartet auf Freigabe": "Waiting for release",
+        "Warnungen": "Warnings",
+        "Erledigt": "Done",
+        "Blockiert": "Blocked",
+        "Ablage Aktionen": "Filing actions",
+        "Erneut prüfen": "Check again",
+        "Einstellung merken": "Remember setting",
+        "Zur Ausführung freigeben": "Release for execution",
+        "Für später vormerken": "Save for later",
+        "Alle": "All",
+        "Auffälligkeiten": "Issues",
+        "Keine Aktion nötig.": "No action needed.",
+        "Erst die Fehler beheben. Danach kann die Ablage freigegeben werden.": "Fix errors first. Filing can be released afterwards.",
+        "Noch keine Entscheidungen für die Ablage vorhanden.": "No filing decisions yet.",
+        "Keine Einträge in diesem Filter.": "No entries in this filter.",
+        "Geplant": "Planned",
+        "In Arbeit": "In progress",
+        "Unklar": "Unclear",
+        "Dateiänderungen aktiv": "File changes active",
+        "Automatik aktiv": "Automation active",
+        "Automatik bereit": "Automation ready",
+        "Wartet auf Ruhe": "Waiting for quiet server",
+        "Protokoll": "Log",
+        "Sicherheits- und Sortierereignisse für deine Flows.": "Safety and sorting events for your flows.",
+        "Alle Level": "All levels",
+        "Debug": "Debug",
+        "Info": "Info",
+        "Warnung": "Warning",
+        "Alle Flows": "All flows",
+        "Diagnoseüberblick": "Diagnostics overview",
+        "Automatik vorbereitet": "Automation prepared",
+        "Protokoll wird geladen.": "Loading log.",
+        "Noch keine Protokolleinträge vorhanden.": "No log entries yet.",
+        "Globale Betriebseinstellungen": "Global operation settings",
+        "Diese Werte gelten serverweit für alle ImageFlow-Benutzer und werden in der Nextcloud-App-Konfiguration gespeichert.": "These values apply server-wide for all ImageFlow users and are stored in the Nextcloud app configuration.",
+        "Speichern": "Save",
+        "Betriebseinstellungen werden geladen.": "Loading operation settings.",
+        "Echte Dateiänderungen erlauben": "Allow real file changes",
+        "Automatisch im Hintergrund ablegen": "File automatically in background",
+        "Nur bei ruhigem Server laufen lassen": "Run only when the server is quiet",
+        "Maximale Serverlast": "Maximum server load",
+        "Nur im Zeitfenster laufen": "Run only in time window",
+        "Start": "Start",
+        "Ende": "End",
+        "Automatikstatus wird nach dem Speichern neu geprüft.": "Automation status is checked again after saving.",
+        "Schließen": "Close",
+        "Diesen Ordner wählen": "Choose this folder",
+        "Ordner werden geladen.": "Loading folders.",
+        "Keine Unterordner vorhanden.": "No subfolders.",
+        "Dateien": "Files",
+        "Zielordner wählen": "Choose destination folder",
+        "Bilderordner wählen": "Choose image folder",
+        "Wählen": "Choose",
+        "Unterordner": "Subfolders",
+        "Schnellziel entfernen": "Remove quick target",
+        "Ordner öffnen": "Open folder",
+        "Als Schnellziel merken": "Save as quick target",
+        "Ablage entfernen": "Remove filing item",
+        "Startet nur die Ansicht beim ersten Bild. Bereits abgelegte Dateien werden nicht zurückgeholt.": "Only restarts the view at the first image. Already filed files are not restored.",
+        "Startet die Ansicht beim ersten Bild. Vorgemerkte Ablagen bleiben erhalten.": "Restarts the view at the first image. Saved filing decisions remain.",
+        "Öffnet die Flow-Erstellung und setzt den Fokus auf den Namen.": "Opens flow creation and focuses the name field.",
+        "Öffnet den Sortierbildschirm für diesen Flow.": "Opens the sorting screen for this flow.",
+        "Startet die Ansicht passend zur gewählten Startposition.": "Starts the view at the selected starting point.",
+        "Zeigt nur Bilder, für die noch keine Entscheidung gespeichert ist.": "Shows only images without a saved decision.",
+        "Prüft alle vorgemerkten Entscheidungen auf Warnungen, Doppelungen und Ausführbarkeit.": "Checks all saved decisions for warnings, duplicates and executability.",
+        "Startet sofort die freigegebenen Ablagen. Nur aktive Dateiänderungen führen echte Kopien, Verschiebungen oder Albumänderungen aus.": "Immediately starts released filing items. Only active file changes perform real copies, moves or album updates.",
+        "Nimmt die letzte Entscheidung zurück, solange sie noch nicht ausgeführt wurde.": "Undoes the last decision as long as it has not been executed.",
+        "Speichert das aktuelle Bild im gewählten Ziel und springt direkt weiter.": "Saves the current image to the selected target and moves on.",
+        "Überspringt dieses Bild ohne Ablageentscheidung.": "Skips this image without a filing decision.",
+        "Legt das Ziel als Schnellziel in der linken Leiste ab.": "Saves this target as a quick target in the left rail.",
+        "Entfernt dieses Schnellziel aus der linken Leiste.": "Removes this quick target from the left rail.",
+        "Öffnet diesen Ordner in der Zielliste.": "Opens this folder in the target list.",
+        "Öffnet das Feld zum Anlegen eines neuen Albums oder Ordners.": "Opens the field for creating a new album or folder.",
+        "Legt das neue Ziel im aktuell geöffneten Bereich an.": "Creates the new target in the currently open area.",
+        "Löscht den Suchtext und zeigt wieder alle passenden Ziele.": "Clears the search text and shows matching targets again.",
+        "Lädt die aktuellen Daten erneut vom Server.": "Reloads the current data from the server.",
+        "Speichert die globalen Betriebseinstellungen.": "Saves the global operation settings.",
+        "Speichert Diagnoseinformationen für Support und Fehlersuche.": "Exports diagnostic information for support and troubleshooting.",
+        "Gibt geprüfte Entscheidungen für die spätere Ausführung frei oder merkt sie sicher vor.": "Releases checked decisions for later execution or safely saves them.",
+        "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus der Liste.": "Removes this not-yet-executed filing item from the list.",
+        "Wählt diesen Ordner für den Flow aus.": "Chooses this folder for the flow.",
+        "Öffnet den Ordnerauswahldialog.": "Opens the folder picker.",
+        "Bestimmt den Anzeigenamen des Flows.": "Sets the display name of the flow.",
+        "Quelle der zu sortierenden Bilder.": "Source of the images to sort.",
+        "Nimmt Bilder aus Unterordnern in denselben Flow auf.": "Includes images from subfolders in the same flow.",
+        "Legt fest, ob Entscheidungen Alben füllen, Bilder verschieben oder kopieren.": "Defines whether decisions fill albums, move images or copy images.",
+        "Zielbasis für Kopieren oder Verschieben.": "Destination base for copy or move.",
+        "Aktiviert zusätzliche Prüfsummenprüfungen vor und nach Dateioperationen.": "Enables extra checksum checks before and after file operations.",
+        "Erlaubt die automatische Verarbeitung, sobald der Administrator dies freigibt und der Server ruhig ist.": "Allows automatic processing once an administrator enables it and the server is quiet.",
+        "Steuert, wie viele Vorschaubilder vorbereitet werden.": "Controls how many thumbnails are prepared.",
+        "Sortiert Zielvorschläge nach Relevanz oder alphabetisch.": "Sorts target suggestions by relevance or alphabetically.",
+        "Wählt die Tasten für die schnellen Ziele links.": "Chooses the keys for quick targets on the left.",
+        "Globaler Schalter für echte Kopier-, Verschiebe- und Albumoperationen.": "Global switch for real copy, move and album operations.",
+        "Erlaubt dem Hintergrundjob freigegebene Ablagen abzuarbeiten.": "Allows the background job to process released filing items.",
+        "Stoppt Automatikläufe bei zu hoher Serverlast.": "Stops automatic runs when server load is too high.",
+        "Grenze für die 1-Minuten-Serverlast.": "Limit for the 1-minute server load.",
+        "Beschränkt Automatikläufe auf ein Zeitfenster.": "Restricts automatic runs to a time window.",
+        "Beginn des erlaubten Zeitfensters.": "Start of the allowed time window.",
+        "Ende des erlaubten Zeitfensters.": "End of the allowed time window."
+      },
+      patterns: [
+        [/^(\d+) entschieden$/, "$1 decided"],
+        [/^(\d+) wartet$/, "$1 waiting"],
+        [/^(\d+) ausführbar$/, "$1 ready to run"],
+        [/^(\d+) Flows$/, "$1 flows"],
+        [/^(\d+) Ablagepunkte, (\d+) auffällig$/, "$1 filing items, $2 issues"],
+        [/^Bild (\d+)\/(\d+)$/, "Image $1/$2"],
+        [/^Position (\d+)$/, "Position $1"],
+        [/^(\d+)er Serie$/, "$1 streak"],
+        [/^Kein Ziel passt zu "(.+)".$/, "No target matches \"$1\"."],
+        [/^Wird in (.+) angelegt.$/, "Will be created in $1."],
+        [/^(\d+) geprüft, (\d+) angezeigt.$/, "$1 checked, $2 shown."],
+        [/^(\d+) geprüft, (\d+) wichtige Einträge angezeigt. Die Summen und Fehlerprüfung gelten für die komplette Ablage.$/, "$1 checked, $2 important entries shown. Totals and issue checks apply to the complete filing list."],
+        [/^(\d+) sichtbar$/, "$1 visible"],
+        [/^(\d+) sichtbar von (\d+)$/, "$1 visible of $2"],
+        [/^Nächster Schritt: (\d+) Entscheidungen zur Ausführung freigeben. Danach kannst du manuell starten oder die Automatik arbeiten lassen.$/, "Next step: release $1 decisions for execution. Then you can start manually or let automation run."],
+        [/^Nächster Schritt: (\d+) Entscheidungen sicher für später vormerken. Dateien werden dabei nicht verändert.$/, "Next step: safely save $1 decisions for later. Files are not changed."],
+        [/^(\d+) Ablagen sind ausführbar. Du kannst jetzt manuell starten oder die Automatik laufen lassen.$/, "$1 filing items are ready. You can start manually now or let automation run."],
+        [/^(\d+) Ablagen warten. Echte Dateiänderungen sind noch serverseitig gesperrt.$/, "$1 filing items are waiting. Real file changes are still locked server-side."],
+        [/^Schnellziel entfernen: (.+)$/, "Remove quick target: $1"],
+        [/^Ordner öffnen: (.+)$/, "Open folder: $1"],
+        [/^Als Schnellziel merken: (.+)$/, "Save as quick target: $1"],
+        [/^Ablage entfernen: (.+)$/, "Remove filing item: $1"],
+        [/^Taste für Schnellziel (\d+)$/, "Key for quick target $1"],
+        [/^Nur (.+)$/, "Only $1"],
+        [/^Version (.+)$/, "Version $1"]
+      ]
+    }
+  };
+
+  const ACTION_HELP_DE = {
+    "focus-new-flow": "Öffnet die Flow-Erstellung und setzt den Fokus auf den Namen.",
+    "open-sort": "Öffnet den Sortierbildschirm für diesen Flow.",
+    "start-sort": "Startet die Ansicht passend zur gewählten Startposition.",
+    "go-sort": "Öffnet den Sortierbildschirm für diesen Flow.",
+    "go-jobs": "Zeigt die Übersicht mit allen Flows.",
+    "show-log": "Zeigt Diagnose- und Sortierereignisse.",
+    "show-job-log": "Zeigt Diagnoseereignisse nur für diesen Flow.",
+    "queue-job": "Prüft alle vorgemerkten Entscheidungen auf Warnungen, Doppelungen und Ausführbarkeit.",
+    "confirm-queue-job": "Gibt geprüfte Entscheidungen für die spätere Ausführung frei oder merkt sie sicher vor.",
+    "process-job-now": "Startet sofort die freigegebenen Ablagen. Nur aktive Dateiänderungen führen echte Kopien, Verschiebungen oder Albumänderungen aus.",
+    "process-job-now-direct": "Startet sofort die freigegebenen Ablagen. Nur aktive Dateiänderungen führen echte Kopien, Verschiebungen oder Albumänderungen aus.",
+    "undo-last-decision": "Nimmt die letzte Entscheidung zurück, solange sie noch nicht ausgeführt wurde.",
+    "assign": "Speichert das aktuelle Bild im gewählten Ziel und springt direkt weiter.",
+    "skip-current": "Überspringt dieses Bild ohne Ablageentscheidung.",
+    "add-favorite": "Legt das Ziel als Schnellziel in der linken Leiste ab.",
+    "remove-favorite": "Entfernt dieses Schnellziel aus der linken Leiste.",
+    "browse-target-folder": "Öffnet diesen Ordner in der Zielliste.",
+    "browse-target-parent": "Öffnet den übergeordneten Zielordner.",
+    "focus-target-create": "Öffnet das Feld zum Anlegen eines neuen Albums oder Ordners.",
+    "create-target": "Legt das neue Ziel im aktuell geöffneten Bereich an.",
+    "clear-target-search": "Löscht den Suchtext und zeigt wieder alle passenden Ziele.",
+    "refresh": "Lädt die aktuellen Daten erneut vom Server.",
+    "refresh-worklist-preview": "Prüft die Ablage erneut mit aktuellen Serverdaten.",
+    "refresh-settings": "Lädt die Betriebseinstellungen erneut vom Server.",
+    "refresh-logs": "Lädt die Diagnoseereignisse erneut.",
+    "export-diagnostics": "Speichert Diagnoseinformationen für Support und Fehlersuche.",
+    "edit-job": "Öffnet diesen Flow zum Bearbeiten.",
+    "duplicate-job": "Erstellt eine Kopie dieses Flows ohne Entscheidungen.",
+    "pause-job": "Pausiert diesen Flow, bis du ihn fortsetzt.",
+    "resume-job": "Setzt einen pausierten Flow fort.",
+    "discard-job": "Löscht diesen Flow nach Bestätigung.",
+    "clear-job-draft": "Setzt das Formular auf Standardwerte zurück.",
+    "cancel-edit-job": "Beendet die Bearbeitung ohne weitere Änderung.",
+    "open-folder-picker": "Öffnet den Ordnerauswahldialog.",
+    "close-folder-picker": "Schließt die Ordnerauswahl.",
+    "folder-picker-parent": "Öffnet den übergeordneten Ordner.",
+    "folder-picker-open": "Öffnet diesen Ordner.",
+    "choose-folder": "Wählt diesen Ordner für den Flow aus.",
+    "close-worklist-preview": "Schließt die Ablageprüfung.",
+    "filter-worklist": "Filtert die Ablagepunkte nach diesem Zustand.",
+    "remove-worklist-item": "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus der Liste.",
+    "toggle-worklist-auto": "Merkt, ob dieser Flow automatisch abgelegt werden soll.",
+    "select-image": "Springt zu diesem Vorschaubild.",
+    "page-prev": "Zeigt die vorherigen Vorschaubilder.",
+    "page-next": "Zeigt die nächsten Vorschaubilder."
+  };
+
+  const CONTROL_HELP_DE = {
+    "Name": "Bestimmt den Anzeigenamen des Flows.",
+    "Bilderordner": "Quelle der zu sortierenden Bilder.",
+    "Unterordner mit einbeziehen": "Nimmt Bilder aus Unterordnern in denselben Flow auf.",
+    "Wie sollen sortierte Bilder abgelegt werden?": "Legt fest, ob Entscheidungen Alben füllen, Bilder verschieben oder kopieren.",
+    "Zielordner": "Zielbasis für Kopieren oder Verschieben.",
+    "Mit Prüfsummen extra sicher prüfen": "Aktiviert zusätzliche Prüfsummenprüfungen vor und nach Dateioperationen.",
+    "Automatisch ablegen, wenn der Server ruhig ist": "Erlaubt die automatische Verarbeitung, sobald der Administrator dies freigibt und der Server ruhig ist.",
+    "Vorschau laden": "Steuert, wie viele Vorschaubilder vorbereitet werden.",
+    "Ziel-Reihenfolge": "Sortiert Zielvorschläge nach Relevanz oder alphabetisch.",
+    "Tastenbelegung": "Wählt die Tasten für die schnellen Ziele links.",
+    "Eigene Schnellziel-Tasten": "Legt eigene Tasten für die ersten neun Schnellziele fest.",
+    "Ziel suchen": "Filtert die Ziele, ohne den aktuellen Flow zu verlassen.",
+    "Album anlegen": "Erstellt ein neues Album und zeigt es direkt in den Zielen.",
+    "Ordner anlegen": "Erstellt einen neuen Zielordner und zeigt ihn direkt in den Zielen.",
+    "Echte Dateiänderungen erlauben": "Globaler Schalter für echte Kopier-, Verschiebe- und Albumoperationen.",
+    "Automatisch im Hintergrund ablegen": "Erlaubt dem Hintergrundjob freigegebene Ablagen abzuarbeiten.",
+    "Nur bei ruhigem Server laufen lassen": "Stoppt Automatikläufe bei zu hoher Serverlast.",
+    "Maximale Serverlast": "Grenze für die 1-Minuten-Serverlast.",
+    "Nur im Zeitfenster laufen": "Beschränkt Automatikläufe auf ein Zeitfenster.",
+    "Start": "Beginn des erlaubten Zeitfensters.",
+    "Ende": "Ende des erlaubten Zeitfensters."
+  };
+
   function numberOrNull(value) {
     const parsed = Number.parseInt(value || "", 10);
     return Number.isFinite(parsed) ? parsed : null;
@@ -1146,6 +1509,7 @@
         </main>
       </div>
     `;
+    applyUiHelpAndTranslations();
     bindActions();
     syncImageBuffer();
     if (scrollToTopOnRender) {
@@ -1175,6 +1539,127 @@
 
   function debugUiEnabled() {
     return root.dataset.debugUi === "1";
+  }
+
+  function activeUiLanguage() {
+    if (root.dataset.language) {
+      return normalizeUiLanguage(root.dataset.language);
+    }
+    if (hasNextcloud && typeof window.OC?.getLanguage === "function") {
+      return normalizeUiLanguage(window.OC.getLanguage());
+    }
+    if (hasNextcloud && document.documentElement?.lang) {
+      return normalizeUiLanguage(document.documentElement.lang);
+    }
+    return "de";
+  }
+
+  function normalizeUiLanguage(language) {
+    const value = String(language || "de").trim().toLowerCase().replace("_", "-");
+    const base = value.split("-")[0] || "de";
+    return base === "de" || UI_TRANSLATIONS[base] ? base : "de";
+  }
+
+  function applyUiHelpAndTranslations() {
+    applyMouseoverHelp();
+    const language = activeUiLanguage();
+    if (language === "de") {
+      return;
+    }
+    translateTextNodes(mount, language);
+    translateAttributes(mount, language);
+  }
+
+  function applyMouseoverHelp() {
+    root.querySelectorAll("[data-action]").forEach((element) => {
+      if (element.getAttribute("title")) {
+        return;
+      }
+      const help = ACTION_HELP_DE[element.dataset.action || ""];
+      if (help) {
+        element.setAttribute("title", help);
+      }
+    });
+
+    root.querySelectorAll("label").forEach((element) => {
+      if (element.getAttribute("title")) {
+        return;
+      }
+      const key = compactText(element.textContent || "");
+      const help = CONTROL_HELP_DE[key];
+      if (help) {
+        element.setAttribute("title", help);
+        const control = element.control || (element.htmlFor ? document.getElementById(element.htmlFor) : element.querySelector("input, select, textarea"));
+        if (control && !control.getAttribute("title")) {
+          control.setAttribute("title", help);
+        }
+      }
+    });
+
+    root.querySelectorAll("button:not([title])").forEach((element) => {
+      const key = compactText(element.textContent || "");
+      const help = CONTROL_HELP_DE[key] || ACTION_HELP_DE[element.dataset.action || ""];
+      if (help) {
+        element.setAttribute("title", help);
+      }
+    });
+  }
+
+  function translateTextNodes(container, language) {
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent || ["SCRIPT", "STYLE", "TEXTAREA", "CODE"].includes(parent.tagName)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return compactText(node.nodeValue || "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      },
+    });
+    const nodes = [];
+    while (walker.nextNode()) {
+      nodes.push(walker.currentNode);
+    }
+    nodes.forEach((node) => {
+      node.nodeValue = translateUiString(node.nodeValue || "", language);
+    });
+  }
+
+  function translateAttributes(container, language) {
+    const attrs = ["aria-label", "title", "placeholder", "alt"];
+    container.querySelectorAll(attrs.map((attr) => `[${attr}]`).join(",")).forEach((element) => {
+      attrs.forEach((attr) => {
+        const value = element.getAttribute(attr);
+        if (value) {
+          element.setAttribute(attr, translateUiString(value, language));
+        }
+      });
+    });
+  }
+
+  function translateUiString(value, language) {
+    const dictionary = UI_TRANSLATIONS[language];
+    if (!dictionary) {
+      return value;
+    }
+    const leading = value.match(/^\s*/)?.[0] || "";
+    const trailing = value.match(/\s*$/)?.[0] || "";
+    const compact = compactText(value);
+    if (!compact) {
+      return value;
+    }
+    if (dictionary.terms[compact]) {
+      return `${leading}${dictionary.terms[compact]}${trailing}`;
+    }
+    for (const [pattern, replacement] of dictionary.patterns || []) {
+      if (pattern.test(compact)) {
+        return `${leading}${compact.replace(pattern, replacement)}${trailing}`;
+      }
+    }
+    return value;
+  }
+
+  function compactText(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
   }
 
   function isAdminUser() {
@@ -1518,6 +2003,8 @@
     const milestone = flowMilestone(progress.percent, state.decisionStreak);
     const beginHint = beginStartHint(job);
     const hasDecisions = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) > 0 || (sortState.recentAssignments || []).length > 0;
+    const decisionsForReview = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) + Number(job.queuedOperations || 0);
+    const sortingComplete = images.length === 0 && decisionsForReview > 0;
     const listedTargets = state.targets.length
       ? state.targets
       : (isFolderMode || state.targetQuery.trim() ? [] : mockTargets());
@@ -1538,6 +2025,7 @@
               <span class="imageflow-badge">${Number(job.sortedFiles || 0)} entschieden</span>
               <span class="imageflow-badge">${Number(job.queuedOperations || 0)} ${jobQueueLabel(job)}</span>
               <button class="imageflow-button" data-action="undo-last-decision" type="button" ${hasDecisions ? "" : "disabled"}>Rückgängig</button>
+              <button class="imageflow-button primary" data-action="queue-job" data-job-id="${escapeAttr(job.id || state.jobId || "")}" type="button" ${decisionsForReview > 0 ? "" : "disabled"}>Ablage prüfen</button>
               <button class="imageflow-button" data-action="start-sort" data-start-mode="resume" type="button">Weitermachen</button>
               <button class="imageflow-button" data-action="start-sort" data-start-mode="begin" title="${escapeAttr(beginHint)}" type="button">Von vorn ansehen</button>
               <button class="imageflow-button" data-action="start-sort" data-start-mode="unsorted" type="button">Offene Bilder</button>
@@ -1583,11 +2071,22 @@
           <section class="imageflow-photo-stage">
             <div class="imageflow-photo">
               <div class="imageflow-photo-card ${state.feedback ? "is-celebrating" : ""}">
-                ${preview ? `<img class="imageflow-photo-img" src="${escapeAttr(preview)}" alt="${escapeAttr(current.name || "Bild")}" decoding="async" fetchpriority="high" draggable="false">` : '<div class="imageflow-photo-icon" aria-hidden="true"></div>'}
-                <div class="imageflow-photo-meta">
-                  <strong>${escapeHtml(current.name || "Bild")}</strong>
-                  <span>${escapeHtml(current.path || "")}</span>
-                </div>
+                ${sortingComplete ? `
+                  <div class="imageflow-complete-panel" role="status">
+                    <strong>Alle offenen Bilder sind entschieden.</strong>
+                    <span>Als nächstes bitte die Ablage prüfen. Dort siehst du Warnungen, Doppelungen und gibst die Entscheidungen frei.</span>
+                    <div class="imageflow-actions">
+                      <button class="imageflow-button" data-action="go-jobs" type="button">Zur Übersicht</button>
+                      <button class="imageflow-button primary" data-action="queue-job" data-job-id="${escapeAttr(job.id || state.jobId || "")}" type="button">Ablage prüfen</button>
+                    </div>
+                  </div>
+                ` : `
+                  ${preview ? `<img class="imageflow-photo-img" src="${escapeAttr(preview)}" alt="${escapeAttr(current.name || "Bild")}" decoding="async" fetchpriority="high" draggable="false">` : '<div class="imageflow-photo-icon" aria-hidden="true"></div>'}
+                  <div class="imageflow-photo-meta">
+                    <strong>${escapeHtml(current.name || "Bild")}</strong>
+                    <span>${escapeHtml(current.path || "")}</span>
+                  </div>
+                `}
                 ${renderFeedbackBurst()}
               </div>
             </div>

@@ -1,26 +1,65 @@
 # ImageFlow
 
-ImageFlow is a Nextcloud app for fast, controlled sorting of large image folders.
+ImageFlow is a Nextcloud app for fast, controlled sorting of large image folders. It is built around flows: choose a source folder, decide whether images should go to albums, be copied, or be moved, sort quickly, then review and release the filing work explicitly.
 
-Current status: v1 production candidate for Nextcloud 33. The app keeps real file writes disabled by default. Sorting decisions are stored as assignments and queue items first; manual or background processing must be explicitly enabled by an administrator in a controlled window.
+Current status: v1 production candidate for Nextcloud 33. Real file writes are disabled by default. Sorting decisions are stored as assignments and queue items first; manual or background processing must be enabled by an administrator in a controlled window.
 
-## Features In This Build
+![ImageFlow dashboard](docs/screenshots/35-v1-live-dashboard.png)
 
-- Flow dashboard with a prominent create action, save, edit, duplicate, pause, safe preview and processing controls.
-- Responsive sorting workspace with stable image stage, visible filmstrip footer, quick target creation and playful progress feedback.
+## What It Does
+
+- Flow dashboard with create, save, edit, duplicate, pause, review and processing controls.
+- Responsive sorting workspace with quick targets, large stable photo stage, all targets, target creation and thumbnail strip.
+- Game-like feedback with streaks, images per minute, progress meter, hotkeys and quick animations.
 - Fast target search for albums and folder targets directly in the sorting rail.
-- Fast hotkeys for `1-9`, `A-I`, custom quick-target keys, `0`, `Space`, undo and arrow-key filmstrip navigation.
+- Hotkeys for `1-9`, `A-I`, custom quick-target keys, `0`, `Space`, undo and arrow-key thumbnail navigation.
 - Bounded image preload modes for light, balanced and turbo sorting.
-- Tables for jobs, assignments, queue items, favorites and logs.
-- Folder and album target APIs with explicit user-triggered target creation.
+- Folder and album APIs with explicit user-triggered target creation.
 - Undo for recent decisions and removable planned worklist items before execution.
-- Full-worklist safety summaries with compact filters for large pending Ablagen.
-- Dashboard system check with safety flags, queue diagnostics and guided self-test steps.
-- Guarded manual and background queue processing with checksum-safe copy/move support behind server-side flags.
-- Quiet-server background gate based on server load and optional processing windows.
+- Worklist review with warnings, duplicate handling, checksum-safe copy/move checks and compact filters for large queues.
+- Guarded manual and background queue processing behind server-side flags.
 - Admin operation page for real-write and cron gates.
-- User-visible diagnosis export with app settings, queue counts, background gate state and redacted logs.
-- Browser tests for static UI, authenticated live use cases and opt-in real write execution.
+- German and English UI based on the selected Nextcloud user language; more languages can be added in the UI dictionary.
+- User-visible diagnosis export with settings, queue counts, background gate state and redacted logs.
+
+![Sorting workspace](docs/screenshots/36-v1-live-sort-desktop.png)
+
+![Mobile sorting workspace](docs/screenshots/37-v1-live-sort-mobile.png)
+
+## Workflow
+
+1. Create a flow and choose the image folder.
+2. Pick the filing mode: album, copy to folder, or move to folder.
+3. Sort images by clicking a target or pressing the assigned hotkey.
+4. When all open images are decided, click **Review filing**.
+5. Review warnings, duplicates and readiness.
+6. Release the worklist, then run it manually or let the background job process it when the server is quiet.
+
+![Worklist review](docs/screenshots/09-worklist-queued-state.png)
+
+## Installation
+
+Clone the repository and copy the app folder into Nextcloud's app directory:
+
+```bash
+cd /var/www/nextcloud/apps
+git clone https://github.com/desCo323/ImageFlow.git imageflow-repo
+cp -a imageflow-repo/imageflow ./imageflow
+sudo -u www-data php /var/www/nextcloud/occ app:enable imageflow
+```
+
+For updates, create a backup first, then update the app folder and run the repair step:
+
+```bash
+cd /var/www/nextcloud/apps/imageflow-repo
+git pull
+sudo rsync -a --delete --exclude='node_modules' --exclude='test-results' imageflow/ /var/www/nextcloud/apps/imageflow/
+sudo chown -R www-data:www-data /var/www/nextcloud/apps/imageflow
+sudo -u www-data php /var/www/nextcloud/occ app:update imageflow
+sudo -u www-data php /var/www/nextcloud/occ maintenance:repair
+```
+
+Admin settings are available in Nextcloud under **Settings -> Administration -> ImageFlow**.
 
 ## Local Checks
 
@@ -55,4 +94,4 @@ See `docs/V1_VERIFICATION.md` for the latest v1 production verification, backup 
 
 ## Safety
 
-Do not deploy this app to a production Nextcloud instance without the documented backup and rollback process. Authenticated tests may only use the dedicated test user `albentest`; credentials must never be stored in this repository. Before any real-write test, create a backup and verify that `real_execution_enabled=0` and `background_processing_enabled=0` again afterwards.
+Do not deploy this app to a production Nextcloud instance without the documented backup and rollback process. Authenticated tests may only use the dedicated test user `albentest`; credentials must never be stored in this repository. Before any real-write test, create a backup and verify the admin operation settings afterwards.
