@@ -41,7 +41,7 @@ Administrators can also open `Betrieb` in ImageFlow. The page must show the real
 7. Use `Rückgängig` before queue execution and confirm the image can be handled again.
 8. Add and remove one quick target.
 9. Open `Ablage prüfen`, remove one planned item, and confirm the count drops.
-10. Confirm that file operations are locked and `Jetzt ablegen` is disabled or blocked.
+10. Confirm that file operations are locked and `Jetzt ausführen` is disabled or blocked.
 11. Open `Protokoll` and confirm that recent sorting and queue events appear.
 12. Use `Diagnose exportieren` and confirm a JSON file is offered.
 13. Discard the test round from the overview.

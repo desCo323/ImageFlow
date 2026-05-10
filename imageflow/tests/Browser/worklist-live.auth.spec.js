@@ -69,8 +69,8 @@ test('previews and queues a worklist without file writes as albentest', async ({
     const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
     await expect(dialog).toBeVisible({ timeout: 10000 });
     await expect(dialog.getByText('Dateiänderungen gesperrt')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
-    await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible({ timeout: 10000 });
+    await dialog.getByRole('button', { name: 'Für später vormerken' }).click();
+    await expect(page.getByText('Ablage wurde für später vorgemerkt')).toBeVisible({ timeout: 10000 });
 
     const afterQueue = await api(page, `/api/v1/jobs/${jobId}/worklist-preview?limit=10`);
     expect(afterQueue.summary.queued).toBeGreaterThan(0);

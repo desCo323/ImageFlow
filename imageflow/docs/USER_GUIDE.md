@@ -69,7 +69,7 @@ For large Flows, the preview checks the complete worklist but only shows a compa
 
 Planned or queued items can be removed from the preview before execution. This also removes the linked decision from the round, so the image can be handled again later.
 
-The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and queued work waits safely. If the administrator enables real writes, `Jetzt ablegen` runs a small manual batch. If both real writes and server-side background processing are enabled, and the Flow is marked for automatic processing, the cron worker can process queued work later when the quiet-server gate allows it.
+The preview shows whether file operations are currently locked or active on the server. In the default configuration, real file writes are locked and planned work waits safely. `Für später vormerken` keeps decisions without file writes. When real writes are enabled, `Zur Ablage freigeben` moves checked decisions into the executable queue; `Jetzt ausführen` then runs a small manual batch. If both real writes and server-side background processing are enabled, and the Flow is marked for automatic processing, the cron worker can process queued work later when the quiet-server gate allows it.
 
 The overview also shows the current safety status. `Geschützter Testbetrieb` means real file operations and cron processing are locked on the server.
 

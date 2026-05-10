@@ -37,6 +37,7 @@ class WorklistPreviewService {
 		$job = $this->jobMapper->findForUserById($userId, $jobId);
 		$options = $this->decodeOptions($job->getOptionsJson());
 		$seenKeys = [];
+		$seenMoveSources = [];
 		$issueRows = [];
 		$sampleRows = [];
 		$displayLimit = max(1, min(500, $limit));
@@ -57,7 +58,7 @@ class WorklistPreviewService {
 		do {
 			$items = $this->queueMapper->findForJob($userId, $jobId, self::VALIDATION_BATCH_SIZE, $offset);
 			foreach ($items as $item) {
-				$row = $this->previewItem($userId, $item, $seenKeys);
+				$row = $this->previewItem($userId, $item, $seenKeys, $seenMoveSources);
 				if ($this->isPreviewIssue($row) && count($issueRows) < $displayLimit) {
 					$issueRows[] = $row;
 				} elseif (count($sampleRows) < $displayLimit) {
@@ -154,19 +155,29 @@ class WorklistPreviewService {
 
 	/**
 	 * @param array<string, bool> $seenKeys
+	 * @param array<string, bool> $seenMoveSources
 	 * @return array<string, mixed>
 	 */
-	private function previewItem(string $userId, QueueItem $item, array &$seenKeys): array {
+	private function previewItem(string $userId, QueueItem $item, array &$seenKeys, array &$seenMoveSources): array {
 		$messages = [];
 		$readiness = 'ready';
 		$key = $this->operationKey($item);
+		$sourcePath = $item->getSourcePath();
+		if ($item->getOperationType() === 'move' && isset($seenMoveSources[$sourcePath])) {
+			$readiness = 'error';
+			$messages[] = 'Dieses Bild ist mehrfach zum Verschieben vorgemerkt. Entferne alte Entscheidungen, bevor du die Ablage freigibst.';
+		} elseif ($item->getOperationType() === 'move') {
+			$seenMoveSources[$sourcePath] = true;
+		}
 		if (isset($seenKeys[$key])) {
-			$readiness = 'warning';
-			$messages[] = 'Diese Entscheidung ist doppelt vorgemerkt und wird später nur einmal wirksam.';
+			$readiness = $item->getOperationType() === 'move' ? 'error' : 'warning';
+			$messages[] = $item->getOperationType() === 'move'
+				? 'Diese Verschiebe-Entscheidung ist doppelt vorgemerkt und muss vor der Ablage bereinigt werden.'
+				: 'Diese Entscheidung ist doppelt vorgemerkt und wird später sicher übersprungen, falls sie schon erledigt ist.';
 		}
 		$seenKeys[$key] = true;
 
-		$sourceNode = $this->nodeForDisplayPath($userId, $item->getSourcePath());
+		$sourceNode = $this->nodeForDisplayPath($userId, $sourcePath);
 		if (!$sourceNode instanceof File) {
 			$readiness = 'error';
 			$messages[] = 'Quelle fehlt oder ist keine Datei.';

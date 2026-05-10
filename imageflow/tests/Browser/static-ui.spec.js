@@ -215,8 +215,8 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(2);
   await dialog.getByRole('button', { name: /Alle 3/ }).click();
   await dialog.getByLabel('Automatisch ablegen, wenn der Server ruhig ist').check();
-  await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
-  await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Für später vormerken' }).click();
+  await expect(page.getByText('Ablage wurde für später vorgemerkt')).toBeVisible();
 });
 
 test('summarizes a large worklist while showing a compact list', async ({ page }) => {
@@ -813,13 +813,13 @@ test('covers 50 typical image sorting user scenarios', async ({ page }) => {
   await scenario('worklist can be queued for later without real writes', async () => {
     const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
     await dialog.getByLabel('Automatisch ablegen, wenn der Server ruhig ist').check();
-    await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
-    await expect(page.getByText('Ablage wurde vorgemerkt')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Für später vormerken' }).click();
+    await expect(page.getByText('Ablage wurde für später vorgemerkt')).toBeVisible();
   });
 
   await scenario('safe mode keeps immediate execution disabled', async () => {
     const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
-    await expect(dialog.getByRole('button', { name: 'Jetzt ablegen' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Jetzt ausführen' })).toBeDisabled();
   });
 
   await scenario('debug protocol can be filtered', async () => {

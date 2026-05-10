@@ -380,13 +380,13 @@ test('executes 50+ real browser user scenarios safely as albentest', async ({ pa
     await scenario('Ablage kann nur vorgemerkt werden', async () => {
       const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
       await dialog.getByLabel('Automatisch ablegen, wenn der Server ruhig ist').check();
-      await dialog.getByRole('button', { name: 'Ablage vormerken' }).click();
-      await expect(page.getByText(/Ablage wurde vorgemerkt|Ablage-Einstellung wurde gemerkt/)).toBeVisible({ timeout: 10000 });
+      await dialog.getByRole('button', { name: 'Für später vormerken' }).click();
+      await expect(page.getByText(/Ablage wurde für später vorgemerkt|Ablage-Einstellung wurde gemerkt/)).toBeVisible({ timeout: 10000 });
     });
 
-    await scenario('Jetzt ablegen bleibt ohne Realmodus gesperrt', async () => {
+    await scenario('Jetzt ausführen bleibt ohne Realmodus gesperrt', async () => {
       const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
-      await expect(dialog.getByRole('button', { name: 'Jetzt ablegen' })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: 'Jetzt ausführen' })).toBeDisabled();
       const blocked = await processNowIsBlocked(page, jobId);
       expect(blocked).toBe(true);
       await dialog.getByRole('button', { name: 'Schließen' }).click();

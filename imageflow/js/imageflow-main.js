@@ -1281,7 +1281,8 @@
           <div class="imageflow-status-grid">
             <div class="imageflow-stat"><strong>${totals.jobs}</strong><span>Flows</span></div>
             <div class="imageflow-stat"><strong>${totals.sorted}</strong><span>Entschieden</span></div>
-            <div class="imageflow-stat"><strong>${totals.queued}</strong><span>Warten auf Ablage</span></div>
+            <div class="imageflow-stat"><strong>${totals.planned}</strong><span>Vorgemerkt</span></div>
+            <div class="imageflow-stat"><strong>${totals.queued}</strong><span>Freigegeben</span></div>
             <div class="imageflow-stat"><strong>${totals.failed}</strong><span>Fehler</span></div>
           </div>
           ${renderJobTable()}
@@ -1452,12 +1453,17 @@
     `;
   }
 
+  function jobQueueLabel(job) {
+    return job?.status === "queued" ? "freigegeben" : "vorgemerkt";
+  }
+
   function renderJobRow(job) {
     const options = job.options || {};
     const paused = job.status === "paused";
     const debugUi = debugUiEnabled();
     const hasDecisions = Number(job.sortedFiles || 0) + Number(job.skippedFiles || 0) + Number(job.queuedOperations || 0) > 0;
     const primaryStartLabel = hasDecisions ? "Weitermachen" : "Sortieren";
+    const queueLabel = jobQueueLabel(job);
     return `
       <tr>
         <td>
@@ -1470,7 +1476,7 @@
         <td>${escapeHtml(job.sourcePath || "/")}</td>
         <td>${modeLabel(job.targetMode)}</td>
         <td><span class="imageflow-badge ${statusClass(job.status)}">${statusLabel(job.status)}</span></td>
-        <td>${Number(job.sortedFiles || 0)} entschieden<br>${Number(job.queuedOperations || 0)} warten</td>
+        <td>${Number(job.sortedFiles || 0)} entschieden<br>${Number(job.queuedOperations || 0)} ${queueLabel}</td>
         <td>
           <div class="imageflow-actions">
             <button class="imageflow-button primary" data-action="open-sort" data-start-mode="resume" data-job-id="${job.id}" type="button">${primaryStartLabel}</button>
@@ -1527,7 +1533,7 @@
             <div class="imageflow-toolbar">
               <span class="imageflow-badge safe">${job.safeMode ? "Extra sicher" : "Standard"}</span>
               <span class="imageflow-badge">${Number(job.sortedFiles || 0)} entschieden</span>
-              <span class="imageflow-badge">${Number(job.queuedOperations || 0)} warten</span>
+              <span class="imageflow-badge">${Number(job.queuedOperations || 0)} ${jobQueueLabel(job)}</span>
               <button class="imageflow-button" data-action="undo-last-decision" type="button" ${hasDecisions ? "" : "disabled"}>Rückgängig</button>
               <button class="imageflow-button" data-action="start-sort" data-start-mode="resume" type="button">Weitermachen</button>
               <button class="imageflow-button" data-action="start-sort" data-start-mode="begin" title="${escapeAttr(beginHint)}" type="button">Von vorn ansehen</button>
@@ -1786,11 +1792,12 @@
     const filteredItems = filteredWorklistItems(items, state.worklist.filter);
     const windowInfo = preview?.window || { total: Number(summary.total || items.length), shown: items.length, truncated: false };
     const queuedCount = Number(summary.queued || 0) + Number(summary.executing || 0);
+    const worklistHasErrors = Number(summary.errors || 0) > 0;
     const canSaveQueueSettings = queuedCount > 0 && !preview?.canQueue;
     const queueButtonEnabled = Boolean(preview?.canQueue || canSaveQueueSettings);
     const queueButtonLabel = canSaveQueueSettings
       ? "Einstellung merken"
-      : (preview?.executionMode === "real-writes-enabled" ? "Jetzt ablegen" : "Ablage vormerken");
+      : (preview?.executionMode === "real-writes-enabled" ? "Zur Ablage freigeben" : "Für später vormerken");
     return `
       <div class="imageflow-modal-backdrop" role="presentation">
         <section class="imageflow-modal imageflow-worklist-modal" role="dialog" aria-modal="true" aria-label="Ablage prüfen">
@@ -1809,10 +1816,10 @@
             <div class="imageflow-worklist-body">
             <div class="imageflow-status-grid">
               <div class="imageflow-stat"><strong>${Number(summary.total || 0)}</strong><span>Entscheidungen</span></div>
-              <div class="imageflow-stat"><strong>${Number(summary.ready || 0)}</strong><span>Bereit</span></div>
+              <div class="imageflow-stat"><strong>${Number(summary.planned || 0)}</strong><span>Vorgemerkt</span></div>
+              <div class="imageflow-stat"><strong>${queuedCount}</strong><span>Freigegeben</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.warnings || 0)}</strong><span>Warnungen</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.errors || 0)}</strong><span>Fehler</span></div>
-              <div class="imageflow-stat"><strong>${queuedCount}</strong><span>Wartet</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.executed || 0)}</strong><span>Erledigt</span></div>
               <div class="imageflow-stat"><strong>${Number(summary.blocked || 0) + Number(summary.failed || 0)}</strong><span>Blockiert</span></div>
             </div>
@@ -1832,7 +1839,7 @@
             <div class="imageflow-folder-actions">
               <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Erneut prüfen</button>
               <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${queueButtonEnabled ? "" : "disabled"}>${queueButtonLabel}</button>
-              <button class="imageflow-button" data-action="process-job-now" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.executionMode === "real-writes-enabled" && queuedCount > 0 ? "" : "disabled"}>Jetzt ablegen</button>
+              <button class="imageflow-button" data-action="process-job-now" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${preview.executionMode === "real-writes-enabled" && queuedCount > 0 && !worklistHasErrors ? "" : "disabled"}>Jetzt ausführen</button>
             </div>
             </div>
           ` : ""}
@@ -1868,7 +1875,7 @@
       { id: "all", label: "Alle", count: items.length },
       { id: "issues", label: "Auffälligkeiten", count: items.filter(isWorklistIssue).length },
       { id: "ready", label: "Bereit", count: items.filter((item) => item.readiness === "ready").length },
-      { id: "waiting", label: "Wartet", count: items.filter((item) => ["planned", "queued", "executing"].includes(item.status || "")).length },
+      { id: "waiting", label: "Offen", count: items.filter((item) => ["planned", "queued", "executing"].includes(item.status || "")).length },
       { id: "done", label: "Erledigt", count: items.filter((item) => item.status === "executed").length },
     ];
     const visibleLabel = windowInfo?.truncated
@@ -2812,9 +2819,9 @@
           ? "Ablage-Einstellung wurde gemerkt."
           : realWrites
           ? (state.worklist.autoProcess
-            ? "Ablage darf automatisch laufen, wenn der Server ruhig ist."
-            : "Ablage wartet, bis du sie manuell startest.")
-          : "Ablage wurde vorgemerkt. Reale Dateiänderungen bleiben gesperrt.",
+            ? "Ablage ist für die Automatik freigegeben."
+            : "Ablage ist freigegeben. Du kannst sie jetzt manuell ausführen.")
+          : "Ablage wurde für später vorgemerkt. Reale Dateiänderungen bleiben gesperrt.",
       };
       render();
     } catch (error) {
