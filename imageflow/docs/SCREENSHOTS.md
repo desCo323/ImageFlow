@@ -107,3 +107,12 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 34. Folder target creation regression: new folder is visible immediately and the create field is closed
    ![Folder target creation regression](screenshots/34-folder-target-create-regression.png)
+
+35. V1 live dashboard in protected mode
+   ![V1 live dashboard in protected mode](screenshots/35-v1-live-dashboard.png)
+
+36. V1 live desktop sorting workspace
+   ![V1 live desktop sorting workspace](screenshots/36-v1-live-sort-desktop.png)
+
+37. V1 live mobile sorting workspace
+   ![V1 live mobile sorting workspace](screenshots/37-v1-live-sort-mobile.png)

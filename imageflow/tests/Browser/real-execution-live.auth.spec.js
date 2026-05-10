@@ -52,6 +52,7 @@ test('executes real copy, move, album and background cron safely as albentest', 
     previousSettings = (await api(page, '/api/v1/admin/settings')).settings;
 
     await cleanupJobs(page);
+    cleanupExecutedTestJobs();
     await cleanupAlbums();
     await cleanupDavRealRoots(page, username);
     await deleteDavPath(page, username, runRoot);
@@ -131,6 +132,7 @@ test('executes real copy, move, album and background cron safely as albentest', 
       await api(page, `/api/v1/jobs/${jobId}/discard`, { method: 'POST', body: {} }).catch(() => {});
     }
     await cleanupJobs(page).catch(() => {});
+    cleanupExecutedTestJobs();
     await cleanupAlbums().catch(() => {});
     await cleanupDavRealRoots(page, username).catch(() => {});
     await deleteDavPath(page, username, runRoot).catch(() => {});
@@ -359,6 +361,19 @@ async function cleanupAlbums() {
     WHERE a.user = 'albentest' AND a.name LIKE '${realPrefix}%';
     DELETE FROM __PREFIX__photos_albums
     WHERE user = 'albentest' AND name LIKE '${realPrefix}%';
+  `);
+}
+
+function cleanupExecutedTestJobs() {
+  runSql(`
+    DELETE q FROM __PREFIX__imageflow_queue q
+    JOIN __PREFIX__imageflow_jobs j ON j.id = q.job_id
+    WHERE j.user_id = 'albentest' AND j.name LIKE '${realPrefix}%';
+    DELETE a FROM __PREFIX__imageflow_assignments a
+    JOIN __PREFIX__imageflow_jobs j ON j.id = a.job_id
+    WHERE j.user_id = 'albentest' AND j.name LIKE '${realPrefix}%';
+    DELETE FROM __PREFIX__imageflow_jobs
+    WHERE user_id = 'albentest' AND name LIKE '${realPrefix}%';
   `);
 }
 

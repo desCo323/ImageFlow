@@ -51,6 +51,7 @@ npx playwright test tests/Browser/real-execution-live.auth.spec.js --workers=1 -
 ## Manual Safe Test
 
 See `docs/SELF_TEST.md` for the deployed self-test checklist and screenshot locations.
+See `docs/V1_VERIFICATION.md` for the latest v1 production verification, backup references and browser test matrix.
 
 ## Safety
 
