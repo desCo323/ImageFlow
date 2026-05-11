@@ -9,6 +9,7 @@ use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\Files\StorageNotAvailableException;
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IURLGenerator;
@@ -40,7 +41,7 @@ class FolderBrowserService {
 			if ($needle !== '') {
 				$folders = $this->searchFolders($current, $currentPath, $needle, $limit);
 				foreach ($current->getDirectoryListing() as $node) {
-					if ($node instanceof File && str_starts_with((string)$node->getMimeType(), 'image/')) {
+					if ($node instanceof File && $this->isSortableMediaMime((string)$node->getMimeType())) {
 						$imageCount++;
 					}
 				}
@@ -53,7 +54,7 @@ class FolderBrowserService {
 							'path' => PathHelper::displayPath($childPath),
 							'hasChildren' => $this->hasChildFolders($node),
 						];
-					} elseif ($node instanceof File && str_starts_with((string)$node->getMimeType(), 'image/')) {
+					} elseif ($node instanceof File && $this->isSortableMediaMime((string)$node->getMimeType())) {
 						$imageCount++;
 					}
 				}
@@ -73,6 +74,7 @@ class FolderBrowserService {
 			'parent' => PathHelper::parentPath($currentPath),
 			'folders' => array_slice($folders, 0, $limit),
 			'imageCount' => $imageCount,
+			'mediaCount' => $imageCount,
 			'total' => $total,
 			'limit' => $limit,
 			'truncated' => $total > $limit,
@@ -196,7 +198,7 @@ class FolderBrowserService {
 			->from('filecache', 'fc')
 			->innerJoin('fc', 'mimetypes', 'mt', $qb->expr()->eq('fc.mimetype', 'mt.id'))
 			->where($qb->expr()->eq('fc.parent', $qb->createNamedParameter($folder->getId(), IQueryBuilder::PARAM_INT)))
-			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')));
+			->andWhere($this->sortableMediaExpression($qb));
 
 		$row = $qb->executeQuery()->fetch();
 		return (int)($row['image_count'] ?? 0);
@@ -214,7 +216,7 @@ class FolderBrowserService {
 			->innerJoin('fc', 'mimetypes', 'mt', $qb->expr()->eq('fc.mimetype', 'mt.id'))
 			->where($qb->expr()->eq('fc.storage', $qb->createNamedParameter((int)$info['storage'], IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->like('fc.path', $qb->createNamedParameter($this->recursivePathLike((string)$info['path']))))
-			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')));
+			->andWhere($this->sortableMediaExpression($qb));
 
 		$row = $qb->executeQuery()->fetch();
 		return (int)($row['image_count'] ?? 0);
@@ -229,7 +231,7 @@ class FolderBrowserService {
 			->from('filecache', 'fc')
 			->innerJoin('fc', 'mimetypes', 'mt', $qb->expr()->eq('fc.mimetype', 'mt.id'))
 			->where($qb->expr()->eq('fc.parent', $qb->createNamedParameter($folder->getId(), IQueryBuilder::PARAM_INT)))
-			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')))
+			->andWhere($this->sortableMediaExpression($qb))
 			->orderBy('fc.name', 'ASC')
 			->addOrderBy('fc.fileid', 'ASC')
 			->setFirstResult($cursor)
@@ -259,7 +261,7 @@ class FolderBrowserService {
 			->innerJoin('fc', 'mimetypes', 'mt', $qb->expr()->eq('fc.mimetype', 'mt.id'))
 			->where($qb->expr()->eq('fc.storage', $qb->createNamedParameter((int)$info['storage'], IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->like('fc.path', $qb->createNamedParameter($this->recursivePathLike((string)$info['path']))))
-			->andWhere($qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')))
+			->andWhere($this->sortableMediaExpression($qb))
 			->orderBy('fc.path', 'ASC')
 			->addOrderBy('fc.fileid', 'ASC')
 			->setFirstResult($cursor)
@@ -276,7 +278,7 @@ class FolderBrowserService {
 
 	private function firstReadableFileById(Folder $folder, int $fileId): ?File {
 		foreach ($folder->getById($fileId) as $node) {
-			if ($node instanceof File && str_starts_with((string)$node->getMimeType(), 'image/') && $node->isReadable()) {
+			if ($node instanceof File && $this->isSortableMediaMime((string)$node->getMimeType()) && $node->isReadable()) {
 				return $node;
 			}
 		}
@@ -328,6 +330,17 @@ class FolderBrowserService {
 
 	private function recursivePathLike(string $folderPath): string {
 		return $this->db->escapeLikeParameter(rtrim($folderPath, '/')) . '/%';
+	}
+
+	private function sortableMediaExpression(IQueryBuilder $qb): ICompositeExpression {
+		return $qb->expr()->orX(
+			$qb->expr()->like('mt.mimetype', $qb->createNamedParameter('image/%')),
+			$qb->expr()->like('mt.mimetype', $qb->createNamedParameter('video/%')),
+		);
+	}
+
+	private function isSortableMediaMime(string $mimeType): bool {
+		return str_starts_with($mimeType, 'image/') || str_starts_with($mimeType, 'video/');
 	}
 
 	private function displayPathForNode(string $userId, File $node): string {

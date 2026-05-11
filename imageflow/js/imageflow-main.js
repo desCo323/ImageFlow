@@ -1203,6 +1203,10 @@
     return Math.max(3, Math.min(5000, Number.isFinite(count) ? count : 3));
   }
 
+  function mockMediaKind() {
+    return root.dataset.mockMediaKind === "video" ? "video" : "image";
+  }
+
   function mockImagesForPage(job, cursor, limit) {
     if (mockImageCount() <= 3) {
       return mockBaseImages(job);
@@ -1248,6 +1252,7 @@
 
   function mockGeneratedImage(job, index) {
     const number = String(index + 1).padStart(4, "0");
+    const video = mockMediaKind() === "video";
     const palette = [
       ["#1d1d1d", "#b7eadf", "#f4a4b8"],
       ["#2f3d46", "#d94f70", "#ffe8a3"],
@@ -1256,9 +1261,9 @@
     ][index % 4];
     return {
       fileId: 10000 + index,
-      name: `IMG_${number}.jpg`,
-      path: `${job.sourcePath}/IMG_${number}.jpg`,
-      mimeType: "image/jpeg",
+      name: video ? `PXL_${number}.mp4` : `IMG_${number}.jpg`,
+      path: video ? `${job.sourcePath}/PXL_${number}.mp4` : `${job.sourcePath}/IMG_${number}.jpg`,
+      mimeType: video ? "video/mp4" : "image/jpeg",
       previewUrl: mockSvgDataUrl(1200, 800, palette, number),
       thumbnailUrl: mockSvgDataUrl(320, 220, palette, number),
     };

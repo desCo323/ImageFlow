@@ -535,6 +535,17 @@ test('keeps a large filmstrip bounded and responsive', async ({ page }) => {
   expect(Number(await app.getAttribute('data-buffered-images'))).toBeLessThanOrEqual(32);
 });
 
+test('renders camera flows that contain video media', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1" data-mock-image-count="41" data-mock-media-kind="video"');
+
+  await expect(page.locator('.imageflow-job-head')).toContainText('Bild 1/41');
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('PXL_0001.mp4');
+  await expect(page.locator('.imageflow-photo-meta span')).toHaveText('/Photos/Inbox/PXL_0001.mp4');
+  await expect(page.locator('.imageflow-thumb')).toHaveCount(16);
+  await page.locator('.imageflow-favorite', { hasText: 'Familie' }).click();
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('PXL_0002.mp4');
+});
+
 test('starts the visible progress at zero when viewing a flow from the beginning', async ({ page }) => {
   await mount(page);
 
