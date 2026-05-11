@@ -1427,7 +1427,8 @@
 }
 
 .imageflow-worklist-modal {
-  width: min(960px, 100%);
+  width: min(1280px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
 }
 
 .imageflow-worklist-body {
@@ -1589,7 +1590,8 @@
 .imageflow-worklist-table {
   display: grid;
   gap: 8px;
-  min-height: 0;
+  min-height: clamp(260px, 42vh, 560px);
+  max-height: clamp(260px, 42vh, 560px);
   overflow: auto;
 }
 

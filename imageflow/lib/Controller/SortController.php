@@ -13,6 +13,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
+use OCP\Lock\LockedException;
 
 class SortController extends Controller {
 	public function __construct(
@@ -45,6 +46,8 @@ class SortController extends Controller {
 			return new JSONResponse($this->sortService->assign($this->userId, $jobId, $this->request->getParams()));
 		} catch (DoesNotExistException) {
 			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (LockedException) {
+			return $this->error('assignment_locked', 'Dieses Bild wird gerade gespeichert. Bitte warte einen Moment.', Http::STATUS_CONFLICT);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_assignment', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {
@@ -59,6 +62,8 @@ class SortController extends Controller {
 			return new JSONResponse($this->sortService->skip($this->userId, $jobId, $this->request->getParams()));
 		} catch (DoesNotExistException) {
 			return $this->error('job_not_found', 'Die Runde wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (LockedException) {
+			return $this->error('skip_locked', 'Dieses Bild wird gerade gespeichert. Bitte warte einen Moment.', Http::STATUS_CONFLICT);
 		} catch (\InvalidArgumentException $e) {
 			return $this->error('invalid_skip', $e->getMessage(), Http::STATUS_BAD_REQUEST);
 		} catch (\Throwable $e) {

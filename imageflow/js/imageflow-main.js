@@ -39,6 +39,8 @@
     feedback: null,
     decisionStreak: 0,
     decisionsThisSession: 0,
+    decisionInFlight: false,
+    decisionSourcePath: null,
     sessionStartedAt: Date.now(),
     loading: false,
     startMode: null,
@@ -811,6 +813,7 @@
       };
     }
     if (path.includes("/assign")) {
+      await mockDecisionDelay();
       return {
         assignment: {
           id: Date.now(),
@@ -821,6 +824,7 @@
       };
     }
     if (path.includes("/skip")) {
+      await mockDecisionDelay();
       return { assignment: { id: Date.now(), sourcePath: options.body.sourcePath, targetLabel: "Übersprungen" } };
     }
     if (/\/api\/v1\/jobs\/\d+\/undo$/.test(path) && options.method === "POST") {
@@ -1311,6 +1315,9 @@
   }
 
   function mockWorklistPreview(job) {
+    if (root.dataset.mockWorklistExecutedMove === "1") {
+      return mockExecutedMovePreview(job);
+    }
     const withBlockingError = root.dataset.mockWorklistErrors === "1"
       && root.dataset.mockRepairTargetCreated !== "1"
       && root.dataset.mockWorklistErrorReset !== "1";
@@ -1413,6 +1420,64 @@
         },
       ],
     };
+  }
+
+  function mockExecutedMovePreview(job) {
+    const total = 3;
+    return {
+      job: {
+        id: job.id,
+        name: job.name,
+        targetMode: "move",
+        safeMode: job.safeMode !== false,
+        status: "done",
+        options: job.options || {},
+      },
+      summary: {
+        total,
+        planned: 0,
+        queued: 0,
+        executing: 0,
+        blocked: 0,
+        executed: total,
+        failed: 0,
+        ready: total,
+        warnings: 0,
+        errors: 0,
+      },
+      window: {
+        total,
+        shown: total,
+        limit: total,
+        truncated: false,
+        validationComplete: true,
+      },
+      canQueue: false,
+      executionMode: root.dataset.mockRealExecution === "1" ? "real-writes-enabled" : "dry-run-only",
+      backgroundMode: "manual-only",
+      backgroundGate: mockBackgroundGate(false),
+      autoProcess: Boolean(job.options?.autoProcess),
+      message: "Echte Dateiänderungen sind serverseitig freigeschaltet. Jede Ablage wird trotzdem noch einmal auf Doppelungen, Zielkonflikte und Prüfsummen geprüft.",
+      items: [1, 2, 3].map((number) => ({
+        id: number,
+        operationType: "move",
+        sourcePath: `${job.sourcePath || "/Photos"}/verschoben_${number}.jpg`,
+        targetPath: job.targetPath || "/Photos/Sortiert",
+        targetAlbumId: null,
+        status: "executed",
+        safeMode: true,
+        readiness: "ready",
+        issues: [],
+        messages: ["Bereits abgelegt."],
+      })),
+    };
+  }
+
+  async function mockDecisionDelay() {
+    const delay = Number.parseInt(root.dataset.mockDecisionDelayMs || "0", 10);
+    if (delay > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, Math.min(delay, 2000)));
+    }
   }
 
   function mockLogs() {
@@ -2251,6 +2316,7 @@
   function renderFavorite(favorite, current) {
     const isSkip = favorite.locked || favorite.targetType === "skip" || favorite.id === "skip";
     const favoriteId = String(favorite.id || "");
+    const decisionDisabled = state.decisionInFlight ? "disabled" : "";
     const rowAttrs = isSkip
       ? ""
       : `draggable="true" data-favorite-id="${escapeAttr(favoriteId)}"`;
@@ -2261,7 +2327,7 @@
     return `
       <div class="imageflow-favorite-row ${isSkip ? "is-fixed" : ""}" ${rowAttrs}>
         <span class="imageflow-drag-handle" aria-hidden="true">::</span>
-        <button class="imageflow-favorite" data-action="${action}" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(favorite.targetId || favorite.id || "")}" data-target-label="${escapeAttr(favorite.label)}" data-target-path="${escapeAttr(favorite.path || "")}" data-hotkey="${escapeAttr(favorite.hotkey || "")}" type="button">
+        <button class="imageflow-favorite" data-action="${action}" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(favorite.targetId || favorite.id || "")}" data-target-label="${escapeAttr(favorite.label)}" data-target-path="${escapeAttr(favorite.path || "")}" data-hotkey="${escapeAttr(favorite.hotkey || "")}" type="button" ${decisionDisabled}>
           <span class="imageflow-key">${escapeHtml(favorite.hotkey || String(favorite.position || ""))}</span>
           <span><strong>${escapeHtml(favorite.label)}</strong><small>Position ${escapeHtml(String(favorite.position || ""))}</small></span>
         </button>
@@ -2274,12 +2340,13 @@
     const label = target.label || target.name || "Ziel";
     const targetId = target.id || target.path || "";
     const targetPath = target.path || "";
+    const decisionDisabled = state.decisionInFlight ? "disabled" : "";
     const browse = isFolderMode && target.hasChildren
       ? `<button class="imageflow-mini-button" data-action="browse-target-folder" data-target-path="${escapeAttr(targetPath)}" aria-label="Ordner öffnen: ${escapeAttr(label)}" title="Ordner öffnen" type="button">›</button>`
       : "";
     return `
       <div class="imageflow-target-row">
-        <button class="imageflow-target" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" type="button">
+        <button class="imageflow-target" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" type="button" ${decisionDisabled}>
           <span class="imageflow-key">${index + 1}</span>
           <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(target.location || target.path || "")}</small></span>
         </button>
@@ -3015,6 +3082,10 @@
   async function handleAction(event) {
     const action = event.currentTarget.dataset.action;
     const jobId = numberOrNull(event.currentTarget.dataset.jobId);
+    if (state.decisionInFlight && ["assign", "skip-current", "select-image", "page-next", "page-prev"].includes(action)) {
+      event.preventDefault();
+      return;
+    }
     if (action === "refresh") {
       load();
     } else if (action === "focus-new-flow") {
@@ -3928,6 +3999,9 @@
 
   async function assignFromButton(button) {
     const sourcePath = button.dataset.sourcePath || "";
+    if (!beginDecisionSave(sourcePath)) {
+      return;
+    }
     const target = {
       id: button.dataset.targetId || "",
       label: button.dataset.targetLabel || "Ziel",
@@ -3951,8 +4025,10 @@
       };
       completeCurrentDecision(payload.duplicate ? "duplicate" : "assign", target.label);
       await refillImagesAfterDecision();
+      finishDecisionSave();
       render();
     } catch (error) {
+      finishDecisionSave();
       state.toast = { type: "error", message: error.message || "Entscheidung konnte nicht gespeichert werden." };
       render();
     }
@@ -4060,6 +4136,10 @@
     if (event.target && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) {
       return;
     }
+    if (state.decisionInFlight) {
+      event.preventDefault();
+      return;
+    }
     const sortState = state.sortState || mockSortState(state.jobId || 1);
     if ((event.ctrlKey || event.metaKey) && String(event.key || "").toLowerCase() === "z") {
       event.preventDefault();
@@ -4114,6 +4194,9 @@
   }
 
   async function skipCurrent(current) {
+    if (!beginDecisionSave(current?.path || "")) {
+      return;
+    }
     try {
       const payload = await request(`/api/v1/jobs/${state.jobId}/skip`, {
         method: "POST",
@@ -4128,11 +4211,28 @@
       state.toast = { type: "info", message: payload.duplicate ? "Schon entschieden." : "Weiter zum nächsten Bild." };
       completeCurrentDecision(payload.duplicate ? "duplicate" : "skip", "nächstes Bild");
       await refillImagesAfterDecision();
+      finishDecisionSave();
       render();
     } catch (error) {
+      finishDecisionSave();
       state.toast = { type: "error", message: error.message || "Bild konnte nicht übersprungen werden." };
       render();
     }
+  }
+
+  function beginDecisionSave(sourcePath) {
+    if (!sourcePath || state.decisionInFlight) {
+      return false;
+    }
+    state.decisionInFlight = true;
+    state.decisionSourcePath = sourcePath;
+    render();
+    return true;
+  }
+
+  function finishDecisionSave() {
+    state.decisionInFlight = false;
+    state.decisionSourcePath = null;
   }
 
   function sortImages(sortState = state.sortState) {
@@ -4300,6 +4400,8 @@
 
   function resetSessionFlow() {
     state.feedback = null;
+    state.decisionInFlight = false;
+    state.decisionSourcePath = null;
     state.decisionStreak = 0;
     state.decisionsThisSession = 0;
     state.sessionStartedAt = Date.now();

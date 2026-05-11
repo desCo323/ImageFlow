@@ -11,6 +11,7 @@ use OCA\ImageFlow\Db\SortAssignment;
 use OCA\ImageFlow\Db\SortAssignmentMapper;
 use OCA\ImageFlow\Db\SortJobMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\Lock\ILockingProvider;
 
 class SortService {
 	private const REMOVABLE_QUEUE_STATUSES = ['planned', 'queued'];
@@ -23,6 +24,7 @@ class SortService {
 		private readonly FolderBrowserService $folderBrowserService,
 		private readonly JobService $jobService,
 		private readonly LogService $logService,
+		private readonly ILockingProvider $lockingProvider,
 	) {
 	}
 
@@ -131,119 +133,125 @@ class SortService {
 		$job = $this->jobMapper->findForUserById($userId, $jobId);
 		$now = time();
 		$sourcePath = PathHelper::displayPath((string)($input['sourcePath'] ?? ''));
-		$target = is_array($input['target'] ?? null) ? $input['target'] : [];
-		$targetLabel = trim((string)($target['label'] ?? $target['name'] ?? 'Ziel'));
-		$targetId = $this->optionalString($target['id'] ?? null, 255);
-		$targetPath = $this->optionalPath($target['path'] ?? null);
-		$queueTargetPath = $job->getTargetMode() === 'album' ? null : ($targetPath ?? $job->getTargetPath());
-		$queueTargetAlbumId = $job->getTargetMode() === 'album' ? $targetId : null;
-		$existingQueueItems = $this->queueMapper->findForSourceByStatuses($userId, $jobId, $sourcePath, self::REMOVABLE_QUEUE_STATUSES);
-		foreach ($existingQueueItems as $existingQueueItem) {
-			if ($this->queueItemMatchesTarget($existingQueueItem, $job->getTargetMode(), $queueTargetPath, $queueTargetAlbumId)) {
-				$this->logService->debug('assignment_duplicate_ignored', $userId, [
-					'jobId' => $jobId,
-					'queueItemId' => $existingQueueItem->getId(),
-					'sourcePath' => $sourcePath,
-					'targetLabel' => $targetLabel,
-				], $jobId, 'Doppelte Entscheidung wurde nicht erneut für die Ablage vorgemerkt.');
+		$lockKey = $this->decisionLockKey($userId, $jobId, $sourcePath);
+		$this->lockingProvider->acquireLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE, $sourcePath);
+		try {
+			$target = is_array($input['target'] ?? null) ? $input['target'] : [];
+			$targetLabel = trim((string)($target['label'] ?? $target['name'] ?? 'Ziel'));
+			$targetId = $this->optionalString($target['id'] ?? null, 255);
+			$targetPath = $this->optionalPath($target['path'] ?? null);
+			$queueTargetPath = $job->getTargetMode() === 'album' ? null : ($targetPath ?? $job->getTargetPath());
+			$queueTargetAlbumId = $job->getTargetMode() === 'album' ? $targetId : null;
+			$existingQueueItems = $this->queueMapper->findForSourceByStatuses($userId, $jobId, $sourcePath, self::REMOVABLE_QUEUE_STATUSES);
+			foreach ($existingQueueItems as $existingQueueItem) {
+				if ($this->queueItemMatchesTarget($existingQueueItem, $job->getTargetMode(), $queueTargetPath, $queueTargetAlbumId)) {
+					$this->logService->debug('assignment_duplicate_ignored', $userId, [
+						'jobId' => $jobId,
+						'queueItemId' => $existingQueueItem->getId(),
+						'sourcePath' => $sourcePath,
+						'targetLabel' => $targetLabel,
+					], $jobId, 'Doppelte Entscheidung wurde nicht erneut für die Ablage vorgemerkt.');
 
-				return [
-					'assignment' => null,
-					'queueItem' => $this->serializeQueueItem($existingQueueItem),
-					'job' => $this->jobService->serializeJob($job),
-					'duplicate' => true,
-				];
-			}
-		}
-
-		$removedAssignmentIds = [];
-		foreach ($existingQueueItems as $existingQueueItem) {
-			$this->queueMapper->delete($existingQueueItem);
-			$assignmentId = $existingQueueItem->getAssignmentId();
-			if ($assignmentId === null || isset($removedAssignmentIds[$assignmentId])) {
-				continue;
-			}
-			try {
-				$existingAssignment = $this->assignmentMapper->findForUserById($userId, $assignmentId);
-				if ($existingAssignment->getJobId() === $jobId) {
-					$this->assignmentMapper->delete($existingAssignment);
-					$removedAssignmentIds[$assignmentId] = true;
+					return [
+						'assignment' => null,
+						'queueItem' => $this->serializeQueueItem($existingQueueItem),
+						'job' => $this->jobService->serializeJob($job),
+						'duplicate' => true,
+					];
 				}
-			} catch (DoesNotExistException) {
 			}
-		}
-		$removedAssignmentCount = count($removedAssignmentIds);
-		if ($existingQueueItems === []) {
-			$existingAssignment = $this->assignmentMapper->findLatestForSource($userId, $jobId, $sourcePath);
-			if ($existingAssignment !== null) {
-				$this->logService->debug('assignment_source_already_decided', $userId, [
-					'jobId' => $jobId,
-					'assignmentId' => $existingAssignment->getId(),
-					'sourcePath' => $sourcePath,
-					'targetLabel' => $existingAssignment->getTargetLabel(),
-					'actionStatus' => $existingAssignment->getActionStatus(),
-				], $jobId, 'Dieses Bild hatte bereits eine Entscheidung und wurde nicht erneut vorgemerkt.');
 
-				return [
-					'assignment' => $this->serializeAssignment($existingAssignment),
-					'queueItem' => null,
-					'job' => $this->jobService->serializeJob($job),
-					'duplicate' => true,
-				];
+			$removedAssignmentIds = [];
+			foreach ($existingQueueItems as $existingQueueItem) {
+				$this->queueMapper->delete($existingQueueItem);
+				$assignmentId = $existingQueueItem->getAssignmentId();
+				if ($assignmentId === null || isset($removedAssignmentIds[$assignmentId])) {
+					continue;
+				}
+				try {
+					$existingAssignment = $this->assignmentMapper->findForUserById($userId, $assignmentId);
+					if ($existingAssignment->getJobId() === $jobId) {
+						$this->assignmentMapper->delete($existingAssignment);
+						$removedAssignmentIds[$assignmentId] = true;
+					}
+				} catch (DoesNotExistException) {
+				}
 			}
+			$removedAssignmentCount = count($removedAssignmentIds);
+			if ($existingQueueItems === []) {
+				$existingAssignment = $this->assignmentMapper->findLatestForSource($userId, $jobId, $sourcePath);
+				if ($existingAssignment !== null) {
+					$this->logService->debug('assignment_source_already_decided', $userId, [
+						'jobId' => $jobId,
+						'assignmentId' => $existingAssignment->getId(),
+						'sourcePath' => $sourcePath,
+						'targetLabel' => $existingAssignment->getTargetLabel(),
+						'actionStatus' => $existingAssignment->getActionStatus(),
+					], $jobId, 'Dieses Bild hatte bereits eine Entscheidung und wurde nicht erneut vorgemerkt.');
+
+					return [
+						'assignment' => $this->serializeAssignment($existingAssignment),
+						'queueItem' => null,
+						'job' => $this->jobService->serializeJob($job),
+						'duplicate' => true,
+					];
+				}
+			}
+
+			$assignment = new SortAssignment();
+			$assignment->setJobId($jobId);
+			$assignment->setUserId($userId);
+			$assignment->setFileId($this->optionalInt($input['fileId'] ?? null));
+			$assignment->setSourcePath($sourcePath);
+			$assignment->setFileName(PathHelper::fileNameFromPath($sourcePath) ?: (string)($input['fileName'] ?? 'Bild'));
+			$assignment->setMimeType($this->optionalString($input['mimeType'] ?? null, 128));
+			$assignment->setTargetType($job->getTargetMode());
+			$assignment->setTargetId($targetId);
+			$assignment->setTargetLabel(substr($targetLabel !== '' ? $targetLabel : 'Ziel', 0, 255));
+			$assignment->setHotkey($this->optionalString($input['hotkey'] ?? null, 16));
+			$assignment->setActionStatus('planned');
+			$assignment->setCreatedAt($now);
+			$assignment->setUpdatedAt($now);
+			$assignment = $this->assignmentMapper->insert($assignment);
+
+			$queueItem = new QueueItem();
+			$queueItem->setJobId($jobId);
+			$queueItem->setAssignmentId($assignment->getId());
+			$queueItem->setUserId($userId);
+			$queueItem->setOperationType($job->getTargetMode());
+			$queueItem->setSourcePath($sourcePath);
+			$queueItem->setTargetPath($queueTargetPath);
+			$queueItem->setTargetAlbumId($queueTargetAlbumId);
+			$queueItem->setStatus('planned');
+			$queueItem->setSafeMode($job->getSafeMode());
+			$queueItem->setCreatedAt($now);
+			$queueItem->setUpdatedAt($now);
+			$queueItem = $this->queueMapper->insert($queueItem);
+
+			$job->setStatus($job->getStatus() === 'draft' ? 'sorting' : $job->getStatus());
+			$job->setSortedFiles(max(0, $job->getSortedFiles() - $removedAssignmentCount) + 1);
+			$job->setQueuedOperations($this->queueMapper->countForJobByStatuses($jobId, self::REMOVABLE_QUEUE_STATUSES));
+			$job->setUpdatedAt($now);
+			$this->jobMapper->update($job);
+
+			$this->logService->debug('assignment_planned', $userId, [
+				'jobId' => $jobId,
+				'assignmentId' => $assignment->getId(),
+				'queueItemId' => $queueItem->getId(),
+				'sourcePath' => $sourcePath,
+				'targetLabel' => $targetLabel,
+				'replacedExistingDecision' => $removedAssignmentCount > 0,
+			], $jobId, 'Entscheidung wurde für die spätere Ablage gespeichert.');
+
+			return [
+				'assignment' => $this->serializeAssignment($assignment),
+				'queueItem' => $this->serializeQueueItem($queueItem),
+				'job' => $this->jobService->serializeJob($job),
+				'replaced' => $removedAssignmentCount > 0,
+			];
+		} finally {
+			$this->lockingProvider->releaseLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
 		}
-
-		$assignment = new SortAssignment();
-		$assignment->setJobId($jobId);
-		$assignment->setUserId($userId);
-		$assignment->setFileId($this->optionalInt($input['fileId'] ?? null));
-		$assignment->setSourcePath($sourcePath);
-		$assignment->setFileName(PathHelper::fileNameFromPath($sourcePath) ?: (string)($input['fileName'] ?? 'Bild'));
-		$assignment->setMimeType($this->optionalString($input['mimeType'] ?? null, 128));
-		$assignment->setTargetType($job->getTargetMode());
-		$assignment->setTargetId($targetId);
-		$assignment->setTargetLabel(substr($targetLabel !== '' ? $targetLabel : 'Ziel', 0, 255));
-		$assignment->setHotkey($this->optionalString($input['hotkey'] ?? null, 16));
-		$assignment->setActionStatus('planned');
-		$assignment->setCreatedAt($now);
-		$assignment->setUpdatedAt($now);
-		$assignment = $this->assignmentMapper->insert($assignment);
-
-		$queueItem = new QueueItem();
-		$queueItem->setJobId($jobId);
-		$queueItem->setAssignmentId($assignment->getId());
-		$queueItem->setUserId($userId);
-		$queueItem->setOperationType($job->getTargetMode());
-		$queueItem->setSourcePath($sourcePath);
-		$queueItem->setTargetPath($queueTargetPath);
-		$queueItem->setTargetAlbumId($queueTargetAlbumId);
-		$queueItem->setStatus('planned');
-		$queueItem->setSafeMode($job->getSafeMode());
-		$queueItem->setCreatedAt($now);
-		$queueItem->setUpdatedAt($now);
-		$queueItem = $this->queueMapper->insert($queueItem);
-
-		$job->setStatus($job->getStatus() === 'draft' ? 'sorting' : $job->getStatus());
-		$job->setSortedFiles(max(0, $job->getSortedFiles() - $removedAssignmentCount) + 1);
-		$job->setQueuedOperations($this->queueMapper->countForJobByStatuses($jobId, self::REMOVABLE_QUEUE_STATUSES));
-		$job->setUpdatedAt($now);
-		$this->jobMapper->update($job);
-
-		$this->logService->debug('assignment_planned', $userId, [
-			'jobId' => $jobId,
-			'assignmentId' => $assignment->getId(),
-			'queueItemId' => $queueItem->getId(),
-			'sourcePath' => $sourcePath,
-			'targetLabel' => $targetLabel,
-			'replacedExistingDecision' => $removedAssignmentCount > 0,
-		], $jobId, 'Entscheidung wurde für die spätere Ablage gespeichert.');
-
-		return [
-			'assignment' => $this->serializeAssignment($assignment),
-			'queueItem' => $this->serializeQueueItem($queueItem),
-			'job' => $this->jobService->serializeJob($job),
-			'replaced' => $removedAssignmentCount > 0,
-		];
 	}
 
 	/**
@@ -255,52 +263,58 @@ class SortService {
 		$job = $this->jobMapper->findForUserById($userId, $jobId);
 		$now = time();
 		$sourcePath = PathHelper::displayPath((string)($input['sourcePath'] ?? ''));
-		$existingAssignment = $this->assignmentMapper->findLatestForSource($userId, $jobId, $sourcePath);
-		if ($existingAssignment !== null) {
-			$this->logService->debug('skip_duplicate_ignored', $userId, [
+		$lockKey = $this->decisionLockKey($userId, $jobId, $sourcePath);
+		$this->lockingProvider->acquireLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE, $sourcePath);
+		try {
+			$existingAssignment = $this->assignmentMapper->findLatestForSource($userId, $jobId, $sourcePath);
+			if ($existingAssignment !== null) {
+				$this->logService->debug('skip_duplicate_ignored', $userId, [
+					'jobId' => $jobId,
+					'assignmentId' => $existingAssignment->getId(),
+					'sourcePath' => $sourcePath,
+					'targetLabel' => $existingAssignment->getTargetLabel(),
+				], $jobId, 'Dieses Bild war bereits entschieden und wurde nicht erneut übersprungen.');
+
+				return [
+					'assignment' => $this->serializeAssignment($existingAssignment),
+					'job' => $this->jobService->serializeJob($job),
+					'duplicate' => true,
+				];
+			}
+
+			$assignment = new SortAssignment();
+			$assignment->setJobId($jobId);
+			$assignment->setUserId($userId);
+			$assignment->setFileId($this->optionalInt($input['fileId'] ?? null));
+			$assignment->setSourcePath($sourcePath);
+			$assignment->setFileName(PathHelper::fileNameFromPath($sourcePath) ?: 'Bild');
+			$assignment->setMimeType($this->optionalString($input['mimeType'] ?? null, 128));
+			$assignment->setTargetType('skip');
+			$assignment->setTargetLabel('Übersprungen');
+			$assignment->setHotkey($this->optionalString($input['hotkey'] ?? '0', 16));
+			$assignment->setActionStatus('skipped');
+			$assignment->setCreatedAt($now);
+			$assignment->setUpdatedAt($now);
+			$assignment = $this->assignmentMapper->insert($assignment);
+
+			$job->setStatus($job->getStatus() === 'draft' ? 'sorting' : $job->getStatus());
+			$job->setSkippedFiles($job->getSkippedFiles() + 1);
+			$job->setUpdatedAt($now);
+			$this->jobMapper->update($job);
+
+			$this->logService->debug('image_skipped', $userId, [
 				'jobId' => $jobId,
-				'assignmentId' => $existingAssignment->getId(),
+				'assignmentId' => $assignment->getId(),
 				'sourcePath' => $sourcePath,
-				'targetLabel' => $existingAssignment->getTargetLabel(),
-			], $jobId, 'Dieses Bild war bereits entschieden und wurde nicht erneut übersprungen.');
+			], $jobId, 'Bild wurde übersprungen.');
 
 			return [
-				'assignment' => $this->serializeAssignment($existingAssignment),
+				'assignment' => $this->serializeAssignment($assignment),
 				'job' => $this->jobService->serializeJob($job),
-				'duplicate' => true,
 			];
+		} finally {
+			$this->lockingProvider->releaseLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
 		}
-
-		$assignment = new SortAssignment();
-		$assignment->setJobId($jobId);
-		$assignment->setUserId($userId);
-		$assignment->setFileId($this->optionalInt($input['fileId'] ?? null));
-		$assignment->setSourcePath($sourcePath);
-		$assignment->setFileName(PathHelper::fileNameFromPath($sourcePath) ?: 'Bild');
-		$assignment->setMimeType($this->optionalString($input['mimeType'] ?? null, 128));
-		$assignment->setTargetType('skip');
-		$assignment->setTargetLabel('Übersprungen');
-		$assignment->setHotkey($this->optionalString($input['hotkey'] ?? '0', 16));
-		$assignment->setActionStatus('skipped');
-		$assignment->setCreatedAt($now);
-		$assignment->setUpdatedAt($now);
-		$assignment = $this->assignmentMapper->insert($assignment);
-
-		$job->setStatus($job->getStatus() === 'draft' ? 'sorting' : $job->getStatus());
-		$job->setSkippedFiles($job->getSkippedFiles() + 1);
-		$job->setUpdatedAt($now);
-		$this->jobMapper->update($job);
-
-		$this->logService->debug('image_skipped', $userId, [
-			'jobId' => $jobId,
-			'assignmentId' => $assignment->getId(),
-			'sourcePath' => $sourcePath,
-		], $jobId, 'Bild wurde übersprungen.');
-
-		return [
-			'assignment' => $this->serializeAssignment($assignment),
-			'job' => $this->jobService->serializeJob($job),
-		];
 	}
 
 	/**
@@ -458,6 +472,10 @@ class SortService {
 		}
 
 		return $item->getTargetPath() === $targetPath && $item->getTargetAlbumId() === $targetAlbumId;
+	}
+
+	private function decisionLockKey(string $userId, int $jobId, string $sourcePath): string {
+		return 'imageflow:decision:' . hash('sha256', $userId . '|' . $jobId . '|' . $sourcePath);
 	}
 
 	/**

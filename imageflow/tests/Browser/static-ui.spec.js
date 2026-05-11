@@ -286,6 +286,19 @@ test('resets all visible worklist errors from the repair menu', async ({ page })
   await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(1);
 });
 
+test('does not treat executed moved files as missing source errors', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-worklist-executed-move="1" data-mock-real-execution="1"');
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+
+  await expect(dialog.getByText('Erst die Fehler beheben')).toHaveCount(0);
+  await expect(dialog.getByText('Quelle fehlt oder ist keine Datei.')).toHaveCount(0);
+  await expect(dialog.getByText('Bereits abgelegt.').first()).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Fehler beheben' })).toHaveCount(0);
+});
+
 test('shows the manual execution button after a flow is released for filing', async ({ page }) => {
   await mount(page);
 
@@ -495,6 +508,17 @@ test('shows flow feedback after a sorting decision', async ({ page }) => {
   await expect(page.locator('.imageflow-feedback-burst')).toContainText('1er Serie');
   await expect(page.locator('.imageflow-flow-chip.accent-warm strong')).toHaveText('1');
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg');
+});
+
+test('locks sorting decisions until the current image changes', async ({ page }) => {
+  await mount(page, 'data-page="sort" data-job-id="1" data-mock-decision-delay-ms="250"');
+
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4021.jpg');
+  await page.locator('.imageflow-target[data-action="assign"]').first().click();
+  await expect(page.locator('.imageflow-target[data-action="assign"]').first()).toBeDisabled();
+  await page.keyboard.press('2');
+  await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_4022.jpg', { timeout: 3000 });
+  await expect(page.locator('.imageflow-photo-meta strong')).not.toHaveText('IMG_4023.jpg');
 });
 
 test('guides users to review filing when all open images are decided', async ({ page }) => {

@@ -164,6 +164,24 @@ class WorklistPreviewService {
 		$readiness = 'ready';
 		$key = $this->operationKey($item);
 		$sourcePath = $item->getSourcePath();
+		if ($item->getStatus() === 'executed') {
+			return [
+				'id' => $item->getId(),
+				'assignmentId' => $item->getAssignmentId(),
+				'operationKey' => $key,
+				'operationType' => $item->getOperationType(),
+				'sourcePath' => $item->getSourcePath(),
+				'targetPath' => $item->getTargetPath(),
+				'targetAlbumId' => $item->getTargetAlbumId(),
+				'status' => $item->getStatus(),
+				'safeMode' => $item->getSafeMode(),
+				'attempts' => $item->getAttempts(),
+				'lastError' => $item->getLastError(),
+				'readiness' => 'ready',
+				'issues' => [],
+				'messages' => ['Bereits abgelegt.'],
+			];
+		}
 		if (in_array($item->getStatus(), ['blocked', 'failed'], true)) {
 			$this->addPreviewIssue(
 				$issues,
