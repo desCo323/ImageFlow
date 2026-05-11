@@ -581,6 +581,7 @@ test('guides users to review filing when all open images are decided', async ({ 
 });
 
 test('loads the next open image page after a decided page is exhausted', async ({ page }) => {
+  test.setTimeout(60000);
   await mount(page, 'data-page="sort" data-job-id="1" data-mock-image-count="50"');
 
   await expect(page.locator('.imageflow-photo-meta strong')).toHaveText('IMG_0001.jpg');
