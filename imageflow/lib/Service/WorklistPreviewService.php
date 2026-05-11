@@ -160,57 +160,133 @@ class WorklistPreviewService {
 	 */
 	private function previewItem(string $userId, QueueItem $item, array &$seenKeys, array &$seenMoveSources): array {
 		$messages = [];
+		$issues = [];
 		$readiness = 'ready';
 		$key = $this->operationKey($item);
 		$sourcePath = $item->getSourcePath();
+		if (in_array($item->getStatus(), ['blocked', 'failed'], true)) {
+			$this->addPreviewIssue(
+				$issues,
+				$messages,
+				$readiness,
+				'execution_' . $item->getStatus(),
+				'error',
+				$item->getLastError() ?: 'Diese Ablage ist nach einem Ausführungsversuch blockiert. Prüfe das Protokoll und sortiere das Bild danach neu.',
+				'review_log_and_resort'
+			);
+		}
 		if ($item->getOperationType() === 'move' && isset($seenMoveSources[$sourcePath])) {
-			$readiness = 'error';
-			$messages[] = 'Dieses Bild ist mehrfach zum Verschieben vorgemerkt. Entferne alte Entscheidungen, bevor du die Ablage freigibst.';
+			$this->addPreviewIssue(
+				$issues,
+				$messages,
+				$readiness,
+				'duplicate_move_source',
+				'error',
+				'Dieses Bild ist mehrfach zum Verschieben vorgemerkt. Entferne alte Entscheidungen, bevor du die Ablage freigibst.',
+				'remove_duplicate_decision'
+			);
 		} elseif ($item->getOperationType() === 'move') {
 			$seenMoveSources[$sourcePath] = true;
 		}
 		if (isset($seenKeys[$key])) {
-			$readiness = $item->getOperationType() === 'move' ? 'error' : 'warning';
-			$messages[] = $item->getOperationType() === 'move'
-				? 'Diese Verschiebe-Entscheidung ist doppelt vorgemerkt und muss vor der Ablage bereinigt werden.'
-				: 'Diese Entscheidung ist doppelt vorgemerkt und wird später sicher übersprungen, falls sie schon erledigt ist.';
+			$severity = $item->getOperationType() === 'move' ? 'error' : 'warning';
+			$this->addPreviewIssue(
+				$issues,
+				$messages,
+				$readiness,
+				'duplicate_operation',
+				$severity,
+				$item->getOperationType() === 'move'
+					? 'Diese Verschiebe-Entscheidung ist doppelt vorgemerkt und muss vor der Ablage bereinigt werden.'
+					: 'Diese Entscheidung ist doppelt vorgemerkt und wird später sicher übersprungen, falls sie schon erledigt ist.',
+				$severity === 'error' ? 'remove_duplicate_decision' : 'safe_skip_duplicate'
+			);
 		}
 		$seenKeys[$key] = true;
 
 		$sourceNode = $this->nodeForDisplayPath($userId, $sourcePath);
 		if (!$sourceNode instanceof File) {
-			$readiness = 'error';
-			$messages[] = 'Quelle fehlt oder ist keine Datei.';
+			$this->addPreviewIssue(
+				$issues,
+				$messages,
+				$readiness,
+				'source_missing',
+				'error',
+				'Quelle fehlt oder ist keine Datei.',
+				'remove_and_resort'
+			);
 		}
 
 		if ($item->getOperationType() === 'album') {
 			if ($item->getTargetAlbumId() === null || !$this->albumExists($userId, $item->getTargetAlbumId())) {
-				$readiness = $this->worseReadiness($readiness, 'warning');
-				$messages[] = 'Album konnte noch nicht sicher verifiziert werden.';
+				$this->addPreviewIssue(
+					$issues,
+					$messages,
+					$readiness,
+					'target_album_unverified',
+					'warning',
+					'Album konnte noch nicht sicher verifiziert werden.',
+					'choose_album_again'
+				);
 			} elseif ($sourceNode instanceof File && $this->albumContainsFile((int)$item->getTargetAlbumId(), $sourceNode->getId())) {
-				$readiness = $this->worseReadiness($readiness, 'warning');
-				$messages[] = 'Bild ist bereits im Album; die spätere Ablage überspringt die Doppelung.';
+				$this->addPreviewIssue(
+					$issues,
+					$messages,
+					$readiness,
+					'target_album_duplicate',
+					'warning',
+					'Bild ist bereits im Album; die spätere Ablage überspringt die Doppelung.',
+					'safe_skip_duplicate'
+				);
 			}
 		} elseif ($item->getOperationType() === 'copy' || $item->getOperationType() === 'move') {
 			$targetPath = $item->getTargetPath();
 			$targetNode = $targetPath !== null ? $this->nodeForDisplayPath($userId, $targetPath) : null;
 			if (!$targetNode instanceof Folder) {
-				$readiness = 'error';
-				$messages[] = 'Zielordner fehlt oder ist nicht lesbar.';
+				$this->addPreviewIssue(
+					$issues,
+					$messages,
+					$readiness,
+					'target_folder_missing',
+					'error',
+					'Zielordner fehlt oder ist nicht lesbar.',
+					'create_target_folder'
+				);
 			} elseif ($sourceNode instanceof File) {
 				$targetFilePath = rtrim($targetPath ?? '/', '/') . '/' . PathHelper::fileNameFromPath($item->getSourcePath());
 				if ($this->nodeForDisplayPath($userId, $targetFilePath) instanceof File) {
-					$readiness = $this->worseReadiness($readiness, 'warning');
-					$messages[] = 'Zieldatei existiert bereits; die spätere Ablage muss die Doppelung sicher überspringen.';
+					$this->addPreviewIssue(
+						$issues,
+						$messages,
+						$readiness,
+						'target_file_exists',
+						'warning',
+						'Zieldatei existiert bereits; die spätere Ablage muss die Doppelung sicher überspringen.',
+						'safe_skip_duplicate'
+					);
 				}
 				if (PathHelper::parentPath($item->getSourcePath()) === PathHelper::displayPath((string)$targetPath)) {
-					$readiness = $this->worseReadiness($readiness, 'warning');
-					$messages[] = 'Quelle liegt bereits im Zielordner.';
+					$this->addPreviewIssue(
+						$issues,
+						$messages,
+						$readiness,
+						'source_already_in_target',
+						'warning',
+						'Quelle liegt bereits im Zielordner.',
+						'safe_skip_duplicate'
+					);
 				}
 			}
 		} else {
-			$readiness = 'error';
-			$messages[] = 'Unbekannte Ablageart.';
+			$this->addPreviewIssue(
+				$issues,
+				$messages,
+				$readiness,
+				'unknown_operation',
+				'error',
+				'Unbekannte Ablageart.',
+				'remove_and_resort'
+			);
 		}
 
 		if ($messages === []) {
@@ -230,7 +306,24 @@ class WorklistPreviewService {
 			'attempts' => $item->getAttempts(),
 			'lastError' => $item->getLastError(),
 			'readiness' => $readiness,
+			'issues' => $issues,
 			'messages' => $messages,
+		];
+	}
+
+	/**
+	 * @param array<int, array<string, string>> $issues
+	 * @param array<int, string> $messages
+	 */
+	private function addPreviewIssue(array &$issues, array &$messages, string &$readiness, string $code, string $severity, string $message, string $action): void {
+		$severity = $severity === 'error' ? 'error' : 'warning';
+		$readiness = $this->worseReadiness($readiness, $severity);
+		$messages[] = $message;
+		$issues[] = [
+			'code' => $code,
+			'severity' => $severity,
+			'message' => $message,
+			'action' => $action,
 		];
 	}
 

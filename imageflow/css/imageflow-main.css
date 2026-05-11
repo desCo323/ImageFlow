@@ -1000,7 +1000,7 @@
   gap: 14px;
   position: relative;
   width: 100%;
-  max-width: 760px;
+  max-width: 100%;
   height: 100%;
   min-height: 0;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -1019,9 +1019,15 @@
 }
 
 .imageflow-photo-img {
+  display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
+  object-position: center center;
   background: #111111;
 }
 
@@ -1472,6 +1478,70 @@
   box-shadow: 0 8px 16px rgb(0 0 0 / 8%);
 }
 
+.imageflow-worklist-repair {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, #b42318 38%, var(--color-border));
+  border-left: 4px solid #b42318;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-main-background) 92%, #fff0f4);
+}
+
+.imageflow-worklist-repair h4,
+.imageflow-worklist-repair p {
+  margin: 0;
+}
+
+.imageflow-repair-list {
+  display: grid;
+  gap: 8px;
+}
+
+.imageflow-repair-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-main-background);
+}
+
+.imageflow-repair-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.imageflow-repair-main strong,
+.imageflow-repair-main small,
+.imageflow-repair-main p,
+.imageflow-repair-main li {
+  overflow-wrap: anywhere;
+}
+
+.imageflow-repair-main small,
+.imageflow-repair-main p,
+.imageflow-repair-main li {
+  color: var(--color-text-maxcontrast);
+}
+
+.imageflow-repair-main ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.imageflow-repair-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .imageflow-worklist-filter {
   display: flex;
   gap: 10px;
@@ -1905,10 +1975,15 @@
   .imageflow-target-filter > div,
   .imageflow-target-create > div,
   .imageflow-folder-row,
+  .imageflow-repair-row,
   .imageflow-modal-head {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .imageflow-repair-actions {
+    justify-content: flex-start;
   }
 
   .imageflow-title h2 {

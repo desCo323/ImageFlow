@@ -245,6 +245,29 @@ test('opens the worklist preview before queueing execution', async ({ page }) =>
   await expect(page.getByText('Ablage wurde für später vorgemerkt')).toBeVisible();
 });
 
+test('offers repair tools for blocking worklist errors', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-worklist-errors="1"');
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Erst die Fehler beheben. Danach kann die Ablage freigegeben werden.')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Für später vormerken' })).toBeDisabled();
+
+  await dialog.getByRole('button', { name: 'Fehler beheben' }).click();
+  await expect(dialog.getByRole('heading', { name: 'Fehlerbehebung' })).toBeVisible();
+  await expect(dialog.getByText('Diese Werkzeuge ändern nur noch nicht ausgeführte Ablagepunkte.')).toBeVisible();
+  await expect(dialog.getByText('Zielordner fehlt oder ist nicht lesbar.').first()).toBeVisible();
+  await expect(dialog.getByText('/Photos/Fehlender Testordner').first()).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Entscheidung entfernen' })).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Zielordner anlegen' }).click();
+  await expect(page.getByText('Das Ziel wurde angelegt. Die Ablage wird erneut geprüft.')).toBeVisible();
+  await expect(dialog.getByText(/Erst die Fehler beheben/)).toHaveCount(0);
+  await expect(dialog.getByText('Keine Aktion nötig.')).toBeVisible();
+});
+
 test('shows the manual execution button after a flow is released for filing', async ({ page }) => {
   await mount(page);
 
@@ -328,6 +351,8 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   await expect(page.getByLabel('Vorgeladene Bilder')).toBeVisible();
   await expect(page.getByText('Filmstreifen')).toHaveCount(0);
   await expect(page.locator('.imageflow-photo-img')).toBeVisible();
+  await expect(page.locator('.imageflow-photo-img')).toHaveCSS('object-fit', 'contain');
+  await expect(page.locator('.imageflow-photo-img')).toHaveAttribute('src', /1200/);
   await expect(page.locator('.imageflow-photo-meta strong', { hasText: 'IMG_4021.jpg' })).toBeVisible();
   await expect(page.getByText('Leertaste')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Weitermachen' })).toBeVisible();

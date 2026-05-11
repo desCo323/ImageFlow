@@ -96,6 +96,7 @@
       error: null,
       autoProcess: false,
       filter: "all",
+      repairOpen: false,
     },
   };
 
@@ -281,6 +282,23 @@
         "Auffälligkeiten": "Issues",
         "Keine Aktion nötig.": "No action needed.",
         "Erst die Fehler beheben. Danach kann die Ablage freigegeben werden.": "Fix errors first. Filing can be released afterwards.",
+        "Fehler beheben": "Fix errors",
+        "Fehlerbehebung": "Issue repair",
+        "Diese Werkzeuge ändern nur noch nicht ausgeführte Ablagepunkte. Laufende oder bereits erledigte Ablagen bleiben unverändert.": "These tools only change filing items that have not run yet. Running or completed items remain unchanged.",
+        "Fehler erneut prüfen": "Check issues again",
+        "Zur Sortierung": "Back to sorting",
+        "Zielordner anlegen": "Create destination folder",
+        "Entscheidung entfernen": "Remove decision",
+        "Kein direkt behebbarer Fehler in den sichtbaren Einträgen. Prüfe die Ablage erneut oder öffne das Protokoll.": "No directly repairable error in the visible entries. Check filing again or open the log.",
+        "Fehlender Zielordner": "Missing destination folder",
+        "Fehlerhafte Entscheidung": "Faulty decision",
+        "Sicherer Vorschlag": "Safe suggestion",
+        "Ordner anlegen oder diese Entscheidung entfernen.": "Create the folder or remove this decision.",
+        "Entscheidung entfernen und das Bild danach neu sortieren.": "Remove the decision and sort the image again afterwards.",
+        "Im Protokoll prüfen und danach neu sortieren.": "Review the log and sort again afterwards.",
+        "Noch einmal prüfen.": "Check again.",
+        "Das Ziel wurde angelegt. Die Ablage wird erneut geprüft.": "The destination was created. Filing is checked again.",
+        "Die fehlerhafte Entscheidung wurde entfernt.": "The faulty decision was removed.",
         "Noch keine Entscheidungen für die Ablage vorhanden.": "No filing decisions yet.",
         "Keine Einträge in diesem Filter.": "No entries in this filter.",
         "Geplant": "Planned",
@@ -351,6 +369,9 @@
         "Erstellt als Admin einen anonymisierten Supportexport mit globalen ImageFlow-Logs.": "Creates an anonymized support export with global ImageFlow logs as an admin.",
         "Gibt geprüfte Entscheidungen für die spätere Ausführung frei oder merkt sie sicher vor.": "Releases checked decisions for later execution or safely saves them.",
         "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus der Liste.": "Removes this not-yet-executed filing item from the list.",
+        "Öffnet Werkzeuge, um blockierende Ablagefehler sicher zu bereinigen.": "Opens tools to safely repair blocking filing errors.",
+        "Legt den fehlenden Zielordner an und prüft die Ablage danach erneut.": "Creates the missing destination folder and checks filing again afterwards.",
+        "Schließt die Prüfung und öffnet den Sortierbildschirm für diesen Flow.": "Closes review and opens the sorting screen for this flow.",
         "Wählt diesen Ordner für den Flow aus.": "Chooses this folder for the flow.",
         "Öffnet den Ordnerauswahldialog.": "Opens the folder picker.",
         "Bestimmt den Anzeigenamen des Flows.": "Sets the display name of the flow.",
@@ -450,6 +471,9 @@
     "close-worklist-preview": "Schließt die Ablageprüfung.",
     "filter-worklist": "Filtert die Ablagepunkte nach diesem Zustand.",
     "remove-worklist-item": "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus der Liste.",
+    "toggle-worklist-repair": "Öffnet Werkzeuge, um blockierende Ablagefehler sicher zu bereinigen.",
+    "repair-create-target-folder": "Legt den fehlenden Zielordner an und prüft die Ablage danach erneut.",
+    "repair-go-sort": "Schließt die Prüfung und öffnet den Sortierbildschirm für diesen Flow.",
     "toggle-worklist-auto": "Merkt, ob dieser Flow automatisch abgelegt werden soll.",
     "select-image": "Springt zu diesem Vorschaubild.",
     "page-prev": "Zeigt die vorherigen Vorschaubilder.",
@@ -558,6 +582,11 @@
     }
     parts.pop();
     return parts.length ? `/${parts.join("/")}` : "/";
+  }
+
+  function pathBaseName(path) {
+    const parts = normalizeDisplayPath(path).split("/").filter(Boolean);
+    return parts.at(-1) || "";
   }
 
   function apiUrl(path) {
@@ -861,6 +890,9 @@
       folders[parent] = duplicate ? currentFolders : [...currentFolders, folder];
       folders[folder.path] = [];
       state.mockFolders = folders;
+      if (root.dataset.mockWorklistErrors === "1") {
+        root.dataset.mockRepairTargetCreated = "1";
+      }
       return {
         mode,
         target: {
@@ -1264,15 +1296,31 @@
   }
 
   function mockWorklistPreview(job) {
-    const mode = job.targetMode || "album";
+    const withBlockingError = root.dataset.mockWorklistErrors === "1" && root.dataset.mockRepairTargetCreated !== "1";
+    const mode = withBlockingError ? "copy" : (job.targetMode || "album");
     const queued = job.status === "queued";
     const itemStatus = queued ? "queued" : "planned";
     const realExecutionEnabled = root.dataset.mockRealExecution === "1";
     const configuredBackgroundMode = root.dataset.mockBackgroundMode || "manual-only";
     const backgroundMode = realExecutionEnabled ? configuredBackgroundMode : "manual-only";
     const total = Math.max(3, Number.parseInt(root.dataset.mockWorklistTotal || "3", 10) || 3);
-    const warnings = total > 3 ? Math.max(1, Math.floor(total * 0.12)) : 1;
-    const ready = Math.max(0, total - warnings);
+    const warnings = withBlockingError ? 0 : (total > 3 ? Math.max(1, Math.floor(total * 0.12)) : 1);
+    const errors = withBlockingError ? 1 : 0;
+    const ready = Math.max(0, total - warnings - errors);
+    const targetPath = mode === "album" ? null : (withBlockingError ? "/Photos/Fehlender Testordner" : (job.targetPath || "/Photos/Sortiert"));
+    const secondIssues = withBlockingError
+      ? [{
+        code: "target_folder_missing",
+        severity: "error",
+        message: "Zielordner fehlt oder ist nicht lesbar.",
+        action: "create_target_folder",
+      }]
+      : [{
+        code: "target_file_exists",
+        severity: "warning",
+        message: "Zieldatei existiert bereits; diese Doppelung wird später sicher übersprungen.",
+        action: "safe_skip_duplicate",
+      }];
     return {
       job: {
         id: job.id,
@@ -1292,7 +1340,7 @@
         failed: 0,
         ready,
         warnings,
-        errors: 0,
+        errors,
       },
       window: {
         total,
@@ -1301,7 +1349,7 @@
         truncated: total > 3,
         validationComplete: true,
       },
-      canQueue: !queued,
+      canQueue: !queued && errors === 0,
       executionMode: realExecutionEnabled ? "real-writes-enabled" : "dry-run-only",
       backgroundMode,
       backgroundGate: mockBackgroundGate(backgroundMode === "cron-ready" || backgroundMode === "cron-enabled"),
@@ -1314,33 +1362,36 @@
           id: 1,
           operationType: mode,
           sourcePath: `${job.sourcePath || "/Photos"}/IMG_4021.jpg`,
-          targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
+          targetPath,
           targetAlbumId: mode === "album" ? "family" : null,
           status: itemStatus,
           safeMode: true,
           readiness: "ready",
+          issues: [],
           messages: ["Bereit für die sichere Prüfung mit Checksumme."],
         },
         {
           id: 2,
           operationType: mode,
           sourcePath: `${job.sourcePath || "/Photos"}/IMG_4022.jpg`,
-          targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
+          targetPath,
           targetAlbumId: mode === "album" ? "travel" : null,
           status: itemStatus,
           safeMode: true,
-          readiness: "warning",
-          messages: ["Zieldatei existiert bereits; diese Doppelung wird später sicher übersprungen."],
+          readiness: withBlockingError ? "error" : "warning",
+          issues: secondIssues,
+          messages: secondIssues.map((issue) => issue.message),
         },
         {
           id: 3,
           operationType: mode,
           sourcePath: `${job.sourcePath || "/Photos"}/IMG_4023.jpg`,
-          targetPath: mode === "album" ? null : (job.targetPath || "/Photos/Sortiert"),
+          targetPath,
           targetAlbumId: mode === "album" ? "archive" : null,
           status: itemStatus,
           safeMode: true,
           readiness: "ready",
+          issues: [],
           messages: ["Bereit für die sichere Prüfung mit Checksumme."],
         },
       ],
@@ -2047,7 +2098,7 @@
     };
     const bufferPlan = planImageBuffer(images, currentIndex);
     const filmstrip = filmstripWindow(images, currentIndex);
-    const preview = imageUrl(current);
+    const preview = photoDisplayUrl(current);
     const page = sortState.imagePage || state.imagePage || defaultImagePage(images);
     const targetFolder = state.targetFolderPage;
     const isFolderMode = job.targetMode === "move" || job.targetMode === "copy";
@@ -2386,6 +2437,7 @@
             </div>
             ${renderWorklistNextStep(preview, plannedCount, queuedCount, worklistHasErrors)}
             ${renderWorklistActions(preview, queueButtonEnabled, queueButtonLabel, queuedCount, worklistHasErrors)}
+            ${renderWorklistRepairPanel(preview, items, worklistHasErrors)}
             ${renderWorklistFilters(items, windowInfo)}
             <label class="imageflow-toggle imageflow-worklist-toggle">
               <input id="ifl-worklist-auto" data-action="toggle-worklist-auto" type="checkbox" ${state.worklist.autoProcess ? "checked" : ""}>
@@ -2442,10 +2494,111 @@
     return `
       <div class="imageflow-worklist-actions" aria-label="Ablage Aktionen">
         <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Erneut prüfen</button>
+        ${hasErrors ? `<button class="imageflow-button danger" data-action="toggle-worklist-repair" aria-expanded="${state.worklist.repairOpen ? "true" : "false"}" type="button">Fehler beheben</button>` : ""}
         <button class="imageflow-button primary" data-action="confirm-queue-job" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${queueButtonEnabled ? "" : "disabled"}>${queueButtonLabel}</button>
         <button class="imageflow-button" data-action="process-job-now" data-job-id="${escapeAttr(state.worklist.jobId || "")}" type="button" ${processEnabled ? "" : "disabled"}>Jetzt ausführen</button>
       </div>
     `;
+  }
+
+  function renderWorklistRepairPanel(preview, items, hasErrors) {
+    if (!state.worklist.repairOpen) {
+      return "";
+    }
+    const repairItems = worklistErrorItems(items);
+    return `
+      <section class="imageflow-worklist-repair" aria-label="Fehler beheben">
+        <div class="imageflow-panel-head">
+          <div>
+            <h4>Fehlerbehebung</h4>
+            <p>Diese Werkzeuge ändern nur noch nicht ausgeführte Ablagepunkte. Laufende oder bereits erledigte Ablagen bleiben unverändert.</p>
+          </div>
+          <div class="imageflow-actions">
+            <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Fehler erneut prüfen</button>
+            <button class="imageflow-button" data-action="repair-go-sort" data-job-id="${escapeAttr(preview?.job?.id || state.worklist.jobId || "")}" type="button">Zur Sortierung</button>
+          </div>
+        </div>
+        <div class="imageflow-repair-list">
+          ${repairItems.map(renderWorklistRepairItem).join("") || `<div class="imageflow-empty">${escapeHtml(hasErrors ? "Kein direkt behebbarer Fehler in den sichtbaren Einträgen. Prüfe die Ablage erneut oder öffne das Protokoll." : "Keine Aktion nötig.")}</div>`}
+        </div>
+      </section>
+    `;
+  }
+
+  function worklistErrorItems(items) {
+    return (Array.isArray(items) ? items : []).filter((item) => item.readiness === "error" || ["blocked", "failed"].includes(item.status || ""));
+  }
+
+  function renderWorklistRepairItem(item) {
+    const issues = normalizedWorklistIssues(item);
+    const primaryIssue = issues.find((issue) => issue.severity === "error") || issues[0] || {};
+    const canRemove = ["planned", "queued"].includes(item.status || "");
+    const canCreateFolder = canRepairCreateTargetFolder(item, issues);
+    const jobId = state.worklist.jobId || state.worklist.preview?.job?.id || "";
+    const targetPath = item.targetPath || "";
+    return `
+      <article class="imageflow-repair-row">
+        <div class="imageflow-repair-main">
+          <span class="imageflow-badge danger">${escapeHtml(worklistIssueTitle(primaryIssue))}</span>
+          <strong>${escapeHtml(item.sourcePath || "")}</strong>
+          <small>${escapeHtml(targetPath || item.targetAlbumId || "")}</small>
+          <p>${escapeHtml(worklistIssueSuggestion(primaryIssue, item))}</p>
+          <ul>
+            ${issues.map((issue) => `<li>${escapeHtml(issue.message || "")}</li>`).join("")}
+          </ul>
+        </div>
+        <div class="imageflow-repair-actions">
+          ${canCreateFolder ? `<button class="imageflow-button primary" data-action="repair-create-target-folder" data-job-id="${escapeAttr(jobId)}" data-target-path="${escapeAttr(targetPath)}" data-operation-type="${escapeAttr(item.operationType || "")}" type="button">Zielordner anlegen</button>` : ""}
+          ${canRemove ? `<button class="imageflow-button danger" data-action="remove-worklist-item" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Entscheidung entfernen</button>` : ""}
+          <button class="imageflow-button" data-action="repair-go-sort" data-job-id="${escapeAttr(jobId)}" type="button">Zur Sortierung</button>
+        </div>
+      </article>
+    `;
+  }
+
+  function normalizedWorklistIssues(item) {
+    if (Array.isArray(item?.issues) && item.issues.length) {
+      return item.issues;
+    }
+    return (item?.messages || []).map((message) => ({
+      code: item?.readiness === "error" ? "unknown_error" : "unknown_warning",
+      severity: item?.readiness === "error" ? "error" : "warning",
+      message,
+      action: item?.readiness === "error" ? "remove_and_resort" : "review",
+    }));
+  }
+
+  function canRepairCreateTargetFolder(item, issues) {
+    if (!["copy", "move"].includes(item?.operationType || "") || !item?.targetPath) {
+      return false;
+    }
+    if (!["planned", "queued"].includes(item.status || "")) {
+      return false;
+    }
+    return issues.some((issue) => issue.code === "target_folder_missing" || issue.action === "create_target_folder");
+  }
+
+  function worklistIssueTitle(issue) {
+    return {
+      target_folder_missing: "Fehlender Zielordner",
+      source_missing: "Fehlerhafte Entscheidung",
+      duplicate_move_source: "Fehlerhafte Entscheidung",
+      duplicate_operation: "Fehlerhafte Entscheidung",
+      unknown_operation: "Fehlerhafte Entscheidung",
+    }[issue?.code] || (issue?.severity === "warning" ? "Sicherer Vorschlag" : "Fehlerhafte Entscheidung");
+  }
+
+  function worklistIssueSuggestion(issue, item) {
+    if (issue?.action === "create_target_folder") {
+      return "Ordner anlegen oder diese Entscheidung entfernen.";
+    }
+    if (issue?.action === "review_log_and_resort" || ["blocked", "failed"].includes(item?.status || "")) {
+      return "Im Protokoll prüfen und danach neu sortieren.";
+    }
+    if (["remove_duplicate_decision", "remove_and_resort"].includes(issue?.action || "")) {
+      return "Entscheidung entfernen und das Bild danach neu sortieren.";
+    }
+    return "Noch einmal prüfen.";
   }
 
   function renderBackgroundGateNote(preview) {
@@ -2902,6 +3055,15 @@
       closeWorklistPreview();
     } else if (action === "refresh-worklist-preview") {
       await loadWorklistPreview(state.worklist.jobId);
+    } else if (action === "toggle-worklist-repair") {
+      state.worklist.repairOpen = !state.worklist.repairOpen;
+      state.worklist.filter = state.worklist.repairOpen ? "issues" : state.worklist.filter;
+      render();
+    } else if (action === "repair-create-target-folder") {
+      await createRepairTargetFolder(event.currentTarget);
+    } else if (action === "repair-go-sort" && jobId) {
+      closeWorklistPreview();
+      await openSort(jobId, "resume");
     } else if (action === "toggle-worklist-auto") {
       state.worklist.autoProcess = Boolean(event.currentTarget.checked);
       render();
@@ -3216,6 +3378,40 @@
     }
   }
 
+  async function createRepairTargetFolder(button) {
+    const jobId = numberOrNull(button?.dataset.jobId) || state.worklist.jobId;
+    const targetPath = normalizeDisplayPath(button?.dataset.targetPath || "");
+    const name = pathBaseName(targetPath);
+    const parent = parentPath(targetPath);
+    const mode = button?.dataset.operationType || state.worklist.preview?.job?.targetMode || "copy";
+    if (!jobId || !name || !parent) {
+      state.worklist.error = "Zielordner konnte nicht eindeutig bestimmt werden.";
+      render();
+      return;
+    }
+
+    state.worklist.loading = true;
+    state.worklist.error = null;
+    render();
+    try {
+      await request("/api/v1/targets", {
+        method: "POST",
+        body: {
+          mode: ["copy", "move"].includes(mode) ? mode : "copy",
+          name,
+          path: parent,
+        },
+      });
+      state.toast = { type: "info", message: "Das Ziel wurde angelegt. Die Ablage wird erneut geprüft." };
+      state.worklist.repairOpen = true;
+      await loadWorklistPreview(jobId);
+    } catch (error) {
+      state.worklist.loading = false;
+      state.worklist.error = error.message || "Zielordner konnte nicht angelegt werden.";
+      render();
+    }
+  }
+
   function mergeTargetList(target, targets) {
     const list = Array.isArray(targets) ? targets : [];
     if (!target) {
@@ -3237,6 +3433,7 @@
       error: null,
       autoProcess: Boolean((state.jobs.find((job) => job.id === jobId)?.options || {}).autoProcess),
       filter: "all",
+      repairOpen: false,
     };
     render();
     await loadWorklistPreview(jobId);
@@ -3281,6 +3478,7 @@
       error: null,
       autoProcess: false,
       filter: "all",
+      repairOpen: false,
     };
     render();
   }
@@ -3501,6 +3699,7 @@
     }
 
     try {
+      const removedBeforeRequest = state.worklist.preview?.items?.find((item) => Number(item.id) === Number(queueItemId));
       const payload = await request(`/api/v1/jobs/${jobId}/queue/${queueItemId}`, { method: "DELETE", body: {} });
       if (payload.job) {
         state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
@@ -3509,7 +3708,10 @@
         }
       }
       removePreviewItemLocally(queueItemId);
-      state.toast = { type: "info", message: "Ablagepunkt wurde entfernt." };
+      state.toast = {
+        type: "info",
+        message: removedBeforeRequest?.readiness === "error" ? "Die fehlerhafte Entscheidung wurde entfernt." : "Ablagepunkt wurde entfernt.",
+      };
       render();
     } catch (error) {
       state.worklist.error = error.message || "Ablagepunkt konnte nicht entfernt werden.";
@@ -4191,6 +4393,10 @@
 
   function imageUrl(image) {
     return image?.previewUrl || image?.thumbnailUrl || image?.url || "";
+  }
+
+  function photoDisplayUrl(image) {
+    return image?.previewUrl || image?.downloadUrl || image?.url || image?.thumbnailUrl || "";
   }
 
   function prefetchAdjacentImagePages() {
