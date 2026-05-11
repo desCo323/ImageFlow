@@ -25,6 +25,7 @@ return [
 		['name' => 'sort#skip', 'url' => '/api/v1/jobs/{jobId}/skip', 'verb' => 'POST'],
 		['name' => 'sort#undo', 'url' => '/api/v1/jobs/{jobId}/undo', 'verb' => 'POST'],
 		['name' => 'sort#removeQueueItem', 'url' => '/api/v1/jobs/{jobId}/queue/{queueItemId}', 'verb' => 'DELETE'],
+		['name' => 'sort#autoRenameQueueItem', 'url' => '/api/v1/jobs/{jobId}/queue/{queueItemId}/auto-rename', 'verb' => 'POST'],
 		['name' => 'sort#position', 'url' => '/api/v1/jobs/{jobId}/position', 'verb' => 'POST'],
 		['name' => 'target#index', 'url' => '/api/v1/targets', 'verb' => 'GET'],
 		['name' => 'target#create', 'url' => '/api/v1/targets', 'verb' => 'POST'],

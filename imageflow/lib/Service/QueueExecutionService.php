@@ -263,7 +263,7 @@ class QueueExecutionService {
 			return $this->failedResult('Zielordner fehlt oder ist nicht lesbar.');
 		}
 
-		$fileName = PathHelper::fileNameFromPath($item->getSourcePath());
+		$fileName = $this->targetFileName($item);
 		if ($fileName === '') {
 			return $this->failedResult('Quelldateiname ist leer.');
 		}
@@ -305,7 +305,7 @@ class QueueExecutionService {
 			return $this->failedResult('Zielordner fehlt oder ist nicht lesbar.');
 		}
 
-		$fileName = PathHelper::fileNameFromPath($item->getSourcePath());
+		$fileName = $this->targetFileName($item);
 		if ($fileName === '') {
 			return $this->failedResult('Quelldateiname ist leer.');
 		}
@@ -393,6 +393,7 @@ class QueueExecutionService {
 			'sourcePath' => $item->getSourcePath(),
 			'targetPath' => $item->getTargetPath(),
 			'targetAlbumId' => $item->getTargetAlbumId(),
+			'targetFileName' => $this->targetFileName($item),
 			'attempts' => $item->getAttempts(),
 			'realExecutionEnabled' => $this->realExecutionEnabled(),
 			'manual' => $manual,
@@ -506,6 +507,17 @@ class QueueExecutionService {
 		} catch (\Throwable) {
 			return null;
 		}
+	}
+
+	private function targetFileName(QueueItem $item): string {
+		if (in_array($item->getOperationType(), ['copy', 'move'], true)) {
+			$storedName = trim((string)($item->getTargetAlbumId() ?? ''));
+			if ($storedName !== '' && !str_contains($storedName, '/')) {
+				return $storedName;
+			}
+		}
+
+		return PathHelper::fileNameFromPath($item->getSourcePath());
 	}
 
 	private function nodeForDisplayPath(string $userId, string $displayPath): mixed {

@@ -260,7 +260,7 @@ test('offers repair tools for blocking worklist errors', async ({ page }) => {
   await expect(dialog.getByText('Diese Werkzeuge ändern nur noch nicht ausgeführte Ablagepunkte.')).toBeVisible();
   await expect(dialog.getByText('Zielordner fehlt oder ist nicht lesbar.').first()).toBeVisible();
   await expect(dialog.getByText('/Photos/Fehlender Testordner').first()).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Eintrag zurücksetzen' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Aus Stapel entfernen' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Alle Fehler zurücksetzen' })).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Zielordner anlegen' }).click();
@@ -279,11 +279,47 @@ test('resets all visible worklist errors from the repair menu', async ({ page })
   await expect(dialog.getByRole('button', { name: 'Alle Fehler zurücksetzen' })).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Alle Fehler zurücksetzen' }).click();
-  await expect(page.getByText('Der fehlerhafte Eintrag wurde zurückgesetzt.')).toBeVisible();
+  await expect(page.getByText('Der Eintrag wurde aus dem Stapel entfernt.')).toBeVisible();
   await expect(dialog.getByText(/Erst die Fehler beheben/)).toHaveCount(0);
   await expect(dialog.getByText('Keine Aktion nötig.')).toBeVisible();
   await expect(dialog.getByRole('button', { name: /Auffälligkeiten 1/ })).toBeVisible();
   await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(1);
+});
+
+test('repairs blocked move target conflicts with an automatic target name', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-worklist-target-conflict="1" data-mock-real-execution="1"');
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+  await expect(dialog.getByText('Erst die Fehler beheben. Danach kann die Ablage freigegeben werden.')).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Fehler beheben' }).click();
+  await expect(dialog.getByText('Zielkonflikt', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Zieldatei existiert bereits. Verschieben überschreibt nicht und löscht die Quelle nicht.')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Mit neuem Namen ablegen' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Aus Stapel entfernen' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Alle Zielkonflikte umbenennen' })).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Mit neuem Namen ablegen' }).click();
+  await expect(page.getByText('Neuer Zielname: IMG_4022 (1).jpg')).toBeVisible();
+  await expect(dialog.getByText(/Erst die Fehler beheben/)).toHaveCount(0);
+  await expect(dialog.getByText('Zielname: IMG_4022 (1).jpg').first()).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Mit neuem Namen ablegen' })).toHaveCount(0);
+});
+
+test('removes a blocked target conflict from the repair stack', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-worklist-target-conflict="1" data-mock-real-execution="1"');
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+  await dialog.getByRole('button', { name: 'Fehler beheben' }).click();
+
+  await dialog.getByRole('button', { name: 'Aus Stapel entfernen' }).click();
+  await expect(page.getByText('Der Eintrag wurde aus dem Stapel entfernt.')).toBeVisible();
+  await expect(dialog.getByText(/Erst die Fehler beheben/)).toHaveCount(0);
+  await expect(dialog.getByText('Keine Aktion nötig.')).toBeVisible();
 });
 
 test('does not treat executed moved files as missing source errors', async ({ page }) => {

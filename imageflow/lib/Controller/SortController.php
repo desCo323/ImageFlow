@@ -101,6 +101,20 @@ class SortController extends Controller {
 	}
 
 	#[NoAdminRequired]
+	public function autoRenameQueueItem(int $jobId, int $queueItemId): JSONResponse {
+		try {
+			return new JSONResponse($this->sortService->autoRenameQueueItem($this->userId, $jobId, $queueItemId));
+		} catch (DoesNotExistException) {
+			return $this->error('queue_item_not_found', 'Der Ablagepunkt wurde nicht gefunden.', Http::STATUS_NOT_FOUND);
+		} catch (\InvalidArgumentException $e) {
+			return $this->error('queue_item_auto_rename_blocked', $e->getMessage(), Http::STATUS_CONFLICT);
+		} catch (\Throwable $e) {
+			$this->logService->exception('queue_item_auto_rename_failed', $e, $this->userId, $jobId);
+			return $this->error('queue_item_auto_rename_failed', 'Der Ablagepunkt konnte nicht automatisch umbenannt werden.', Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	#[NoAdminRequired]
 	public function position(int $jobId): JSONResponse {
 		try {
 			return new JSONResponse($this->sortService->position($this->userId, $jobId, $this->request->getParams()));

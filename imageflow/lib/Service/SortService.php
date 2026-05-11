@@ -11,10 +11,14 @@ use OCA\ImageFlow\Db\SortAssignment;
 use OCA\ImageFlow\Db\SortAssignmentMapper;
 use OCA\ImageFlow\Db\SortJobMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
 use OCP\Lock\ILockingProvider;
 
 class SortService {
-	private const REMOVABLE_QUEUE_STATUSES = ['planned', 'queued'];
+	private const REMOVABLE_QUEUE_STATUSES = ['planned', 'queued', 'blocked', 'failed'];
+	private const WAITING_QUEUE_STATUSES = ['planned', 'queued'];
+	private const FAILED_QUEUE_STATUSES = ['blocked', 'failed'];
 
 	public function __construct(
 		private readonly SortJobMapper $jobMapper,
@@ -25,6 +29,7 @@ class SortService {
 		private readonly JobService $jobService,
 		private readonly LogService $logService,
 		private readonly ILockingProvider $lockingProvider,
+		private readonly IRootFolder $rootFolder,
 	) {
 	}
 
@@ -230,7 +235,7 @@ class SortService {
 
 			$job->setStatus($job->getStatus() === 'draft' ? 'sorting' : $job->getStatus());
 			$job->setSortedFiles(max(0, $job->getSortedFiles() - $removedAssignmentCount) + 1);
-			$job->setQueuedOperations($this->queueMapper->countForJobByStatuses($jobId, self::REMOVABLE_QUEUE_STATUSES));
+			$job->setQueuedOperations($this->queueMapper->countForJobByStatuses($jobId, self::WAITING_QUEUE_STATUSES));
 			$job->setUpdatedAt($now);
 			$this->jobMapper->update($job);
 
@@ -367,6 +372,71 @@ class SortService {
 	}
 
 	/**
+	 * @return array<string, mixed>
+	 * @throws DoesNotExistException
+	 */
+	public function autoRenameQueueItem(string $userId, int $jobId, int $queueItemId): array {
+		$job = $this->jobMapper->findForUserById($userId, $jobId);
+		$item = $this->queueMapper->findForUserById($userId, $queueItemId);
+		if ($item->getJobId() !== $jobId) {
+			throw new DoesNotExistException('Queue item not found');
+		}
+		if (!in_array($item->getStatus(), self::REMOVABLE_QUEUE_STATUSES, true)) {
+			throw new \InvalidArgumentException('Diese Ablage kann nicht mehr umbenannt werden, weil sie gerade läuft oder bereits erledigt ist.');
+		}
+		if (!in_array($item->getOperationType(), ['copy', 'move'], true) || $item->getTargetPath() === null) {
+			throw new \InvalidArgumentException('Nur Kopieren und Verschieben können mit einem neuen Dateinamen repariert werden.');
+		}
+
+		$sourceName = PathHelper::fileNameFromPath($item->getSourcePath());
+		if ($sourceName === '') {
+			throw new \InvalidArgumentException('Der Quelldateiname ist leer.');
+		}
+		$targetFolder = $this->targetFolder($userId, $item->getTargetPath());
+		if (!$targetFolder instanceof Folder) {
+			throw new \InvalidArgumentException('Der Zielordner fehlt oder ist nicht lesbar.');
+		}
+
+		$targetFileName = $this->uniqueTargetFileName($targetFolder, $sourceName);
+		$item->setTargetAlbumId($targetFileName === $sourceName ? null : $targetFileName);
+		if (in_array($item->getStatus(), self::FAILED_QUEUE_STATUSES, true)) {
+			$item->setStatus('queued');
+			$item->setAttempts(0);
+		}
+		$item->setLastError(null);
+		$item->setUpdatedAt(time());
+		$item = $this->queueMapper->update($item);
+
+		if ($item->getAssignmentId() !== null) {
+			try {
+				$assignment = $this->assignmentMapper->findForUserById($userId, $item->getAssignmentId());
+				$assignment->setActionStatus($item->getStatus());
+				$assignment->setUpdatedAt(time());
+				$this->assignmentMapper->update($assignment);
+			} catch (DoesNotExistException) {
+			}
+		}
+
+		$job = $this->refreshJobQueueStats($job);
+		$this->logService->info('queue_item_auto_renamed', $userId, [
+			'jobId' => $jobId,
+			'queueItemId' => $queueItemId,
+			'assignmentId' => $item->getAssignmentId(),
+			'sourcePath' => $item->getSourcePath(),
+			'targetPath' => $item->getTargetPath(),
+			'targetFileName' => $targetFileName,
+			'status' => $item->getStatus(),
+		], $jobId, 'Ablagepunkt wurde mit einem freien Zielnamen repariert.');
+
+		return [
+			'queueItem' => $this->serializeQueueItem($item),
+			'targetFileName' => $targetFileName,
+			'job' => $this->jobService->serializeJob($job),
+			'message' => sprintf('Neuer Zielname: %s', $targetFileName),
+		];
+	}
+
+	/**
 	 * @return array<int, array<string, mixed>>
 	 */
 	private function favorites(string $userId, string $mode, string $hotkeyMode = 'number-row', array $customHotkeys = []): array {
@@ -436,17 +506,41 @@ class SortService {
 		} else {
 			$job->setSortedFiles(max(0, $job->getSortedFiles() - 1));
 		}
-		$queuedOperations = $this->queueMapper->countForJobByStatuses($job->getId(), self::REMOVABLE_QUEUE_STATUSES);
-		$job->setQueuedOperations($queuedOperations);
-		if (in_array($job->getStatus(), ['draft', 'sorting', 'paused', 'ready', 'queued'], true)) {
-			$hasDecisions = $job->getSortedFiles() > 0 || $job->getSkippedFiles() > 0 || $job->getQueuedOperations() > 0;
-			if ($job->getStatus() === 'queued' && $queuedOperations > 0) {
-				$job->setStatus('queued');
-			} elseif ($job->getStatus() === 'paused' && $hasDecisions) {
-				$job->setStatus('paused');
-			} else {
-				$job->setStatus($hasDecisions ? 'sorting' : 'draft');
-			}
+		$job = $this->refreshJobQueueStats($job, true);
+		$job->setUpdatedAt(time());
+		return $job;
+	}
+
+	private function refreshJobQueueStats(\OCA\ImageFlow\Db\SortJob $job, bool $preferSortingState = false): \OCA\ImageFlow\Db\SortJob {
+		$planned = $this->queueMapper->countForJobByStatus($job->getId(), 'planned');
+		$queued = $this->queueMapper->countForJobByStatus($job->getId(), 'queued');
+		$executing = $this->queueMapper->countForJobByStatus($job->getId(), 'executing');
+		$failed = $this->queueMapper->countForJobByStatuses($job->getId(), self::FAILED_QUEUE_STATUSES);
+		$executed = $this->queueMapper->countForJobByStatus($job->getId(), 'executed');
+		$pending = $planned + $queued + $executing;
+
+		$job->setQueuedOperations($pending);
+		$job->setFailedOperations($failed);
+		$job->setExecutedOperations($executed);
+		if ($executing > 0) {
+			$job->setStatus('executing');
+		} elseif ($failed > 0) {
+			$job->setStatus('error');
+			$job->setErrorMessage('Mindestens eine Ablage wurde blockiert oder ist fehlgeschlagen.');
+		} elseif ($queued > 0) {
+			$job->setStatus('queued');
+			$job->setErrorMessage(null);
+		} elseif ($planned > 0) {
+			$job->setStatus($preferSortingState ? 'sorting' : 'ready');
+			$job->setErrorMessage(null);
+		} elseif ($executed > 0) {
+			$job->setStatus('done');
+			$job->setErrorMessage(null);
+			$job->setExecutionFinishedAt(time());
+		} else {
+			$hasDecisions = $job->getSortedFiles() > 0 || $job->getSkippedFiles() > 0;
+			$job->setStatus($hasDecisions ? 'sorting' : 'draft');
+			$job->setErrorMessage(null);
 		}
 		$job->setUpdatedAt(time());
 		return $this->jobMapper->update($job);
@@ -476,6 +570,48 @@ class SortService {
 
 	private function decisionLockKey(string $userId, int $jobId, string $sourcePath): string {
 		return 'imageflow:decision:' . hash('sha256', $userId . '|' . $jobId . '|' . $sourcePath);
+	}
+
+	private function targetFolder(string $userId, string $targetPath): ?Folder {
+		try {
+			$userFolder = $this->rootFolder->getUserFolder($userId);
+			$node = $userFolder->get(PathHelper::normalizeUserPath($targetPath));
+			return $node instanceof Folder ? $node : null;
+		} catch (\Throwable) {
+			return null;
+		}
+	}
+
+	private function uniqueTargetFileName(Folder $folder, string $sourceName): string {
+		[$base, $extension] = $this->splitFileName($sourceName);
+		$candidate = $sourceName;
+		for ($counter = 1; $counter <= 9999; $counter++) {
+			if (!$folder->nodeExists($candidate)) {
+				return $candidate;
+			}
+			$candidate = sprintf('%s (%d)%s', $base, $counter, $extension);
+			if (strlen($candidate) > 255) {
+				$maxBaseLength = max(1, 255 - strlen(sprintf(' (%d)%s', $counter, $extension)));
+				$candidate = sprintf('%s (%d)%s', mb_substr($base, 0, $maxBaseLength), $counter, $extension);
+			}
+		}
+
+		throw new \InvalidArgumentException('Es konnte kein freier Zielname gefunden werden.');
+	}
+
+	/**
+	 * @return array{0: string, 1: string}
+	 */
+	private function splitFileName(string $fileName): array {
+		$dot = mb_strrpos($fileName, '.');
+		if ($dot === false || $dot <= 0) {
+			return [$fileName, ''];
+		}
+
+		return [
+			mb_substr($fileName, 0, $dot),
+			mb_substr($fileName, $dot),
+		];
 	}
 
 	/**
@@ -744,6 +880,7 @@ class SortService {
 			'sourcePath' => $item->getSourcePath(),
 			'targetPath' => $item->getTargetPath(),
 			'targetAlbumId' => $item->getTargetAlbumId(),
+			'targetFileName' => $this->targetFileName($item),
 			'status' => $item->getStatus(),
 			'safeMode' => $item->getSafeMode(),
 			'attempts' => $item->getAttempts(),
@@ -774,5 +911,18 @@ class SortService {
 			return null;
 		}
 		return (int)$value;
+	}
+
+	private function targetFileName(QueueItem $item): ?string {
+		if (!in_array($item->getOperationType(), ['copy', 'move'], true)) {
+			return null;
+		}
+		$storedName = trim((string)($item->getTargetAlbumId() ?? ''));
+		if ($storedName !== '' && !str_contains($storedName, '/')) {
+			return $storedName;
+		}
+
+		$fileName = PathHelper::fileNameFromPath($item->getSourcePath());
+		return $fileName !== '' ? $fileName : null;
 	}
 }

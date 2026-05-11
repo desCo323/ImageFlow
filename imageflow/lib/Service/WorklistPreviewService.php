@@ -173,6 +173,7 @@ class WorklistPreviewService {
 				'sourcePath' => $item->getSourcePath(),
 				'targetPath' => $item->getTargetPath(),
 				'targetAlbumId' => $item->getTargetAlbumId(),
+				'targetFileName' => $this->targetFileName($item),
 				'status' => $item->getStatus(),
 				'safeMode' => $item->getSafeMode(),
 				'attempts' => $item->getAttempts(),
@@ -260,6 +261,7 @@ class WorklistPreviewService {
 		} elseif ($item->getOperationType() === 'copy' || $item->getOperationType() === 'move') {
 			$targetPath = $item->getTargetPath();
 			$targetNode = $targetPath !== null ? $this->nodeForDisplayPath($userId, $targetPath) : null;
+			$targetFileName = $this->targetFileName($item);
 			if (!$targetNode instanceof Folder) {
 				$this->addPreviewIssue(
 					$issues,
@@ -271,19 +273,23 @@ class WorklistPreviewService {
 					'create_target_folder'
 				);
 			} elseif ($sourceNode instanceof File) {
-				$targetFilePath = rtrim($targetPath ?? '/', '/') . '/' . PathHelper::fileNameFromPath($item->getSourcePath());
+				$targetFilePath = rtrim($targetPath ?? '/', '/') . '/' . $targetFileName;
 				if ($this->nodeForDisplayPath($userId, $targetFilePath) instanceof File) {
+					$moveConflict = $item->getOperationType() === 'move';
 					$this->addPreviewIssue(
 						$issues,
 						$messages,
 						$readiness,
 						'target_file_exists',
-						'warning',
-						'Zieldatei existiert bereits; die spätere Ablage muss die Doppelung sicher überspringen.',
-						'safe_skip_duplicate'
+						$moveConflict ? 'error' : 'warning',
+						$moveConflict
+							? 'Zieldatei existiert bereits. Wähle einen neuen Namen oder entferne diesen Ablagepunkt.'
+							: 'Zieldatei existiert bereits; die spätere Ablage muss die Doppelung sicher überspringen.',
+						$moveConflict ? 'auto_rename_target' : 'safe_skip_duplicate'
 					);
 				}
-				if (PathHelper::parentPath($item->getSourcePath()) === PathHelper::displayPath((string)$targetPath)) {
+				if ($targetFileName === PathHelper::fileNameFromPath($item->getSourcePath())
+					&& PathHelper::parentPath($item->getSourcePath()) === PathHelper::displayPath((string)$targetPath)) {
 					$this->addPreviewIssue(
 						$issues,
 						$messages,
@@ -310,6 +316,10 @@ class WorklistPreviewService {
 		if ($messages === []) {
 			$messages[] = $item->getSafeMode() ? 'Bereit für die sichere Prüfung mit Checksumme.' : 'Bereit, aber ohne Checksumme.';
 		}
+		$targetFileName = $this->targetFileName($item);
+		if ($targetFileName !== null && $targetFileName !== PathHelper::fileNameFromPath($item->getSourcePath())) {
+			$messages[] = sprintf('Zielname: %s', $targetFileName);
+		}
 
 		return [
 			'id' => $item->getId(),
@@ -319,6 +329,7 @@ class WorklistPreviewService {
 			'sourcePath' => $item->getSourcePath(),
 			'targetPath' => $item->getTargetPath(),
 			'targetAlbumId' => $item->getTargetAlbumId(),
+			'targetFileName' => $targetFileName,
 			'status' => $item->getStatus(),
 			'safeMode' => $item->getSafeMode(),
 			'attempts' => $item->getAttempts(),
@@ -350,8 +361,23 @@ class WorklistPreviewService {
 			$item->getOperationType(),
 			$item->getSourcePath(),
 			$item->getTargetPath() ?? '',
-			$item->getTargetAlbumId() ?? '',
+			$item->getOperationType() === 'album'
+				? ($item->getTargetAlbumId() ?? '')
+				: ($this->targetFileName($item) ?? ''),
 		]));
+	}
+
+	private function targetFileName(QueueItem $item): ?string {
+		if (!in_array($item->getOperationType(), ['copy', 'move'], true)) {
+			return null;
+		}
+		$storedName = trim((string)($item->getTargetAlbumId() ?? ''));
+		if ($storedName !== '' && !str_contains($storedName, '/')) {
+			return $storedName;
+		}
+
+		$fileName = PathHelper::fileNameFromPath($item->getSourcePath());
+		return $fileName !== '' ? $fileName : null;
 	}
 
 	private function nodeForDisplayPath(string $userId, string $displayPath): mixed {

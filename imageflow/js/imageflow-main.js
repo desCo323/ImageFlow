@@ -292,19 +292,32 @@
         "Zielordner anlegen": "Create destination folder",
         "Eintrag zurücksetzen": "Reset item",
         "Zurücksetzen & offene Bilder": "Reset and show open images",
+        "Mit neuem Namen ablegen": "File with new name",
+        "Alle Zielkonflikte umbenennen": "Rename all target conflicts",
+        "Aus Stapel entfernen": "Remove from stack",
+        "Entfernen & offene Bilder": "Remove and show open images",
         "Alle Fehler zurücksetzen": "Reset all errors",
         "Alle zurücksetzen & offene Bilder": "Reset all and show open images",
         "Kein direkt behebbarer Fehler in den sichtbaren Einträgen. Prüfe die Ablage erneut oder öffne das Protokoll.": "No directly repairable error in the visible entries. Check filing again or open the log.",
         "Fehlender Zielordner": "Missing destination folder",
+        "Zielkonflikt": "Destination conflict",
         "Fehlerhafte Entscheidung": "Faulty decision",
         "Sicherer Vorschlag": "Safe suggestion",
         "Ordner anlegen oder den Eintrag zurücksetzen.": "Create the folder or reset the item.",
+        "Ordner anlegen oder den Eintrag aus dem Stapel entfernen.": "Create the folder or remove the item from the stack.",
+        "Wähle einen freien Zielnamen oder entferne diesen Ablagepunkt aus dem Stapel.": "Choose a free destination name or remove this filing item from the stack.",
+        "ImageFlow wählt automatisch den nächsten freien Dateinamen im Zielordner.": "ImageFlow automatically chooses the next free file name in the destination folder.",
         "Eintrag zurücksetzen und das Bild danach neu sortieren.": "Reset the item and sort the image again afterwards.",
+        "Aus Stapel entfernen und das Bild danach neu sortieren.": "Remove from stack and sort the image again afterwards.",
         "Im Protokoll prüfen und danach neu sortieren.": "Review the log and sort again afterwards.",
         "Noch einmal prüfen.": "Check again.",
         "Das Ziel wurde angelegt. Die Ablage wird erneut geprüft.": "The destination was created. Filing is checked again.",
         "Der fehlerhafte Eintrag wurde zurückgesetzt.": "The faulty item was reset.",
         "Die sichtbaren Fehler wurden zurückgesetzt.": "The visible errors were reset.",
+        "Der Eintrag wurde aus dem Stapel entfernt.": "The item was removed from the stack.",
+        "Die sichtbaren Fehler wurden aus dem Stapel entfernt.": "The visible errors were removed from the stack.",
+        "Der Ablagepunkt wurde mit neuem Namen vorbereitet.": "The filing item was prepared with a new name.",
+        "Die sichtbaren Zielkonflikte wurden mit neuen Namen vorbereitet.": "The visible target conflicts were prepared with new names.",
         "Noch keine Entscheidungen für die Ablage vorhanden.": "No filing decisions yet.",
         "Keine Einträge in diesem Filter.": "No entries in this filter.",
         "Geplant": "Planned",
@@ -381,6 +394,12 @@
         "Setzt diesen fehlerhaften Eintrag zurück und zeigt danach offene Bilder.": "Resets this faulty item and then shows open images.",
         "Setzt alle sichtbaren, noch nicht ausgeführten Fehler zurück.": "Resets all visible errors that have not run yet.",
         "Setzt alle sichtbaren, noch nicht ausgeführten Fehler zurück und zeigt danach offene Bilder.": "Resets all visible errors that have not run yet and then shows open images.",
+        "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus dem Stapel.": "Removes this not-yet-executed filing item from the stack.",
+        "Entfernt diesen Ablagepunkt und zeigt danach offene Bilder.": "Removes this filing item and then shows open images.",
+        "Entfernt alle sichtbaren, noch nicht ausgeführten Fehler aus dem Stapel.": "Removes all visible not-yet-executed errors from the stack.",
+        "Entfernt alle sichtbaren Fehler und zeigt danach offene Bilder.": "Removes all visible errors and then shows open images.",
+        "Wählt automatisch den nächsten freien Dateinamen im Zielordner.": "Automatically chooses the next free file name in the destination folder.",
+        "Wählt für alle sichtbaren Zielkonflikte automatisch freie Dateinamen.": "Automatically chooses free file names for all visible target conflicts.",
         "Schließt die Prüfung und zeigt die offenen Bilder dieses Flows.": "Closes review and shows the open images for this flow.",
         "Wählt diesen Ordner für den Flow aus.": "Chooses this folder for the flow.",
         "Öffnet den Ordnerauswahldialog.": "Opens the folder picker.",
@@ -429,6 +448,7 @@
         [/^Ordner öffnen: (.+)$/, "Open folder: $1"],
         [/^Als Schnellziel merken: (.+)$/, "Save as quick target: $1"],
         [/^Ablage entfernen: (.+)$/, "Remove filing item: $1"],
+        [/^Neuer Zielname: (.+)$/, "New destination name: $1"],
         [/^Taste für Schnellziel (\d+)$/, "Key for quick target $1"],
         [/^Nur (.+)$/, "Only $1"],
         [/^Version (.+)$/, "Version $1"]
@@ -483,10 +503,12 @@
     "remove-worklist-item": "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus der Liste.",
     "toggle-worklist-repair": "Öffnet Werkzeuge, um blockierende Ablagefehler sicher zu bereinigen.",
     "repair-create-target-folder": "Legt den fehlenden Zielordner an und prüft die Ablage danach erneut.",
-    "repair-reset-item": "Setzt diesen fehlerhaften Eintrag zurück, damit das Bild wieder offen ist.",
-    "repair-reset-item-and-sort": "Setzt diesen fehlerhaften Eintrag zurück und zeigt danach offene Bilder.",
-    "repair-reset-visible-errors": "Setzt alle sichtbaren, noch nicht ausgeführten Fehler zurück.",
-    "repair-reset-visible-errors-and-sort": "Setzt alle sichtbaren, noch nicht ausgeführten Fehler zurück und zeigt danach offene Bilder.",
+    "repair-reset-item": "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus dem Stapel.",
+    "repair-reset-item-and-sort": "Entfernt diesen Ablagepunkt und zeigt danach offene Bilder.",
+    "repair-reset-visible-errors": "Entfernt alle sichtbaren, noch nicht ausgeführten Fehler aus dem Stapel.",
+    "repair-reset-visible-errors-and-sort": "Entfernt alle sichtbaren Fehler und zeigt danach offene Bilder.",
+    "repair-auto-rename-item": "Wählt automatisch den nächsten freien Dateinamen im Zielordner.",
+    "repair-auto-rename-visible-conflicts": "Wählt für alle sichtbaren Zielkonflikte automatisch freie Dateinamen.",
     "repair-go-sort": "Schließt die Prüfung und zeigt die offenen Bilder dieses Flows.",
     "toggle-worklist-auto": "Merkt, ob dieser Flow automatisch abgelegt werden soll.",
     "select-image": "Springt zu diesem Vorschaubild.",
@@ -832,12 +854,37 @@
       const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
       return { message: "Letzte Entscheidung wurde zurückgenommen.", job };
     }
+    if (/\/api\/v1\/jobs\/\d+\/queue\/\d+\/auto-rename$/.test(path) && options.method === "POST") {
+      const jobId = Number.parseInt(path.split("/").at(-4), 10);
+      const queueItemId = Number.parseInt(path.split("/").at(-2), 10);
+      const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
+      root.dataset.mockWorklistConflictRenamed = "1";
+      return {
+        queueItem: {
+          id: queueItemId,
+          jobId,
+          operationType: "move",
+          sourcePath: `${job.sourcePath || "/Photos"}/IMG_4022.jpg`,
+          targetPath: "/Photos/S/BrasilienFotos",
+          targetFileName: "IMG_4022 (1).jpg",
+          status: "queued",
+          readiness: "ready",
+          messages: ["Zielname: IMG_4022 (1).jpg"],
+        },
+        targetFileName: "IMG_4022 (1).jpg",
+        message: "Neuer Zielname: IMG_4022 (1).jpg",
+        job,
+      };
+    }
     if (/\/api\/v1\/jobs\/\d+\/queue\/\d+$/.test(path) && options.method === "DELETE") {
       const jobId = Number.parseInt(path.split("/").at(-3), 10);
       const queueItemId = Number.parseInt(path.split("/").at(-1), 10);
       const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
       if (root.dataset.mockWorklistErrors === "1") {
         root.dataset.mockWorklistErrorReset = "1";
+      }
+      if (root.dataset.mockWorklistTargetConflict === "1") {
+        root.dataset.mockWorklistConflictReset = "1";
       }
       return { removed: { queueItemId }, job };
     }
@@ -1321,17 +1368,22 @@
     const withBlockingError = root.dataset.mockWorklistErrors === "1"
       && root.dataset.mockRepairTargetCreated !== "1"
       && root.dataset.mockWorklistErrorReset !== "1";
-    const mode = withBlockingError ? "copy" : (job.targetMode || "album");
+    const targetConflictMode = root.dataset.mockWorklistTargetConflict === "1";
+    const conflictRenamed = root.dataset.mockWorklistConflictRenamed === "1";
+    const conflictReset = root.dataset.mockWorklistConflictReset === "1";
+    const withTargetConflict = targetConflictMode && !conflictRenamed && !conflictReset;
+    const mode = withBlockingError ? "copy" : (targetConflictMode ? "move" : (job.targetMode || "album"));
     const queued = job.status === "queued";
     const itemStatus = queued ? "queued" : "planned";
+    const secondItemStatus = withTargetConflict ? "blocked" : itemStatus;
     const realExecutionEnabled = root.dataset.mockRealExecution === "1";
     const configuredBackgroundMode = root.dataset.mockBackgroundMode || "manual-only";
     const backgroundMode = realExecutionEnabled ? configuredBackgroundMode : "manual-only";
     const total = Math.max(3, Number.parseInt(root.dataset.mockWorklistTotal || "3", 10) || 3);
-    const warnings = withBlockingError ? 0 : (total > 3 ? Math.max(1, Math.floor(total * 0.12)) : 1);
-    const errors = withBlockingError ? 1 : 0;
+    const warnings = (withBlockingError || targetConflictMode) ? 0 : (total > 3 ? Math.max(1, Math.floor(total * 0.12)) : 1);
+    const errors = (withBlockingError || withTargetConflict) ? 1 : 0;
     const ready = Math.max(0, total - warnings - errors);
-    const targetPath = mode === "album" ? null : (withBlockingError ? "/Photos/Fehlender Testordner" : (job.targetPath || "/Photos/Sortiert"));
+    const targetPath = mode === "album" ? null : (withBlockingError ? "/Photos/Fehlender Testordner" : (targetConflictMode ? "/Photos/S/BrasilienFotos" : (job.targetPath || "/Photos/Sortiert")));
     const secondIssues = withBlockingError
       ? [{
         code: "target_folder_missing",
@@ -1339,12 +1391,21 @@
         message: "Zielordner fehlt oder ist nicht lesbar.",
         action: "create_target_folder",
       }]
+      : withTargetConflict
+      ? [{
+        code: "target_file_exists",
+        severity: "error",
+        message: "Zieldatei existiert bereits. Wähle einen neuen Namen oder entferne diesen Ablagepunkt.",
+        action: "auto_rename_target",
+      }]
       : [{
         code: "target_file_exists",
         severity: "warning",
         message: "Zieldatei existiert bereits; diese Doppelung wird später sicher übersprungen.",
         action: "safe_skip_duplicate",
       }];
+    const secondReady = conflictRenamed || conflictReset;
+    const secondTargetFileName = conflictRenamed ? "IMG_4022 (1).jpg" : null;
     return {
       job: {
         id: job.id,
@@ -1359,7 +1420,7 @@
         planned: queued ? 0 : total,
         queued: queued ? total : 0,
         executing: 0,
-        blocked: 0,
+        blocked: withTargetConflict ? 1 : 0,
         executed: 0,
         failed: 0,
         ready,
@@ -1400,11 +1461,16 @@
           sourcePath: `${job.sourcePath || "/Photos"}/IMG_4022.jpg`,
           targetPath,
           targetAlbumId: mode === "album" ? "travel" : null,
-          status: itemStatus,
+          targetFileName: secondTargetFileName,
+          status: secondReady ? "queued" : secondItemStatus,
           safeMode: true,
-          readiness: withBlockingError ? "error" : "warning",
-          issues: secondIssues,
-          messages: secondIssues.map((issue) => issue.message),
+          readiness: secondReady ? "ready" : (withBlockingError || withTargetConflict ? "error" : "warning"),
+          issues: secondReady ? [] : secondIssues,
+          messages: secondReady
+            ? (conflictRenamed ? ["Bereit für die sichere Prüfung mit Checksumme.", "Zielname: IMG_4022 (1).jpg"] : ["Bereit für die sichere Prüfung mit Checksumme."])
+            : (withTargetConflict
+              ? ["Zieldatei existiert bereits. Verschieben überschreibt nicht und löscht die Quelle nicht.", ...secondIssues.map((issue) => issue.message)]
+              : secondIssues.map((issue) => issue.message)),
         },
         {
           id: 3,
@@ -2591,6 +2657,7 @@
     }
     const repairItems = worklistErrorItems(items);
     const resettableItems = repairItems.filter(isResettableWorklistItem);
+    const renameableItems = repairItems.filter(isAutoRenameableWorklistItem);
     const jobId = preview?.job?.id || state.worklist.jobId || "";
     return `
       <section class="imageflow-worklist-repair" aria-label="Fehler beheben">
@@ -2601,6 +2668,7 @@
           </div>
           <div class="imageflow-actions">
             <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Fehler erneut prüfen</button>
+            ${renameableItems.length ? `<button class="imageflow-button primary" data-action="repair-auto-rename-visible-conflicts" data-job-id="${escapeAttr(jobId)}" type="button">Alle Zielkonflikte umbenennen</button>` : ""}
             ${resettableItems.length ? `<button class="imageflow-button danger" data-action="repair-reset-visible-errors" data-job-id="${escapeAttr(jobId)}" type="button">Alle Fehler zurücksetzen</button>` : ""}
             ${resettableItems.length ? `<button class="imageflow-button" data-action="repair-reset-visible-errors-and-sort" data-job-id="${escapeAttr(jobId)}" type="button">Alle zurücksetzen & offene Bilder</button>` : ""}
             <button class="imageflow-button" data-action="repair-go-sort" data-job-id="${escapeAttr(jobId)}" type="button">Offene Bilder zeigen</button>
@@ -2619,17 +2687,23 @@
 
   function renderWorklistRepairItem(item) {
     const issues = normalizedWorklistIssues(item);
-    const primaryIssue = issues.find((issue) => issue.severity === "error") || issues[0] || {};
+    const primaryIssue = issues.find((issue) => issue.action === "auto_rename_target" || issue.code === "target_file_exists")
+      || issues.find((issue) => issue.severity === "error")
+      || issues[0]
+      || {};
     const canReset = isResettableWorklistItem(item);
+    const canAutoRename = isAutoRenameableWorklistItem(item);
     const canCreateFolder = canRepairCreateTargetFolder(item, issues);
     const jobId = state.worklist.jobId || state.worklist.preview?.job?.id || "";
     const targetPath = item.targetPath || "";
+    const targetFileName = item.targetFileName || "";
     return `
       <article class="imageflow-repair-row">
         <div class="imageflow-repair-main">
           <span class="imageflow-badge danger">${escapeHtml(worklistIssueTitle(primaryIssue))}</span>
           <strong>${escapeHtml(item.sourcePath || "")}</strong>
           <small>${escapeHtml(targetPath || item.targetAlbumId || "")}</small>
+          ${targetFileName ? `<small>${escapeHtml(`Zielname: ${targetFileName}`)}</small>` : ""}
           <p>${escapeHtml(worklistIssueSuggestion(primaryIssue, item))}</p>
           <ul>
             ${issues.map((issue) => `<li>${escapeHtml(issue.message || "")}</li>`).join("")}
@@ -2637,15 +2711,23 @@
         </div>
         <div class="imageflow-repair-actions">
           ${canCreateFolder ? `<button class="imageflow-button primary" data-action="repair-create-target-folder" data-job-id="${escapeAttr(jobId)}" data-target-path="${escapeAttr(targetPath)}" data-operation-type="${escapeAttr(item.operationType || "")}" type="button">Zielordner anlegen</button>` : ""}
-          ${canReset ? `<button class="imageflow-button danger" data-action="repair-reset-item" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Eintrag zurücksetzen</button>` : ""}
-          ${canReset ? `<button class="imageflow-button" data-action="repair-reset-item-and-sort" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Zurücksetzen & offene Bilder</button>` : ""}
+          ${canAutoRename ? `<button class="imageflow-button primary" data-action="repair-auto-rename-item" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Mit neuem Namen ablegen</button>` : ""}
+          ${canReset ? `<button class="imageflow-button danger" data-action="repair-reset-item" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Aus Stapel entfernen</button>` : ""}
+          ${canReset ? `<button class="imageflow-button" data-action="repair-reset-item-and-sort" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Entfernen & offene Bilder</button>` : ""}
         </div>
       </article>
     `;
   }
 
   function isResettableWorklistItem(item) {
-    return ["planned", "queued"].includes(item?.status || "") && Boolean(item?.id);
+    return ["planned", "queued", "blocked", "failed"].includes(item?.status || "") && Boolean(item?.id);
+  }
+
+  function isAutoRenameableWorklistItem(item) {
+    if (!isResettableWorklistItem(item) || !["copy", "move"].includes(item?.operationType || "") || !item?.targetPath) {
+      return false;
+    }
+    return normalizedWorklistIssues(item).some((issue) => issue.code === "target_file_exists" || issue.action === "auto_rename_target");
   }
 
   function normalizedWorklistIssues(item) {
@@ -2673,6 +2755,7 @@
   function worklistIssueTitle(issue) {
     return {
       target_folder_missing: "Fehlender Zielordner",
+      target_file_exists: "Zielkonflikt",
       source_missing: "Fehlerhafte Entscheidung",
       duplicate_move_source: "Fehlerhafte Entscheidung",
       duplicate_operation: "Fehlerhafte Entscheidung",
@@ -2682,13 +2765,16 @@
 
   function worklistIssueSuggestion(issue, item) {
     if (issue?.action === "create_target_folder") {
-      return "Ordner anlegen oder den Eintrag zurücksetzen.";
+      return "Ordner anlegen oder den Eintrag aus dem Stapel entfernen.";
+    }
+    if (issue?.action === "auto_rename_target" || issue?.code === "target_file_exists") {
+      return "Wähle einen freien Zielnamen oder entferne diesen Ablagepunkt aus dem Stapel.";
     }
     if (issue?.action === "review_log_and_resort" || ["blocked", "failed"].includes(item?.status || "")) {
       return "Im Protokoll prüfen und danach neu sortieren.";
     }
     if (["remove_duplicate_decision", "remove_and_resort"].includes(issue?.action || "")) {
-      return "Eintrag zurücksetzen und das Bild danach neu sortieren.";
+      return "Aus Stapel entfernen und das Bild danach neu sortieren.";
     }
     return "Noch einmal prüfen.";
   }
@@ -2767,14 +2853,16 @@
 
   function renderWorklistItem(item) {
     const badgeClass = item.readiness === "error" ? "danger" : item.readiness === "warning" ? "ready" : "safe";
-    const canRemove = ["planned", "queued"].includes(item.status || "");
+    const canRemove = ["planned", "queued", "blocked", "failed"].includes(item.status || "");
     const jobId = state.worklist.jobId || state.worklist.preview?.job?.id || "";
+    const targetFileName = item.targetFileName || "";
     return `
       <div class="imageflow-worklist-row">
         <div>
           <strong>${escapeHtml(modeLabel(item.operationType))}</strong>
           <span>${escapeHtml(item.sourcePath || "")}</span>
           <small>${escapeHtml(item.targetPath || item.targetAlbumId || "")}</small>
+          ${targetFileName ? `<small>${escapeHtml(`Zielname: ${targetFileName}`)}</small>` : ""}
           <small>${escapeHtml(queueStatusLabel(item.status))}${item.safeMode ? " | Prüfsummen" : ""}</small>
         </div>
         <div class="imageflow-worklist-item-actions">
@@ -3168,6 +3256,10 @@
       await resetVisibleRepairItems(jobId, false);
     } else if (action === "repair-reset-visible-errors-and-sort" && jobId) {
       await resetVisibleRepairItems(jobId, true);
+    } else if (action === "repair-auto-rename-item" && jobId) {
+      await autoRenameRepairItem(jobId, numberOrNull(event.currentTarget.dataset.queueItemId));
+    } else if (action === "repair-auto-rename-visible-conflicts" && jobId) {
+      await autoRenameVisibleConflicts(jobId);
     } else if (action === "toggle-worklist-auto") {
       state.worklist.autoProcess = Boolean(event.currentTarget.checked);
       render();
@@ -3521,7 +3613,7 @@
       return;
     }
     await removeWorklistItem(jobId, queueItemId, {
-      successMessage: "Der fehlerhafte Eintrag wurde zurückgesetzt.",
+      successMessage: "Der Eintrag wurde aus dem Stapel entfernt.",
       keepRepairOpen: true,
       reloadPreview: true,
     });
@@ -3557,7 +3649,7 @@
       state.worklist.repairOpen = !openAfterReset;
       state.toast = {
         type: "info",
-        message: removed === 1 ? "Der fehlerhafte Eintrag wurde zurückgesetzt." : "Die sichtbaren Fehler wurden zurückgesetzt.",
+        message: removed === 1 ? "Der Eintrag wurde aus dem Stapel entfernt." : "Die sichtbaren Fehler wurden aus dem Stapel entfernt.",
       };
       await loadWorklistPreview(jobId);
       if (openAfterReset) {
@@ -3567,6 +3659,72 @@
     } catch (error) {
       state.worklist.loading = false;
       state.worklist.error = error.message || "Die Fehler konnten nicht zurückgesetzt werden.";
+      render();
+    }
+  }
+
+  async function autoRenameRepairItem(jobId, queueItemId) {
+    if (!jobId || !queueItemId) {
+      return;
+    }
+
+    state.worklist.loading = true;
+    state.worklist.error = null;
+    render();
+    try {
+      const payload = await request(`/api/v1/jobs/${jobId}/queue/${queueItemId}/auto-rename`, { method: "POST", body: {} });
+      if (payload.job) {
+        state.jobs = state.jobs.map((job) => (job.id === jobId ? payload.job : job));
+      }
+      state.worklist.repairOpen = true;
+      state.worklist.filter = "all";
+      state.toast = {
+        type: "info",
+        message: payload.message || "Der Ablagepunkt wurde mit neuem Namen vorbereitet.",
+      };
+      await loadWorklistPreview(jobId);
+    } catch (error) {
+      state.worklist.loading = false;
+      state.worklist.error = error.message || "Der Ablagepunkt konnte nicht automatisch umbenannt werden.";
+      render();
+    }
+  }
+
+  async function autoRenameVisibleConflicts(jobId) {
+    if (!jobId) {
+      return;
+    }
+    const preview = state.worklist.preview;
+    const items = worklistErrorItems(preview?.items || []).filter(isAutoRenameableWorklistItem);
+    if (!items.length) {
+      state.worklist.error = "Es gibt keine sichtbaren Zielkonflikte, die automatisch umbenannt werden können.";
+      render();
+      return;
+    }
+
+    state.worklist.loading = true;
+    state.worklist.error = null;
+    render();
+    try {
+      let lastPayload = null;
+      for (const item of items) {
+        lastPayload = await request(`/api/v1/jobs/${jobId}/queue/${item.id}/auto-rename`, { method: "POST", body: {} });
+      }
+      if (lastPayload?.job) {
+        state.jobs = state.jobs.map((job) => (job.id === jobId ? lastPayload.job : job));
+      }
+      state.worklist.repairOpen = true;
+      state.worklist.filter = "all";
+      state.toast = {
+        type: "info",
+        message: items.length === 1
+          ? (lastPayload?.message || "Der Ablagepunkt wurde mit neuem Namen vorbereitet.")
+          : "Die sichtbaren Zielkonflikte wurden mit neuen Namen vorbereitet.",
+      };
+      await loadWorklistPreview(jobId);
+    } catch (error) {
+      state.worklist.loading = false;
+      state.worklist.error = error.message || "Die Zielkonflikte konnten nicht automatisch umbenannt werden.";
       render();
     }
   }
