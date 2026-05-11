@@ -777,8 +777,8 @@
 
 .imageflow-sort-grid {
   display: grid;
-  grid-template-columns: minmax(160px, 250px) minmax(360px, 1fr) minmax(220px, 340px);
-  gap: 12px;
+  grid-template-columns: minmax(132px, 210px) minmax(360px, 1fr) minmax(190px, 300px);
+  gap: 10px;
   min-height: 0;
   overflow: hidden;
 }
@@ -789,7 +789,7 @@
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-main-background);
@@ -802,21 +802,21 @@
 .imageflow-target-head-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-end;
 }
 
 .imageflow-rail h4,
 .imageflow-targets h4 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .imageflow-target-filter,
 .imageflow-target-create {
   display: grid;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding: 8px;
+  gap: 5px;
+  margin-bottom: 8px;
+  padding: 6px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
 }
@@ -831,6 +831,7 @@
 
 .imageflow-target-filter label,
 .imageflow-target-create label {
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -838,12 +839,13 @@
 .imageflow-target-create > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px;
+  gap: 5px;
 }
 
 .imageflow-target-filter input,
 .imageflow-target-create input {
   min-width: 0;
+  min-height: 32px;
   border-radius: 6px;
 }
 
@@ -861,7 +863,7 @@
 .imageflow-target-list,
 .imageflow-strip {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .imageflow-favorite-list,
@@ -875,7 +877,7 @@
 .imageflow-target-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 6px;
+  gap: 5px;
   align-items: stretch;
 }
 
@@ -892,9 +894,9 @@
 .imageflow-mini-spacer {
   display: inline-grid;
   place-items: center;
-  width: 32px;
-  min-width: 32px;
-  min-height: 44px;
+  width: 28px;
+  min-width: 28px;
+  min-height: 36px;
   border-radius: 6px;
 }
 
@@ -914,7 +916,7 @@
   border: 1px solid var(--color-border);
   color: var(--color-main-text);
   background: var(--color-main-background);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
   line-height: 1;
 }
@@ -933,12 +935,12 @@
 .imageflow-favorite,
 .imageflow-target {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 6px;
   align-items: center;
   width: 100%;
-  min-height: 44px;
-  padding: 7px;
+  min-height: 36px;
+  padding: 5px 6px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   background: color-mix(in srgb, var(--color-main-background) 94%, var(--color-background-darker));
@@ -953,25 +955,45 @@
 .imageflow-key {
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
   border-radius: 6px;
   color: #ffffff;
   background: #7357c8;
+  font-size: 12px;
   font-weight: 900;
 }
 
 .imageflow-target span,
 .imageflow-favorite span {
   display: block;
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: normal;
+}
+
+.imageflow-target strong,
+.imageflow-favorite strong,
+.imageflow-target small,
+.imageflow-favorite small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .imageflow-target small,
 .imageflow-favorite small {
-  display: block;
   color: var(--color-text-maxcontrast);
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.imageflow-target strong,
+.imageflow-favorite strong {
+  line-height: 1.15;
 }
 
 .imageflow-photo-stage {
@@ -1867,7 +1889,7 @@
 
 @container (max-width: 860px) {
   .imageflow-sort-grid {
-    grid-template-columns: minmax(104px, 160px) minmax(0, 1fr) minmax(160px, 220px);
+    grid-template-columns: minmax(96px, 140px) minmax(0, 1fr) minmax(150px, 210px);
   }
 
   .imageflow-target-head-actions .imageflow-button,
@@ -1974,7 +1996,6 @@
   }
 
   .imageflow-path-picker,
-  .imageflow-target-filter > div,
   .imageflow-target-create > div,
   .imageflow-folder-row,
   .imageflow-repair-row,
@@ -1982,6 +2003,10 @@
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .imageflow-target-filter > div {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .imageflow-repair-actions {

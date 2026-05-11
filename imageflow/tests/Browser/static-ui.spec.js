@@ -437,6 +437,16 @@ test('renders the sorting workspace with hotkey targets and filmstrip', async ({
   expect(footerBox.height).toBeLessThan(100);
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(900);
   expect(await page.locator('.imageflow-thumb strong').first().boundingBox()).toBeNull();
+
+  const compactBoxes = await measuredBoxes(page, {
+    favorite: '.imageflow-favorite-row',
+    target: '.imageflow-target-row',
+  });
+  expect(compactBoxes.favorite.height).toBeLessThan(43);
+  expect(compactBoxes.target.height).toBeLessThan(43);
+  await expect(page.locator('.imageflow-target small').first()).toHaveCSS('white-space', 'nowrap');
+  await expect(page.locator('.imageflow-target small').first()).toHaveCSS('text-overflow', 'ellipsis');
+  await expect(page.locator('.imageflow-favorite').first()).toHaveAttribute('title', /Taste 1/);
 });
 
 test('moves through the filmstrip with arrow keys and thumbnail selection', async ({ page }) => {

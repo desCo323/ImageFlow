@@ -116,3 +116,9 @@ Screenshots 1-9 document the earlier safety and worklist blocks. Screenshots 10-
 
 37. V1 live mobile sorting workspace
    ![V1 live mobile sorting workspace](screenshots/37-v1-live-sort-mobile.png)
+
+38. Compact desktop Flow with tighter quick targets and truncated long target names
+   ![Compact desktop Flow with tighter quick targets and truncated long target names](screenshots/38-compact-flow-targets-desktop.png)
+
+39. Compact mobile Flow with inline target search and dense target rows
+   ![Compact mobile Flow with inline target search and dense target rows](screenshots/39-compact-flow-targets-mobile.png)

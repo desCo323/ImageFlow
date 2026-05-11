@@ -2383,6 +2383,10 @@
     const isSkip = favorite.locked || favorite.targetType === "skip" || favorite.id === "skip";
     const favoriteId = String(favorite.id || "");
     const decisionDisabled = state.decisionInFlight ? "disabled" : "";
+    const favoriteHotkey = favorite.hotkey || String(favorite.position || "");
+    const favoriteTitle = [favorite.label, favorite.path ? normalizeDisplayPath(favorite.path) : "", favoriteHotkey ? `Taste ${favoriteHotkey}` : ""]
+      .filter(Boolean)
+      .join(" - ");
     const rowAttrs = isSkip
       ? ""
       : `draggable="true" data-favorite-id="${escapeAttr(favoriteId)}"`;
@@ -2393,9 +2397,9 @@
     return `
       <div class="imageflow-favorite-row ${isSkip ? "is-fixed" : ""}" ${rowAttrs}>
         <span class="imageflow-drag-handle" aria-hidden="true">::</span>
-        <button class="imageflow-favorite" data-action="${action}" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(favorite.targetId || favorite.id || "")}" data-target-label="${escapeAttr(favorite.label)}" data-target-path="${escapeAttr(favorite.path || "")}" data-hotkey="${escapeAttr(favorite.hotkey || "")}" type="button" ${decisionDisabled}>
-          <span class="imageflow-key">${escapeHtml(favorite.hotkey || String(favorite.position || ""))}</span>
-          <span><strong>${escapeHtml(favorite.label)}</strong><small>Position ${escapeHtml(String(favorite.position || ""))}</small></span>
+        <button class="imageflow-favorite" data-action="${action}" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(favorite.targetId || favorite.id || "")}" data-target-label="${escapeAttr(favorite.label)}" data-target-path="${escapeAttr(favorite.path || "")}" data-hotkey="${escapeAttr(favorite.hotkey || "")}" title="${escapeAttr(favoriteTitle)}" type="button" ${decisionDisabled}>
+          <span class="imageflow-key">${escapeHtml(favoriteHotkey)}</span>
+          <span><strong>${escapeHtml(favorite.label)}</strong></span>
         </button>
         ${remove}
       </div>
@@ -2406,15 +2410,17 @@
     const label = target.label || target.name || "Ziel";
     const targetId = target.id || target.path || "";
     const targetPath = target.path || "";
+    const targetMeta = target.location || target.path || "";
+    const targetTitle = [label, targetMeta].filter(Boolean).join(" - ");
     const decisionDisabled = state.decisionInFlight ? "disabled" : "";
     const browse = isFolderMode && target.hasChildren
       ? `<button class="imageflow-mini-button" data-action="browse-target-folder" data-target-path="${escapeAttr(targetPath)}" aria-label="Ordner öffnen: ${escapeAttr(label)}" title="Ordner öffnen" type="button">›</button>`
       : "";
     return `
       <div class="imageflow-target-row">
-        <button class="imageflow-target" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" type="button" ${decisionDisabled}>
+        <button class="imageflow-target" data-action="assign" data-file-id="${escapeAttr(current.fileId || "")}" data-file-name="${escapeAttr(current.name || "")}" data-mime-type="${escapeAttr(current.mimeType || "")}" data-source-path="${escapeAttr(current.path || "")}" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" title="${escapeAttr(targetTitle)}" type="button" ${decisionDisabled}>
           <span class="imageflow-key">${index + 1}</span>
-          <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(target.location || target.path || "")}</small></span>
+          <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(targetMeta)}</small></span>
         </button>
         ${browse}
         <button class="imageflow-mini-button" data-action="add-favorite" data-target-id="${escapeAttr(targetId)}" data-target-label="${escapeAttr(label)}" data-target-path="${escapeAttr(targetPath)}" aria-label="Als Schnellziel merken: ${escapeAttr(label)}" title="Als Schnellziel merken" type="button">+</button>
