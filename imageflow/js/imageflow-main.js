@@ -286,19 +286,23 @@
         "Fehlerbehebung": "Issue repair",
         "Diese Werkzeuge ändern nur noch nicht ausgeführte Ablagepunkte. Laufende oder bereits erledigte Ablagen bleiben unverändert.": "These tools only change filing items that have not run yet. Running or completed items remain unchanged.",
         "Fehler erneut prüfen": "Check issues again",
-        "Zur Sortierung": "Back to sorting",
+        "Offene Bilder zeigen": "Show open images",
         "Zielordner anlegen": "Create destination folder",
-        "Entscheidung entfernen": "Remove decision",
+        "Eintrag zurücksetzen": "Reset item",
+        "Zurücksetzen & offene Bilder": "Reset and show open images",
+        "Alle Fehler zurücksetzen": "Reset all errors",
+        "Alle zurücksetzen & offene Bilder": "Reset all and show open images",
         "Kein direkt behebbarer Fehler in den sichtbaren Einträgen. Prüfe die Ablage erneut oder öffne das Protokoll.": "No directly repairable error in the visible entries. Check filing again or open the log.",
         "Fehlender Zielordner": "Missing destination folder",
         "Fehlerhafte Entscheidung": "Faulty decision",
         "Sicherer Vorschlag": "Safe suggestion",
-        "Ordner anlegen oder diese Entscheidung entfernen.": "Create the folder or remove this decision.",
-        "Entscheidung entfernen und das Bild danach neu sortieren.": "Remove the decision and sort the image again afterwards.",
+        "Ordner anlegen oder den Eintrag zurücksetzen.": "Create the folder or reset the item.",
+        "Eintrag zurücksetzen und das Bild danach neu sortieren.": "Reset the item and sort the image again afterwards.",
         "Im Protokoll prüfen und danach neu sortieren.": "Review the log and sort again afterwards.",
         "Noch einmal prüfen.": "Check again.",
         "Das Ziel wurde angelegt. Die Ablage wird erneut geprüft.": "The destination was created. Filing is checked again.",
-        "Die fehlerhafte Entscheidung wurde entfernt.": "The faulty decision was removed.",
+        "Der fehlerhafte Eintrag wurde zurückgesetzt.": "The faulty item was reset.",
+        "Die sichtbaren Fehler wurden zurückgesetzt.": "The visible errors were reset.",
         "Noch keine Entscheidungen für die Ablage vorhanden.": "No filing decisions yet.",
         "Keine Einträge in diesem Filter.": "No entries in this filter.",
         "Geplant": "Planned",
@@ -371,7 +375,11 @@
         "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus der Liste.": "Removes this not-yet-executed filing item from the list.",
         "Öffnet Werkzeuge, um blockierende Ablagefehler sicher zu bereinigen.": "Opens tools to safely repair blocking filing errors.",
         "Legt den fehlenden Zielordner an und prüft die Ablage danach erneut.": "Creates the missing destination folder and checks filing again afterwards.",
-        "Schließt die Prüfung und öffnet den Sortierbildschirm für diesen Flow.": "Closes review and opens the sorting screen for this flow.",
+        "Setzt diesen fehlerhaften Eintrag zurück, damit das Bild wieder offen ist.": "Resets this faulty item so the image is open again.",
+        "Setzt diesen fehlerhaften Eintrag zurück und zeigt danach offene Bilder.": "Resets this faulty item and then shows open images.",
+        "Setzt alle sichtbaren, noch nicht ausgeführten Fehler zurück.": "Resets all visible errors that have not run yet.",
+        "Setzt alle sichtbaren, noch nicht ausgeführten Fehler zurück und zeigt danach offene Bilder.": "Resets all visible errors that have not run yet and then shows open images.",
+        "Schließt die Prüfung und zeigt die offenen Bilder dieses Flows.": "Closes review and shows the open images for this flow.",
         "Wählt diesen Ordner für den Flow aus.": "Chooses this folder for the flow.",
         "Öffnet den Ordnerauswahldialog.": "Opens the folder picker.",
         "Bestimmt den Anzeigenamen des Flows.": "Sets the display name of the flow.",
@@ -473,7 +481,11 @@
     "remove-worklist-item": "Entfernt diesen noch nicht ausgeführten Ablagepunkt aus der Liste.",
     "toggle-worklist-repair": "Öffnet Werkzeuge, um blockierende Ablagefehler sicher zu bereinigen.",
     "repair-create-target-folder": "Legt den fehlenden Zielordner an und prüft die Ablage danach erneut.",
-    "repair-go-sort": "Schließt die Prüfung und öffnet den Sortierbildschirm für diesen Flow.",
+    "repair-reset-item": "Setzt diesen fehlerhaften Eintrag zurück, damit das Bild wieder offen ist.",
+    "repair-reset-item-and-sort": "Setzt diesen fehlerhaften Eintrag zurück und zeigt danach offene Bilder.",
+    "repair-reset-visible-errors": "Setzt alle sichtbaren, noch nicht ausgeführten Fehler zurück.",
+    "repair-reset-visible-errors-and-sort": "Setzt alle sichtbaren, noch nicht ausgeführten Fehler zurück und zeigt danach offene Bilder.",
+    "repair-go-sort": "Schließt die Prüfung und zeigt die offenen Bilder dieses Flows.",
     "toggle-worklist-auto": "Merkt, ob dieser Flow automatisch abgelegt werden soll.",
     "select-image": "Springt zu diesem Vorschaubild.",
     "page-prev": "Zeigt die vorherigen Vorschaubilder.",
@@ -820,6 +832,9 @@
       const jobId = Number.parseInt(path.split("/").at(-3), 10);
       const queueItemId = Number.parseInt(path.split("/").at(-1), 10);
       const job = state.jobs.find((item) => item.id === jobId) || mockJobs()[0];
+      if (root.dataset.mockWorklistErrors === "1") {
+        root.dataset.mockWorklistErrorReset = "1";
+      }
       return { removed: { queueItemId }, job };
     }
     if (path === "/api/v1/favorites" && options.method === "POST") {
@@ -1296,7 +1311,9 @@
   }
 
   function mockWorklistPreview(job) {
-    const withBlockingError = root.dataset.mockWorklistErrors === "1" && root.dataset.mockRepairTargetCreated !== "1";
+    const withBlockingError = root.dataset.mockWorklistErrors === "1"
+      && root.dataset.mockRepairTargetCreated !== "1"
+      && root.dataset.mockWorklistErrorReset !== "1";
     const mode = withBlockingError ? "copy" : (job.targetMode || "album");
     const queued = job.status === "queued";
     const itemStatus = queued ? "queued" : "planned";
@@ -2506,6 +2523,8 @@
       return "";
     }
     const repairItems = worklistErrorItems(items);
+    const resettableItems = repairItems.filter(isResettableWorklistItem);
+    const jobId = preview?.job?.id || state.worklist.jobId || "";
     return `
       <section class="imageflow-worklist-repair" aria-label="Fehler beheben">
         <div class="imageflow-panel-head">
@@ -2515,7 +2534,9 @@
           </div>
           <div class="imageflow-actions">
             <button class="imageflow-button" data-action="refresh-worklist-preview" type="button">Fehler erneut prüfen</button>
-            <button class="imageflow-button" data-action="repair-go-sort" data-job-id="${escapeAttr(preview?.job?.id || state.worklist.jobId || "")}" type="button">Zur Sortierung</button>
+            ${resettableItems.length ? `<button class="imageflow-button danger" data-action="repair-reset-visible-errors" data-job-id="${escapeAttr(jobId)}" type="button">Alle Fehler zurücksetzen</button>` : ""}
+            ${resettableItems.length ? `<button class="imageflow-button" data-action="repair-reset-visible-errors-and-sort" data-job-id="${escapeAttr(jobId)}" type="button">Alle zurücksetzen & offene Bilder</button>` : ""}
+            <button class="imageflow-button" data-action="repair-go-sort" data-job-id="${escapeAttr(jobId)}" type="button">Offene Bilder zeigen</button>
           </div>
         </div>
         <div class="imageflow-repair-list">
@@ -2532,7 +2553,7 @@
   function renderWorklistRepairItem(item) {
     const issues = normalizedWorklistIssues(item);
     const primaryIssue = issues.find((issue) => issue.severity === "error") || issues[0] || {};
-    const canRemove = ["planned", "queued"].includes(item.status || "");
+    const canReset = isResettableWorklistItem(item);
     const canCreateFolder = canRepairCreateTargetFolder(item, issues);
     const jobId = state.worklist.jobId || state.worklist.preview?.job?.id || "";
     const targetPath = item.targetPath || "";
@@ -2549,11 +2570,15 @@
         </div>
         <div class="imageflow-repair-actions">
           ${canCreateFolder ? `<button class="imageflow-button primary" data-action="repair-create-target-folder" data-job-id="${escapeAttr(jobId)}" data-target-path="${escapeAttr(targetPath)}" data-operation-type="${escapeAttr(item.operationType || "")}" type="button">Zielordner anlegen</button>` : ""}
-          ${canRemove ? `<button class="imageflow-button danger" data-action="remove-worklist-item" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Entscheidung entfernen</button>` : ""}
-          <button class="imageflow-button" data-action="repair-go-sort" data-job-id="${escapeAttr(jobId)}" type="button">Zur Sortierung</button>
+          ${canReset ? `<button class="imageflow-button danger" data-action="repair-reset-item" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Eintrag zurücksetzen</button>` : ""}
+          ${canReset ? `<button class="imageflow-button" data-action="repair-reset-item-and-sort" data-job-id="${escapeAttr(jobId)}" data-queue-item-id="${escapeAttr(item.id || "")}" type="button">Zurücksetzen & offene Bilder</button>` : ""}
         </div>
       </article>
     `;
+  }
+
+  function isResettableWorklistItem(item) {
+    return ["planned", "queued"].includes(item?.status || "") && Boolean(item?.id);
   }
 
   function normalizedWorklistIssues(item) {
@@ -2590,13 +2615,13 @@
 
   function worklistIssueSuggestion(issue, item) {
     if (issue?.action === "create_target_folder") {
-      return "Ordner anlegen oder diese Entscheidung entfernen.";
+      return "Ordner anlegen oder den Eintrag zurücksetzen.";
     }
     if (issue?.action === "review_log_and_resort" || ["blocked", "failed"].includes(item?.status || "")) {
       return "Im Protokoll prüfen und danach neu sortieren.";
     }
     if (["remove_duplicate_decision", "remove_and_resort"].includes(issue?.action || "")) {
-      return "Entscheidung entfernen und das Bild danach neu sortieren.";
+      return "Eintrag zurücksetzen und das Bild danach neu sortieren.";
     }
     return "Noch einmal prüfen.";
   }
@@ -3063,7 +3088,15 @@
       await createRepairTargetFolder(event.currentTarget);
     } else if (action === "repair-go-sort" && jobId) {
       closeWorklistPreview();
-      await openSort(jobId, "resume");
+      await openSort(jobId, "unsorted");
+    } else if (action === "repair-reset-item" && jobId) {
+      await resetRepairItem(jobId, numberOrNull(event.currentTarget.dataset.queueItemId), false);
+    } else if (action === "repair-reset-item-and-sort" && jobId) {
+      await resetRepairItem(jobId, numberOrNull(event.currentTarget.dataset.queueItemId), true);
+    } else if (action === "repair-reset-visible-errors" && jobId) {
+      await resetVisibleRepairItems(jobId, false);
+    } else if (action === "repair-reset-visible-errors-and-sort" && jobId) {
+      await resetVisibleRepairItems(jobId, true);
     } else if (action === "toggle-worklist-auto") {
       state.worklist.autoProcess = Boolean(event.currentTarget.checked);
       render();
@@ -3412,6 +3445,61 @@
     }
   }
 
+  async function resetRepairItem(jobId, queueItemId, openAfterReset = false) {
+    if (!jobId || !queueItemId) {
+      return;
+    }
+    await removeWorklistItem(jobId, queueItemId, {
+      successMessage: "Der fehlerhafte Eintrag wurde zurückgesetzt.",
+      keepRepairOpen: true,
+      reloadPreview: true,
+    });
+    if (openAfterReset && !state.worklist.error) {
+      closeWorklistPreview();
+      await openSort(jobId, "unsorted");
+    }
+  }
+
+  async function resetVisibleRepairItems(jobId, openAfterReset = false) {
+    if (!jobId) {
+      return;
+    }
+    const preview = state.worklist.preview;
+    const items = worklistErrorItems(preview?.items || []).filter(isResettableWorklistItem);
+    if (!items.length) {
+      state.worklist.error = "Es gibt keine sichtbaren Fehler, die zurückgesetzt werden können.";
+      render();
+      return;
+    }
+
+    state.worklist.loading = true;
+    state.worklist.error = null;
+    render();
+    let removed = 0;
+    try {
+      for (const item of items) {
+        await request(`/api/v1/jobs/${jobId}/queue/${item.id}`, { method: "DELETE", body: {} });
+        removePreviewItemLocally(item.id);
+        removed += 1;
+      }
+      state.worklist.loading = false;
+      state.worklist.repairOpen = !openAfterReset;
+      state.toast = {
+        type: "info",
+        message: removed === 1 ? "Der fehlerhafte Eintrag wurde zurückgesetzt." : "Die sichtbaren Fehler wurden zurückgesetzt.",
+      };
+      await loadWorklistPreview(jobId);
+      if (openAfterReset) {
+        closeWorklistPreview();
+        await openSort(jobId, "unsorted");
+      }
+    } catch (error) {
+      state.worklist.loading = false;
+      state.worklist.error = error.message || "Die Fehler konnten nicht zurückgesetzt werden.";
+      render();
+    }
+  }
+
   function mergeTargetList(target, targets) {
     const list = Array.isArray(targets) ? targets : [];
     if (!target) {
@@ -3693,7 +3781,7 @@
     }
   }
 
-  async function removeWorklistItem(jobId, queueItemId) {
+  async function removeWorklistItem(jobId, queueItemId, options = {}) {
     if (!jobId || !queueItemId) {
       return;
     }
@@ -3708,10 +3796,17 @@
         }
       }
       removePreviewItemLocally(queueItemId);
+      if (options.keepRepairOpen) {
+        state.worklist.repairOpen = true;
+      }
       state.toast = {
         type: "info",
-        message: removedBeforeRequest?.readiness === "error" ? "Die fehlerhafte Entscheidung wurde entfernt." : "Ablagepunkt wurde entfernt.",
+        message: options.successMessage || (removedBeforeRequest?.readiness === "error" ? "Der fehlerhafte Eintrag wurde zurückgesetzt." : "Ablagepunkt wurde entfernt."),
       };
+      if (options.reloadPreview) {
+        await loadWorklistPreview(jobId);
+        return;
+      }
       render();
     } catch (error) {
       state.worklist.error = error.message || "Ablagepunkt konnte nicht entfernt werden.";

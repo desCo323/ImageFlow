@@ -260,12 +260,30 @@ test('offers repair tools for blocking worklist errors', async ({ page }) => {
   await expect(dialog.getByText('Diese Werkzeuge ändern nur noch nicht ausgeführte Ablagepunkte.')).toBeVisible();
   await expect(dialog.getByText('Zielordner fehlt oder ist nicht lesbar.').first()).toBeVisible();
   await expect(dialog.getByText('/Photos/Fehlender Testordner').first()).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Entscheidung entfernen' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Eintrag zurücksetzen' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Alle Fehler zurücksetzen' })).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Zielordner anlegen' }).click();
   await expect(page.getByText('Das Ziel wurde angelegt. Die Ablage wird erneut geprüft.')).toBeVisible();
   await expect(dialog.getByText(/Erst die Fehler beheben/)).toHaveCount(0);
   await expect(dialog.getByText('Keine Aktion nötig.')).toBeVisible();
+});
+
+test('resets all visible worklist errors from the repair menu', async ({ page }) => {
+  await mount(page, 'data-page="jobs" data-mock-worklist-errors="1"');
+
+  const row = page.locator('tr', { hasText: 'Familienfotos 2025' });
+  await row.getByRole('button', { name: 'Ablage prüfen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ablage prüfen' });
+  await dialog.getByRole('button', { name: 'Fehler beheben' }).click();
+  await expect(dialog.getByRole('button', { name: 'Alle Fehler zurücksetzen' })).toBeVisible();
+
+  await dialog.getByRole('button', { name: 'Alle Fehler zurücksetzen' }).click();
+  await expect(page.getByText('Der fehlerhafte Eintrag wurde zurückgesetzt.')).toBeVisible();
+  await expect(dialog.getByText(/Erst die Fehler beheben/)).toHaveCount(0);
+  await expect(dialog.getByText('Keine Aktion nötig.')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /Auffälligkeiten 1/ })).toBeVisible();
+  await expect(dialog.locator('.imageflow-worklist-row')).toHaveCount(1);
 });
 
 test('shows the manual execution button after a flow is released for filing', async ({ page }) => {
