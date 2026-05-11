@@ -897,9 +897,9 @@
   place-items: center;
   width: 28px;
   min-width: 28px;
-  height: 36px;
+  height: 36px !important;
   min-height: 36px !important;
-  max-height: 36px;
+  max-height: 36px !important;
   padding: 0;
   border-radius: 6px;
 }
@@ -950,18 +950,19 @@
   border-radius: 6px;
   background: color-mix(in srgb, var(--color-main-background) 94%, var(--color-background-darker));
   font-size: 13px;
+  overflow: hidden;
   text-align: left;
 }
 
 .imageflow-favorite {
-  height: 36px;
-  max-height: 36px;
+  height: 36px !important;
+  max-height: 36px !important;
 }
 
 .imageflow-target {
-  height: 40px;
+  height: 40px !important;
   min-height: 40px !important;
-  max-height: 40px;
+  max-height: 40px !important;
   padding-block: 4px !important;
 }
 
@@ -1005,13 +1006,13 @@
 .imageflow-target small,
 .imageflow-favorite small {
   color: var(--color-text-maxcontrast);
-  font-size: 11px;
-  line-height: 1.15;
+  font-size: 11px !important;
+  line-height: 1.05 !important;
 }
 
 .imageflow-target strong,
 .imageflow-favorite strong {
-  line-height: 1.15;
+  line-height: 1.05 !important;
 }
 
 .imageflow-photo-stage {
